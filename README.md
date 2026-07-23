@@ -47,6 +47,7 @@ src/controller/   three-operation controller and deterministic planner
 src/adapters/     I/O adapter interfaces
 src/testing/      deterministic in-memory adapters
 src/ledger/       WAL SQLite adapter, repositories, migrations, backup and restore
+src/github/       conditional API client, observation/reconciliation, guarded labels, App tokens
 tests/            contract, planner, ledger, migration and recovery tests plus fixtures
 config/           configuration contract documentation and later examples
 systemd/          future systemd user-service assets
@@ -71,9 +72,9 @@ Canonical scripts are:
 - `bun run format` — write Biome formatting changes.
 - `bun run validate` — typecheck, lint, then test.
 
-Phase 2 includes the production SQLite persistence adapter, but no production service, CLI,
-GitHub client, or credential provisioning. The adapter receives its state directory and all
-clock/ID sources from callers; Phase 6 will supply XDG and service wiring.
+Phase 3 includes the production SQLite persistence and GitHub integration components, but no
+production service, CLI, or credential provisioning. Adapters receive state paths, HTTP, clock,
+delay, randomness, and ID sources from callers; Phase 6 will supply XDG and service wiring.
 
 ## Contracts and safety
 
@@ -86,17 +87,17 @@ Global implementation, feedback, and ready-to-merge limits come from the documen
 to one. A project may lower any limit. Zero pauses the corresponding lane; a zero
 ready-to-merge ceiling suppresses new implementation launches.
 
-See [the documentation index](docs/README.md), [ledger guide](docs/ledger.md), and
+See [the documentation index](docs/README.md), [ledger guide](docs/ledger.md),
+[GitHub integration guide](docs/github.md), [label migration guide](docs/label-migration.md), and
 [configuration notes](config/README.md).
 
 ## Documentation plan
 
 Later phases will extend this foundation with dedicated, verified guidance for installation,
-GitHub App setup, profiles, environment variables, GitHub reconciliation and label migration,
-provider runners and circuits, Herdr attachment, systemd operation, CLI commands, rollout,
-updates and rollback, graceful shutdown, recovery/takeover, notifications, security, testing,
-and troubleshooting. The documentation index records the owning implementation phase so
-unfinished machinery is not presented as available.
+profiles, provider runners and circuits, Herdr attachment, systemd operation, CLI commands,
+rollout, updates and rollback, graceful shutdown, recovery/takeover, notifications, security,
+testing, and troubleshooting. The documentation index records the owning implementation phase
+so unfinished machinery is not presented as available.
 
 ## v1 boundaries
 

@@ -1,9 +1,14 @@
 export type {
   ClockAdapter,
   ControllerAdapters,
+  DelayAdapter,
   FileMetadata,
   FileSystemAdapter,
   GitHubAdapter,
+  GitHubHttpRequest,
+  GitHubHttpResponse,
+  GitHubHttpTransport,
+  GitHubObserveOptions,
   LedgerAdapter,
   Notification,
   NotificationAdapter,
@@ -70,4 +75,5 @@ export {
   type ResolvedLabels,
   resolveCanonicalLabels,
 } from "./domain/stages";
+export * from "./github";
 export * from "./ledger";

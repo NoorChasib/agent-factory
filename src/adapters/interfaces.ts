@@ -7,7 +7,38 @@ import type {
 } from "../controller/model";
 
 export interface GitHubAdapter {
-  observe(projectIds: readonly string[]): Promise<unknown>;
+  observe(projectIds: readonly string[], options?: GitHubObserveOptions): Promise<unknown>;
+}
+
+export interface GitHubObserveOptions {
+  readonly reason: "status" | "startup" | "poll" | "change" | "capacity" | "recovery" | "operator";
+  readonly allowMutations: boolean;
+  readonly enabledProjectIds: readonly string[];
+  readonly activeFeedbackPullRequests: readonly {
+    readonly projectId: string;
+    readonly pullRequestNumber: number;
+  }[];
+}
+
+export interface GitHubHttpRequest {
+  readonly method: "GET" | "POST" | "PATCH" | "DELETE";
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body?: string;
+}
+
+export interface GitHubHttpResponse {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
+export interface GitHubHttpTransport {
+  request(request: GitHubHttpRequest): Promise<GitHubHttpResponse>;
+}
+
+export interface DelayAdapter {
+  wait(milliseconds: number): Promise<void>;
 }
 
 export interface ClockAdapter {

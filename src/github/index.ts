@@ -1,0 +1,85 @@
+export {
+  ProductionGitHubAdapter,
+  type ProductionGitHubAdapterOptions,
+} from "./adapter";
+export {
+  BunDelayAdapter,
+  FetchGitHubTransport,
+  GitHubApiClient,
+  type GitHubApiClientOptions,
+  type GitHubCircuitFailureSignal,
+  type GitHubFailureClassification,
+  GitHubReadError,
+  type GitHubReadResult,
+} from "./client";
+export {
+  applyLabelMigration,
+  approveLabelMigration,
+  fingerprintRepositoryLabels,
+  hashLabelMigrationPlanContent,
+  LabelMigrationApprovalError,
+  LabelMigrationDriftError,
+  type LabelMigrationOperation,
+  type LabelMigrationPlan,
+  LabelMigrationPlanSchema,
+  planLabelMigration,
+  renderLabelMigrationPreview,
+} from "./label-migration";
+export {
+  assertAllowedGitHubMutation,
+  FORBIDDEN_GITHUB_MUTATION_KINDS,
+  ForbiddenGitHubMutationError,
+  type GitHubAllowedMutation,
+  GitHubAllowedMutationSchema,
+  type GitHubLabelGateway,
+  GitHubMutationAmbiguousError,
+  type GitHubMutationExecutionResult,
+  type GitHubMutationExecutionStatus,
+  GitHubMutationExecutor,
+  type GitHubMutationLedger,
+  GitHubMutationRejectedError,
+  type GitHubProjectTokenProvider,
+  GuardedGitHubLabelApi,
+  type GuardedGitHubLabelApiOptions,
+  type RepositoryLabel,
+} from "./mutations";
+export {
+  GITHUB_OBSERVATION_QUERY,
+  type GitHubCheckConclusion,
+  type GitHubCheckSnapshot,
+  type GitHubIssueSnapshot,
+  type GitHubObservationAssociations,
+  GitHubObservationResponseSchema,
+  type GitHubProjectSnapshot,
+  type GitHubPullRequestSnapshot,
+  type GitHubReviewSnapshot,
+  type GitHubReviewState,
+  mapGitHubObservation,
+  readGitHubObservation,
+  toControllerObservation,
+} from "./observation";
+export {
+  assessReadyToMerge,
+  type ConvergenceAssessment,
+  captureFeedbackBaseline,
+  detectLateFeedback,
+  GitHubLifecycleReconciler,
+  type GitHubReviewBaselineRepository,
+  type LateFeedbackReason,
+  type LifecycleReconcileResult,
+  type ReadyToMergeRevocationReason,
+  shouldFullyReconcile,
+} from "./reconciliation";
+export {
+  CanonicalStageManager,
+  type StageTransitionResult,
+} from "./stages";
+export {
+  GITHUB_APP_ID_ENVIRONMENT,
+  GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT,
+  type GitHubAppEnvironment,
+  GitHubAppTokenBroker,
+  GitHubAppTokenBrokerError,
+  type GitHubAppTokenBrokerOptions,
+  parseGitHubAppEnvironment,
+} from "./token-broker";

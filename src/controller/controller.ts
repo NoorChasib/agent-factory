@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { assertExecutionMatchesLaunch, type ControllerAdapters } from "../adapters/interfaces";
+import {
+  assertExecutionMatchesLaunch,
+  type ControllerAdapters,
+  type GitHubObserveOptions,
+} from "../adapters/interfaces";
 import type { ProjectProfile } from "../contracts/project-profile";
 import { resolveCanonicalLabels } from "../domain/stages";
 import { ControllerCommandSchema, ReconcileRequestSchema } from "./commands";
@@ -167,10 +171,34 @@ class DeterministicController implements Controller {
     this.#adapters = adapters;
   }
 
-  async #context(): Promise<Context> {
+  async #context(
+    reason: GitHubObserveOptions["reason"],
+    mutationRequested: boolean,
+  ): Promise<Context> {
     const ledger = assertLedgerSnapshot(await this.#adapters.ledger.read());
     const projectIds = this.#config.profiles.map((profile) => profile.id);
-    const rawObservations = await this.#adapters.github.observe(projectIds);
+    const rawObservations = await this.#adapters.github.observe(projectIds, {
+      reason,
+      allowMutations: mutationRequested && ledger.state.mode === "active",
+      enabledProjectIds: projectIds.filter(
+        (projectId) =>
+          ledger.state.projectEnabled[projectId] ??
+          this.#config.profiles.find((profile) => profile.id === projectId)?.enabled ??
+          false,
+      ),
+      activeFeedbackPullRequests: ledger.state.executions.flatMap((execution) =>
+        execution.status === "active" &&
+        execution.lane === "feedback" &&
+        execution.pullRequestNumber !== null
+          ? [
+              {
+                projectId: execution.projectId,
+                pullRequestNumber: execution.pullRequestNumber,
+              },
+            ]
+          : [],
+      ),
+    });
     const observations = z.array(GitHubProjectObservationSchema).parse(rawObservations);
     const known = new Set(projectIds);
     const seen = new Set<string>();
@@ -198,7 +226,7 @@ class DeterministicController implements Controller {
   }
 
   public async status(): Promise<ControllerStatus> {
-    const context = await this.#context();
+    const context = await this.#context("status", false);
     const observations = new Map(
       context.observations.map((observation) => [observation.projectId, observation]),
     );
@@ -279,7 +307,7 @@ class DeterministicController implements Controller {
 
   public async reconcile(input?: unknown): Promise<ReconcileResult> {
     const request = ReconcileRequestSchema.parse(input ?? {});
-    const context = await this.#context();
+    const context = await this.#context(request.reason, true);
     const random = this.#adapters.random.next();
     if (!Number.isFinite(random) || random < 0 || random >= 1) {
       throw new Error("random adapter must return a finite value in [0, 1)");

@@ -10,3 +10,12 @@ export {
   InMemoryWorkerProcessAdapter,
   SequenceRandomAdapter,
 } from "./in-memory-adapters";
+export {
+  InMemoryGitHubMutationLedger,
+  type MutationIdAdapter,
+} from "./in-memory-github-ledger";
+export {
+  RecordingDelayAdapter,
+  type ScriptedGitHubStep,
+  ScriptedGitHubTransport,
+} from "./scripted-github";
