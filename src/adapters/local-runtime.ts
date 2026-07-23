@@ -10,7 +10,7 @@ import {
 	statSync,
 } from "node:fs";
 import { statfs } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 
 import type {
 	DiskUsage,
@@ -86,22 +86,14 @@ export class LocalDoctorSystemAdapter implements DoctorSystemAdapter {
 	readonly #systemdUserDirectory: string;
 	readonly #workingDirectory: string;
 
-	public constructor(
-		options: {
-			readonly environment?: Readonly<Record<string, string | undefined>>;
-			readonly systemdUserDirectory?: string;
-			readonly workingDirectory?: string;
-		} = {},
-	) {
-		this.#environment = options.environment ?? Bun.env;
-		this.#systemdUserDirectory =
-			options.systemdUserDirectory ??
-			join(
-				this.#environment.XDG_CONFIG_HOME ?? join(this.#environment.HOME ?? "", ".config"),
-				"systemd",
-				"user",
-			);
-		this.#workingDirectory = options.workingDirectory ?? dirname(import.meta.dir);
+	public constructor(options: {
+		readonly environment: Readonly<Record<string, string | undefined>>;
+		readonly systemdUserDirectory: string;
+		readonly workingDirectory: string;
+	}) {
+		this.#environment = options.environment;
+		this.#systemdUserDirectory = options.systemdUserDirectory;
+		this.#workingDirectory = options.workingDirectory;
 	}
 
 	public async binaryVersion(name: string): Promise<string | null> {

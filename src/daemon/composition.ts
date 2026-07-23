@@ -22,7 +22,6 @@ import {
 } from "@/adapters/releases.ts";
 import { RotatingJsonLinesSink } from "@/adapters/structured-log.ts";
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
-import { parseGlobalLimitsFromEnvironment } from "@/controller/config.ts";
 import { type Controller, createController } from "@/controller/controller.ts";
 import { type ControllerLocalState, ControllerLocalStateSchema } from "@/controller/model.ts";
 import type { ReviewConvergenceCoordinator } from "@/convergence/index.ts";
@@ -34,6 +33,7 @@ import {
 	type WorkerOperator,
 } from "@/daemon/router.ts";
 import { startUnixSocketServer, type UnixSocketServer } from "@/daemon/socket.ts";
+import { parseGlobalLimitsFromEnvironment } from "@/env.ts";
 import type { HerdrSessionManager } from "@/herdr/index.ts";
 import { type LedgerIdSource, openSqliteLedger, type SqliteLedger } from "@/ledger/index.ts";
 import { Doctor } from "@/operations/doctor.ts";

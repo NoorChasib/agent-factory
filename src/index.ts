@@ -29,7 +29,6 @@ export {
 	ProviderWorkerSupervisor,
 	SelectionCheckoutCustody,
 } from "@/adapters/worker-supervisor.ts";
-export { parseClaudeRuntimeFromEnvironment } from "@/controller/config.ts";
 export {
 	ReadyToMergeEmitter,
 	ReviewConvergenceCoordinator,
@@ -40,6 +39,14 @@ export {
 	composeDaemon,
 	initialObservationState,
 } from "@/daemon/composition.ts";
+export {
+	type EnvironmentRecord,
+	type GitHubAppEnvironment,
+	parseClaudeRuntimeFromEnvironment,
+	parseGitHubAppEnvironment,
+	parseGlobalLimitsFromEnvironment,
+	resolveSourceRepository,
+} from "@/env.ts";
 export { BunDelayAdapter } from "@/github/client.ts";
 export {
 	CanonicalStageManager,

@@ -83,10 +83,13 @@ export class AgentFactoryRouter implements DaemonCommandRouter {
 					...status,
 					maintenance,
 					operationalBlocks: maintenance
-						.filter((entry) => entry.status === "pending" || entry.status === "active")
-						.map((entry) => ({
-							kind: entry.kind,
-							reasonCode: entry.reasonCode,
+						.filter(
+							(maintenanceRequest) =>
+								maintenanceRequest.status === "pending" || maintenanceRequest.status === "active",
+						)
+						.map((maintenanceRequest) => ({
+							kind: maintenanceRequest.kind,
+							reasonCode: maintenanceRequest.reasonCode,
 						})),
 					releases: this.#options.ledger.listReleases(),
 				};

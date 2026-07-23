@@ -4,10 +4,9 @@ import { parseProjectProfile, parseProjectProfileYaml } from "@/contracts/projec
 import {
 	GITHUB_APP_ID_ENVIRONMENT,
 	GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT,
-	GitHubAppTokenBroker,
-	GitHubAppTokenBrokerError,
 	parseGitHubAppEnvironment,
-} from "@/github/index.ts";
+} from "@/env.ts";
+import { GitHubAppTokenBroker, GitHubAppTokenBrokerError } from "@/github/index.ts";
 import {
 	FixedClockAdapter,
 	InMemoryFileSystemAdapter,

@@ -45,7 +45,7 @@ validation.
 | `defaultBranchProtection` | Expected protection posture used for safety verification |
 | `issueSelection` | Target workflow owns issue selection; the controller supplies no issue number |
 | `timeouts` | Reviewer/check minutes and consecutive quiescence polls |
-| `ceilings` | Optional project limits from 0–3 for implementation, feedback, ready-to-merge |
+| `ceilings` | Optional non-negative project limits for implementation, feedback, ready-to-merge |
 
 Profile IDs and repository names must be unique across the loaded configuration. Required
 reviewer IDs must exist in `reviewers`. Profile-sourced required checks must name at least one

@@ -238,7 +238,7 @@ describe("composed daemon observation-mode proof", () => {
 			ids: new Ids(),
 			instanceId: "observation-proof-controller",
 			notificationAdapter: operationalNotifications,
-			environment: {},
+			environment: { AGENT_FACTORY_LIMIT: "1" },
 			prior: {
 				controllerAdapters: {
 					github,

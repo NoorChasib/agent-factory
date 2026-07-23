@@ -4,12 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseProjectProfileYaml } from "@/contracts/project-profile.ts";
 import type { WorkerResult } from "@/contracts/worker-result.ts";
-import {
-	DEFAULT_CLAUDE_EFFORT,
-	DEFAULT_CLAUDE_MODEL,
-	parseClaudeRuntimeFromEnvironment,
-} from "@/controller/config.ts";
 import type { ControllerLocalState } from "@/controller/model.ts";
+import { parseClaudeRuntimeFromEnvironment } from "@/env.ts";
 import { mapGitHubObservation, toControllerObservation } from "@/github/index.ts";
 import type { LedgerIdSource } from "@/ledger/index.ts";
 import { openSqliteLedger } from "@/ledger/index.ts";
@@ -38,6 +34,12 @@ import {
 } from "@/testing/index.ts";
 
 const claudeSessionId = "550e8400-e29b-41d4-a716-446655440000";
+const claudeModel = "claude-fable-5";
+const claudeEffort = "high";
+const claudeRuntimeEnvironment = {
+	AGENT_FACTORY_CLAUDE_MODEL: claudeModel,
+	AGENT_FACTORY_CLAUDE_EFFORT: claudeEffort,
+};
 const codexThreadId = "thread-101";
 const headSha = "1111111111111111111111111111111111111111";
 
@@ -159,8 +161,8 @@ function claudeInitialization(
 		type: "system",
 		subtype: "init",
 		session_id: claudeSessionId,
-		model: DEFAULT_CLAUDE_MODEL,
-		effort: DEFAULT_CLAUDE_EFFORT,
+		model: claudeModel,
+		effort: claudeEffort,
 		providerMayAddFields: true,
 		...values,
 	};
@@ -171,11 +173,12 @@ function resultEvent(result: WorkerResult) {
 }
 
 describe("provider runtime configuration and Claude launch", () => {
-	test("parses documented Claude defaults and rejects unsafe or unknown values", () => {
-		expect(parseClaudeRuntimeFromEnvironment({})).toEqual({
-			model: DEFAULT_CLAUDE_MODEL,
-			effort: DEFAULT_CLAUDE_EFFORT,
+	test("requires Claude runtime values and rejects unsafe or unknown values", () => {
+		expect(parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment)).toEqual({
+			model: claudeModel,
+			effort: claudeEffort,
 		});
+		expect(() => parseClaudeRuntimeFromEnvironment({})).toThrow("must be set");
 		expect(
 			parseClaudeRuntimeFromEnvironment({
 				AGENT_FACTORY_CLAUDE_MODEL: "claude-custom-1",
@@ -184,11 +187,13 @@ describe("provider runtime configuration and Claude launch", () => {
 		).toEqual({ model: "claude-custom-1", effort: "max" });
 		expect(() =>
 			parseClaudeRuntimeFromEnvironment({
+				...claudeRuntimeEnvironment,
 				AGENT_FACTORY_CLAUDE_MODEL: "--fallback-model",
 			}),
 		).toThrow("safe model");
 		expect(() =>
 			parseClaudeRuntimeFromEnvironment({
+				...claudeRuntimeEnvironment,
 				AGENT_FACTORY_CLAUDE_EFFORT: "turbo",
 			}),
 		).toThrow("effort");
@@ -212,7 +217,7 @@ describe("provider runtime configuration and Claude launch", () => {
 			ids,
 			clock: new FixedClockAdapter(),
 			verifier,
-			runtime: parseClaudeRuntimeFromEnvironment({}),
+			runtime: parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment),
 			controllerEnvironment: {
 				HOME: "/srv/agent-factory",
 				PATH: "/usr/bin",
@@ -231,16 +236,16 @@ describe("provider runtime configuration and Claude launch", () => {
 			session: {
 				provider: "claude",
 				id: claudeSessionId,
-				model: DEFAULT_CLAUDE_MODEL,
-				reasoningEffort: DEFAULT_CLAUDE_EFFORT,
+				model: claudeModel,
+				reasoningEffort: claudeEffort,
 			},
 		});
 		expect(ids.calls).toBe(1);
 		expect(verifier.calls).toBe(1);
 		const command = commands.requests[0];
 		expect(command?.argv).toContain(claudeSessionId);
-		expect(command?.argv).toContain(DEFAULT_CLAUDE_MODEL);
-		expect(command?.argv).toContain(DEFAULT_CLAUDE_EFFORT);
+		expect(command?.argv).toContain(claudeModel);
+		expect(command?.argv).toContain(claudeEffort);
 		expect(command?.argv.join(" ")).not.toContain("fallback");
 		expect(command?.cwd).toBe(implementationRequest.checkout.path);
 		expect(command?.env).toEqual({
@@ -271,7 +276,7 @@ describe("provider runtime configuration and Claude launch", () => {
 			ids: new ClaudeIds(),
 			clock: new FixedClockAdapter(),
 			verifier: new AcceptingVerifier(),
-			runtime: parseClaudeRuntimeFromEnvironment({}),
+			runtime: parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment),
 			controllerEnvironment: {},
 		});
 
@@ -280,7 +285,7 @@ describe("provider runtime configuration and Claude launch", () => {
 		expect(outcome).toMatchObject({
 			status: "failed",
 			reasonCode: "claude-initialization-mismatch",
-			session: { id: claudeSessionId, model: DEFAULT_CLAUDE_MODEL },
+			session: { id: claudeSessionId, model: claudeModel },
 			commandStarted: true,
 		});
 	});
@@ -300,7 +305,7 @@ describe("provider runtime configuration and Claude launch", () => {
 			ids: new ClaudeIds(),
 			clock: new FixedClockAdapter(),
 			verifier: new AcceptingVerifier(),
-			runtime: parseClaudeRuntimeFromEnvironment({}),
+			runtime: parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment),
 			controllerEnvironment: {},
 		});
 
@@ -328,7 +333,7 @@ describe("provider runtime configuration and Claude launch", () => {
 			ids: new ClaudeIds(),
 			clock: new FixedClockAdapter(),
 			verifier: new AcceptingVerifier(),
-			runtime: parseClaudeRuntimeFromEnvironment({}),
+			runtime: parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment),
 			controllerEnvironment: {},
 		});
 
@@ -358,7 +363,7 @@ describe("provider runtime configuration and Claude launch", () => {
 			ids: new ClaudeIds(),
 			clock: new FixedClockAdapter(),
 			verifier: new AcceptingVerifier(),
-			runtime: parseClaudeRuntimeFromEnvironment({}),
+			runtime: parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment),
 			controllerEnvironment: {},
 		});
 
@@ -375,7 +380,7 @@ describe("provider runtime configuration and Claude launch", () => {
 	});
 
 	test("preserves the recorded Claude runtime after an environment retune", async () => {
-		const runtime = parseClaudeRuntimeFromEnvironment({});
+		const runtime = parseClaudeRuntimeFromEnvironment(claudeRuntimeEnvironment);
 		const commands = new ScriptedCommandAdapter([
 			exited(lines(claudeInitialization(), resultEvent(workerResult("claude", claudeSessionId)))),
 		]);
@@ -441,9 +446,9 @@ describe("provider runtime configuration and Claude launch", () => {
 			"--resume",
 			claudeSessionId,
 			"--model",
-			DEFAULT_CLAUDE_MODEL,
+			claudeModel,
 			"--effort",
-			DEFAULT_CLAUDE_EFFORT,
+			claudeEffort,
 		]);
 		expect(mismatchedInitialization).toMatchObject({
 			status: "failed",

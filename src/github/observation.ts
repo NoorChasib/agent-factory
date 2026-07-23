@@ -12,6 +12,7 @@ import {
 	GitHubProjectObservationSchema,
 } from "@/controller/model.ts";
 import type { GitHubApiClient, GitHubReadResult } from "@/github/client.ts";
+import { compareText } from "@/github/text.ts";
 
 const labelConnection = z.strictObject({
 	totalCount: z.number().int().nonnegative(),
@@ -259,13 +260,6 @@ export const GITHUB_OBSERVATION_QUERY = `
     }
   }
 `;
-
-function compareText(left: string, right: string): number {
-	if (left < right) {
-		return -1;
-	}
-	return left > right ? 1 : 0;
-}
 
 const PULL_REQUEST_STATES = { OPEN: "open", CLOSED: "closed", MERGED: "merged" } as const;
 

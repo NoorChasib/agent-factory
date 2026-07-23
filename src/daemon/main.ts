@@ -53,6 +53,7 @@ import {
 	ReleaseStore,
 	ReviewConvergenceCoordinator,
 	ReviewConvergenceEngine,
+	resolveSourceRepository,
 	resolveXdgPaths,
 	SelectionCheckoutCustody,
 	SqliteReleaseLedgerAdapter,
@@ -118,7 +119,7 @@ export async function productionDaemonMain(
 	});
 	await releaseStore.prepare();
 	const factoryRoot = resolve(import.meta.dir, "..", "..");
-	const factorySourceRepository = environment.AGENT_FACTORY_SOURCE_REPOSITORY ?? factoryRoot;
+	const factorySourceRepository = resolveSourceRepository(environment, factoryRoot);
 	const commandEnv = commandEnvironment(environment);
 	const releaseBuilder = new ReleaseBuilder({
 		builds: new LocalFactoryReleaseBuildAdapter({

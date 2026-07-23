@@ -8,11 +8,9 @@ import type {
 	GitHubHttpTransport,
 } from "@/adapters/interfaces.ts";
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { type GitHubAppEnvironment, parseGitHubAppEnvironment } from "@/env.ts";
 import { githubApiHeaders } from "@/github/client.ts";
 import type { GitHubProjectTokenProvider } from "@/github/mutations.ts";
-
-export const GITHUB_APP_ID_ENVIRONMENT = "AGENT_FACTORY_GITHUB_APP_ID";
-export const GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT = "AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE";
 
 const DEFAULT_API_URL = "https://api.github.com";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
@@ -76,11 +74,6 @@ const installationTokenSchema = z.strictObject({
 	repository_selection: z.enum(["all", "selected"]),
 });
 
-export interface GitHubAppEnvironment {
-	readonly appId: string;
-	readonly privateKeyFile: string;
-}
-
 export interface GitHubAppTokenBrokerOptions {
 	readonly environment: Readonly<Record<string, string | undefined>>;
 	readonly profiles: readonly ProjectProfile[];
@@ -123,28 +116,6 @@ function parseClock(clock: ClockAdapter): Date {
 	return now;
 }
 
-export function parseGitHubAppEnvironment(
-	environment: Readonly<Record<string, string | undefined>>,
-): GitHubAppEnvironment {
-	const appId = environment[GITHUB_APP_ID_ENVIRONMENT];
-	const privateKeyFile = environment[GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT];
-	if (appId === undefined || !/^[1-9]\d*$/u.test(appId)) {
-		throw new GitHubAppTokenBrokerError(`${GITHUB_APP_ID_ENVIRONMENT} must be a positive integer`);
-	}
-	if (
-		privateKeyFile === undefined ||
-		privateKeyFile.length > 4_096 ||
-		!privateKeyFile.startsWith("/") ||
-		/[\r\n]/u.test(privateKeyFile) ||
-		privateKeyFile.includes("PRIVATE KEY")
-	) {
-		throw new GitHubAppTokenBrokerError(
-			`${GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT} must be an absolute credential-file path`,
-		);
-	}
-	return { appId, privateKeyFile };
-}
-
 export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
 	readonly #environment: GitHubAppEnvironment;
 	readonly #profiles: ReadonlyMap<string, ProjectProfile>;
@@ -157,7 +128,13 @@ export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
 	readonly #tokens = new Map<string, CachedInstallationToken>();
 
 	public constructor(options: GitHubAppTokenBrokerOptions) {
-		this.#environment = parseGitHubAppEnvironment(options.environment);
+		try {
+			this.#environment = parseGitHubAppEnvironment(options.environment);
+		} catch (error) {
+			throw new GitHubAppTokenBrokerError(
+				error instanceof Error ? error.message : "GitHub App environment is invalid",
+			);
+		}
 		this.#profiles = new Map(
 			options.profiles.filter((profile) => profile.enabled).map((profile) => [profile.id, profile]),
 		);

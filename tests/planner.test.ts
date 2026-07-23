@@ -5,7 +5,7 @@ import {
 	parseProjectProfile,
 	parseProjectProfileYaml,
 } from "@/contracts/project-profile.ts";
-import { type ControllerConfig, parseGlobalLimitsFromEnvironment } from "@/controller/config.ts";
+import type { ControllerConfig } from "@/controller/config.ts";
 import { createController } from "@/controller/controller.ts";
 import type {
 	ControllerLocalState,
@@ -14,6 +14,7 @@ import type {
 	GitHubProjectObservation,
 	GitHubPullRequestObservation,
 } from "@/controller/model.ts";
+import { parseGlobalLimitsFromEnvironment } from "@/env.ts";
 import {
 	createInitialControllerState,
 	createInMemoryAdapters,
@@ -208,29 +209,24 @@ describe("controller interface and observation mode", () => {
 });
 
 describe("limits, claims, and fair scheduling", () => {
-	test("parses default and zero-through-three global environment limits", () => {
-		expect(parseGlobalLimitsFromEnvironment({})).toEqual({
-			implementation: 1,
-			feedback: 1,
-			readyToMerge: 1,
+	test("requires a single non-negative global environment limit for every lane", () => {
+		expect(() => parseGlobalLimitsFromEnvironment({})).toThrow("must be set");
+		expect(parseGlobalLimitsFromEnvironment({ AGENT_FACTORY_LIMIT: "2" })).toEqual({
+			implementation: 2,
+			feedback: 2,
+			readyToMerge: 2,
 		});
-		expect(
-			parseGlobalLimitsFromEnvironment({
-				AGENT_FACTORY_IMPLEMENTATION_LIMIT: "0",
-				AGENT_FACTORY_FEEDBACK_LIMIT: "2",
-				AGENT_FACTORY_READY_TO_MERGE_LIMIT: "3",
-			}),
-		).toEqual({ implementation: 0, feedback: 2, readyToMerge: 3 });
-		expect(() =>
-			parseGlobalLimitsFromEnvironment({
-				AGENT_FACTORY_IMPLEMENTATION_LIMIT: "4",
-			}),
-		).toThrow("integer from 0 through 3");
-		expect(() =>
-			parseGlobalLimitsFromEnvironment({
-				AGENT_FACTORY_FEEDBACK_LIMIT: "1.0",
-			}),
-		).toThrow("integer from 0 through 3");
+		expect(parseGlobalLimitsFromEnvironment({ AGENT_FACTORY_LIMIT: "0" })).toEqual({
+			implementation: 0,
+			feedback: 0,
+			readyToMerge: 0,
+		});
+		expect(() => parseGlobalLimitsFromEnvironment({ AGENT_FACTORY_LIMIT: "-1" })).toThrow(
+			"non-negative integer",
+		);
+		expect(() => parseGlobalLimitsFromEnvironment({ AGENT_FACTORY_LIMIT: "1.0" })).toThrow(
+			"non-negative integer",
+		);
 	});
 
 	test("zero global lane and backlog limits pause all launches", async () => {

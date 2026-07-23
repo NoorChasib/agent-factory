@@ -4,6 +4,7 @@ import { looseLabelName } from "@/contracts/primitives.ts";
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import { CANONICAL_CONDITION_SEMANTICS, CANONICAL_STAGE_SEMANTICS } from "@/domain/stages.ts";
 import type { GitHubMutationExecutor, RepositoryLabel } from "@/github/mutations.ts";
+import { compareText } from "@/github/text.ts";
 
 const hashSchema = z.string().regex(/^[0-9a-f]{64}$/u);
 const repositoryLabelSchema = z.strictObject({
@@ -63,13 +64,6 @@ const LABEL_COLORS = {
 	handoff: "5319e7",
 	condition: "b60205",
 } as const;
-
-function compareText(left: string, right: string): number {
-	if (left < right) {
-		return -1;
-	}
-	return left > right ? 1 : 0;
-}
 
 function sha256(input: string): string {
 	return createHash("sha256").update(input).digest("hex");

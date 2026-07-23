@@ -1,4 +1,4 @@
-import { isAbsolute, join, resolve } from "node:path";
+import { join } from "node:path";
 
 import { parse } from "yaml";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import {
 	type ProjectProfile,
 	ProjectProfilesSchema,
 } from "@/contracts/project-profile.ts";
+import { parseXdgBaseDirectories } from "@/env.ts";
 
 const relativeProfilePath = z
 	.string()
@@ -73,36 +74,10 @@ export interface LoadedFactoryConfiguration {
 export const MAX_UNIX_SOCKET_PATH_BYTES = 100;
 const MAX_CONFIG_BYTES = 1024 * 1024;
 
-function environmentBase(
-	environment: Readonly<Record<string, string | undefined>>,
-	variable: string,
-	fallback: () => string,
-): string {
-	const configured = environment[variable];
-	const value = configured === undefined || configured === "" ? fallback() : configured;
-	if (!isAbsolute(value) || /[\0\r\n]/u.test(value)) {
-		throw new Error(`${variable} must resolve to an absolute path without controls`);
-	}
-	return resolve(value);
-}
-
 export function resolveXdgPaths(
 	environment: Readonly<Record<string, string | undefined>>,
 ): XdgPaths {
-	const homeFallback = (...segments: readonly string[]): string => {
-		const home = environment.HOME;
-		if (home === undefined || home === "" || !isAbsolute(home) || /[\0\r\n]/u.test(home)) {
-			throw new Error("HOME must be an absolute path for XDG fallback resolution");
-		}
-		return join(resolve(home), ...segments);
-	};
-	const configBase = environmentBase(environment, "XDG_CONFIG_HOME", () => homeFallback(".config"));
-	const stateBase = environmentBase(environment, "XDG_STATE_HOME", () =>
-		homeFallback(".local", "state"),
-	);
-	const dataBase = environmentBase(environment, "XDG_DATA_HOME", () =>
-		homeFallback(".local", "share"),
-	);
+	const { configBase, stateBase, dataBase } = parseXdgBaseDirectories(environment);
 	const configDirectory = join(configBase, "agent-factory");
 	const stateDirectory = join(stateBase, "agent-factory");
 	const dataDirectory = join(dataBase, "agent-factory");

@@ -35,7 +35,7 @@ const requiredCheck = z.strictObject({
 	appSlug: githubLogin.optional(),
 });
 
-const laneCeiling = z.number().int().min(0).max(3);
+const laneCeiling = z.number().int().min(0);
 const DEFAULT_TIMEOUTS = {
 	reviewerMinutes: 45,
 	requiredCheckMinutes: 90,

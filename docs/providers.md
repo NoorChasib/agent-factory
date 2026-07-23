@@ -31,7 +31,8 @@ launch or resume. Workers never receive the App JWT or credential used to mint i
 
 ## Claude implementation sessions
 
-Claude runtime configuration is read once through the central controller configuration parser:
+Claude runtime configuration is required environment input, read once through the central
+environment parser in `src/env.ts` (see `.env.example`):
 
 ```text
 AGENT_FACTORY_CLAUDE_MODEL=claude-fable-5
@@ -39,7 +40,7 @@ AGENT_FACTORY_CLAUDE_EFFORT=high
 ```
 
 Effort accepts `low`, `medium`, `high`, or `max`. Model values are bounded, single safe argv
-values. Invalid values fail configuration rather than reaching a process command.
+values. Missing or invalid values fail configuration rather than reaching a process command.
 
 The factory asks an injected ID source for a UUID before it requests a token or calls the command
 adapter. The initial command includes that UUID, the captured model, and the captured effort.

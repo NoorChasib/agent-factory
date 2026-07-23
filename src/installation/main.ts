@@ -11,6 +11,7 @@ import {
 	SqliteReleaseLedgerAdapter,
 } from "@/adapters/releases.ts";
 import { commandEnvironment, initialObservationState } from "@/daemon/composition.ts";
+import { resolveSourceRepository } from "@/env.ts";
 import { openSqliteLedger } from "@/ledger/index.ts";
 import {
 	loadFactoryConfiguration,
@@ -52,8 +53,10 @@ export async function bootstrapReleaseMain(
 			ids,
 		});
 		await store.prepare();
-		const sourceRepository =
-			environment.AGENT_FACTORY_SOURCE_REPOSITORY ?? resolve(import.meta.dir, "..", "..");
+		const sourceRepository = resolveSourceRepository(
+			environment,
+			resolve(import.meta.dir, "..", ".."),
+		);
 		const commandEnv = commandEnvironment(environment);
 		const builder = new ReleaseBuilder({
 			builds: new LocalFactoryReleaseBuildAdapter({

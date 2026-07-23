@@ -155,12 +155,12 @@ Profiles own repository identity, workflow entry points, lifecycle-label mapping
 policy, timeouts, and optional lower ceilings. The controller contains no target-specific skill,
 reviewer, milestone, product, or architecture policy.
 
-Operator environment values:
+Operator configuration values, including the XDG base directories, are read exclusively
+through `src/env.ts`; pass-through worker variables such as `PATH` are forwarded from the raw
+process environment. Copy `.env.example` to `.env` and fill in the values:
 
 ```text
-AGENT_FACTORY_IMPLEMENTATION_LIMIT=1
-AGENT_FACTORY_FEEDBACK_LIMIT=1
-AGENT_FACTORY_READY_TO_MERGE_LIMIT=1
+AGENT_FACTORY_LIMIT=1
 AGENT_FACTORY_CLAUDE_MODEL=claude-fable-5
 AGENT_FACTORY_CLAUDE_EFFORT=high
 AGENT_FACTORY_GITHUB_APP_ID=<positive integer>

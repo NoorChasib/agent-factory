@@ -36,7 +36,7 @@ export class InMemoryGitHubMutationLedger implements GitHubMutationLedger {
 	public recordMutation(input: NewMutation): MutationRecord {
 		const parsed = NewMutationSchema.parse(clone(input));
 		const existing = this.#records.find(
-			(candidate) => candidate.idempotencyKey === parsed.idempotencyKey,
+			(stored) => stored.idempotencyKey === parsed.idempotencyKey,
 		);
 		if (existing !== undefined) {
 			if (

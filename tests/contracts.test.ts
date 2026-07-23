@@ -148,7 +148,7 @@ describe("project profile contract", () => {
 		).toThrow(z.ZodError);
 	});
 
-	test("rejects ambiguous labels, missing reviewers, controller-owned selection, and excess limits", () => {
+	test("rejects ambiguous labels, missing reviewers, controller-owned selection, and invalid ceilings", () => {
 		const valid = parseProjectProfileYaml(secondProfileYaml);
 
 		expect(() =>
@@ -172,7 +172,10 @@ describe("project profile contract", () => {
 				},
 			}),
 		).toThrow(z.ZodError);
-		expect(() => parseProjectProfile({ ...valid, ceilings: { feedback: 4 } })).toThrow(z.ZodError);
+		expect(() => parseProjectProfile({ ...valid, ceilings: { feedback: -1 } })).toThrow(z.ZodError);
+		expect(() => parseProjectProfile({ ...valid, ceilings: { feedback: 1.5 } })).toThrow(
+			z.ZodError,
+		);
 	});
 
 	test("rejects malformed YAML, duplicate keys, aliases, and oversized input", () => {

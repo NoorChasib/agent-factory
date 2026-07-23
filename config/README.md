@@ -33,15 +33,15 @@ Versioned JSON worker-result examples, including malformed/untrusted rejection e
 
 ## Environment
 
-These are all Agent Factory operator inputs:
+These are all Agent Factory operator inputs. Configuration values, including the XDG base
+directories, are read through `src/env.ts` (see `.env.example`); pass-through worker variables
+such as `PATH`, `LANG`, `NO_COLOR`, and `TERM` are forwarded from the raw process environment:
 
 | Variable | Required/default | Contract |
 | --- | --- | --- |
-| `AGENT_FACTORY_IMPLEMENTATION_LIMIT` | `1` | Integer `0`–`3`; affects later launches |
-| `AGENT_FACTORY_FEEDBACK_LIMIT` | `1` | Integer `0`–`3`; affects later launches |
-| `AGENT_FACTORY_READY_TO_MERGE_LIMIT` | `1` | Integer `0`–`3`; target backlog ceiling |
-| `AGENT_FACTORY_CLAUDE_MODEL` | `claude-fable-5` | One safe model argument; captured per session |
-| `AGENT_FACTORY_CLAUDE_EFFORT` | `high` | `low`, `medium`, `high`, or `max`; captured per session |
+| `AGENT_FACTORY_LIMIT` | Required | Non-negative integer applied to every lane; `0` pauses launches |
+| `AGENT_FACTORY_CLAUDE_MODEL` | Required | One safe model argument; captured per session |
+| `AGENT_FACTORY_CLAUDE_EFFORT` | Required | `low`, `medium`, `high`, or `max`; captured per session |
 | `AGENT_FACTORY_GITHUB_APP_ID` | Required by daemon | Positive integer App ID; non-secret |
 | `AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE` | Required by daemon | Absolute credential-file path; never PEM contents |
 | `AGENT_FACTORY_SOURCE_REPOSITORY` | Running factory root | Absolute local checkout/bare repository containing installable commits |
