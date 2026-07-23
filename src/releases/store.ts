@@ -1,20 +1,16 @@
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import type { ClockAdapter } from "../adapters/interfaces";
 import type {
   ReleaseArtifactFileSystemAdapter,
   ReleaseIdSource,
 } from "../adapters/release-interfaces";
 import { GitCommitShaSchema, type ReleaseManifest } from "../contracts/release-manifest";
+import { within } from "../path-guard";
 import {
   generateReleaseManifestAtClock,
   RELEASE_MANIFEST_FILENAME,
   validateReleaseManifest,
 } from "./manifest";
-
-function within(parent: string, candidate: string): boolean {
-  const path = relative(parent, candidate);
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
-}
 
 export class ReleaseStore {
   readonly #root: string;

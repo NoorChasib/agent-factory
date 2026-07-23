@@ -12,6 +12,7 @@ import { join } from "node:path";
 
 import { z } from "zod";
 import { parseCommandExecutionResult } from "../contracts/command-result";
+import { safeId } from "../contracts/primitives";
 import {
   parseWorkerCommandSpecification,
   type WorkerCommandSpecification,
@@ -27,12 +28,6 @@ import type {
 
 export const DEFAULT_HERDR_COMMAND_RESULT_DEADLINE_MS = 6 * 60 * 60 * 1_000;
 const RESULT_POLL_INTERVAL_MS = 1_000;
-
-const executionIdSchema = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
 
 interface ExecutionContext {
   readonly executionId: string;
@@ -84,7 +79,7 @@ export class HerdrCommandExecutionAdapter implements CommandAdapter {
   }
 
   public runForExecution<T>(executionId: string, run: () => Promise<T>): Promise<T> {
-    return this.#context.run({ executionId: executionIdSchema.parse(executionId) }, run);
+    return this.#context.run({ executionId: safeId.parse(executionId) }, run);
   }
 
   public async execute(request: CommandRequest): Promise<CommandExecutionResult> {

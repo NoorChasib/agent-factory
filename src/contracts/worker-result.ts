@@ -1,52 +1,6 @@
 import { z } from "zod";
 
-const opaqueId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
-
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-
-const repository = z
-  .string()
-  .min(3)
-  .max(201)
-  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
-
-function hasForbiddenGitCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const codePoint = character.codePointAt(0);
-    return (
-      codePoint === undefined ||
-      codePoint <= 0x20 ||
-      codePoint === 0x7f ||
-      "~^:?*[\\\\".includes(character)
-    );
-  });
-}
-
-const gitBranch = z
-  .string()
-  .min(1)
-  .max(255)
-  .refine(
-    (value) =>
-      value.trim() === value &&
-      !value.startsWith("/") &&
-      !value.endsWith("/") &&
-      !value.endsWith(".") &&
-      !value.includes("..") &&
-      !value.includes("@{") &&
-      !hasForbiddenGitCharacter(value),
-    "invalid Git branch name",
-  );
-
-const gitObjectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
+import { gitBranch, gitObjectId, projectId, repository, safeId } from "./primitives";
 
 export const WorkerTerminalStatusSchema = z.enum([
   "completed",
@@ -60,7 +14,7 @@ export const WorkerTerminalStatusSchema = z.enum([
 export const WorkerResultSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
-    executionId: opaqueId,
+    executionId: safeId,
     target: z.strictObject({
       projectId,
       repository,
@@ -81,12 +35,12 @@ export const WorkerResultSchema = z
     }),
     providerSession: z.strictObject({
       provider: z.enum(["claude", "codex"]),
-      id: opaqueId,
+      id: safeId,
     }),
     checkpoint: z.strictObject({
-      phase: opaqueId,
+      phase: safeId,
       sequence: z.number().int().nonnegative(),
-      code: opaqueId,
+      code: safeId,
     }),
     terminalStatus: WorkerTerminalStatusSchema,
   })

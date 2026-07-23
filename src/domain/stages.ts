@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { stageLabelName } from "../contracts/primitives";
+
 export const CANONICAL_STAGES = [
   "needs-triage",
   "needs-info",
@@ -67,33 +69,19 @@ export const CANONICAL_CONDITION_SEMANTICS = {
   "blocked-external": "An external dependency prevents continuation.",
 } as const satisfies Record<CanonicalCondition, string>;
 
-const labelName = z
-  .string()
-  .min(1)
-  .max(50)
-  .refine((value) => value.trim() === value, "labels must not have surrounding whitespace")
-  .refine(
-    (value) =>
-      ![...value].some((character) => {
-        const codePoint = character.codePointAt(0);
-        return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
-      }),
-    "labels must not contain controls",
-  );
-
 export const ProjectLabelMappingSchema = z
   .strictObject({
-    needsTriage: labelName,
-    needsInfo: labelName,
-    implementationReady: labelName,
-    operatorReady: labelName,
-    inProgress: labelName,
-    feedbackReady: labelName,
-    readyToMerge: labelName,
-    workerStalled: labelName,
-    reviewStalled: labelName,
-    needsRespec: labelName,
-    blockedExternal: labelName,
+    needsTriage: stageLabelName,
+    needsInfo: stageLabelName,
+    implementationReady: stageLabelName,
+    operatorReady: stageLabelName,
+    inProgress: stageLabelName,
+    feedbackReady: stageLabelName,
+    readyToMerge: stageLabelName,
+    workerStalled: stageLabelName,
+    reviewStalled: stageLabelName,
+    needsRespec: stageLabelName,
+    blockedExternal: stageLabelName,
   })
   .superRefine((mapping, context) => {
     const labels = Object.values(mapping);

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { absolutePath } from "./primitives";
+
 const commandText = z
   .string()
   .min(1)
@@ -8,12 +10,6 @@ const commandText = z
 const argument = z
   .string()
   .max(16_384)
-  .refine((value) => !/[\0\r\n]/u.test(value));
-const absolutePath = z
-  .string()
-  .min(1)
-  .max(4_096)
-  .startsWith("/")
   .refine((value) => !/[\0\r\n]/u.test(value));
 const environmentName = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/u);
 const environmentValue = z

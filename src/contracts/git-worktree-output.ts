@@ -1,34 +1,8 @@
 import { z } from "zod";
 
-function forbiddenGitCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const codePoint = character.codePointAt(0);
-    return (
-      codePoint === undefined ||
-      codePoint <= 0x20 ||
-      codePoint === 0x7f ||
-      "~^:?*[\\\\".includes(character)
-    );
-  });
-}
+import { gitBranch as GitBranchSchema, gitObjectId } from "./primitives";
 
-export const GitBranchSchema = z
-  .string()
-  .min(1)
-  .max(255)
-  .refine(
-    (value) =>
-      value.trim() === value &&
-      !value.startsWith("/") &&
-      !value.endsWith("/") &&
-      !value.endsWith(".") &&
-      !value.includes("..") &&
-      !value.includes("@{") &&
-      !forbiddenGitCharacter(value),
-    "invalid Git branch name",
-  );
-
-const gitObjectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
+export { GitBranchSchema };
 
 interface ParsedWorktree {
   path: string;

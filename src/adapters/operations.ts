@@ -2,7 +2,6 @@ import { existsSync, lstatSync, readdirSync, readFileSync, unlinkSync } from "no
 import { join } from "node:path";
 
 import { z } from "zod";
-import type { ExecutionRecord } from "../controller/model";
 import type { LabelOperator, WorkerOperator } from "../daemon/router";
 import {
   applyLabelMigration,
@@ -12,7 +11,7 @@ import {
   renderLabelMigrationPreview,
 } from "../github";
 import type { HerdrSessionManager } from "../herdr";
-import type { AuditEvent, ExecutionRecovery, LedgerIdSource, SqliteLedger } from "../ledger";
+import type { ExecutionRecovery, LedgerIdSource, SqliteLedger } from "../ledger";
 import type { DurableRecoveryVerifier, FactoryOwnedProcessStopper } from "../operations/lifecycle";
 import type { RetentionArtifacts, RetentionCandidate } from "../operations/retention";
 import type { ClaudeSessionIdSource } from "../providers";
@@ -493,10 +492,4 @@ export class GitHubLabelOperator implements LabelOperator {
     }
     return profile;
   }
-}
-
-export interface OperationsAuditRepository {
-  listExecutions(): readonly ExecutionRecord[];
-  readExecutionRecovery(executionId: string): ExecutionRecovery;
-  appendAudit(kind: string, payload: unknown): AuditEvent;
 }

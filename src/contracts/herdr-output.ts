@@ -1,10 +1,7 @@
 import { z } from "zod";
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
+import { safeId } from "./primitives";
+
 const optionalText = z.string().nullable().optional();
 const uint = z.number().int().nonnegative();
 

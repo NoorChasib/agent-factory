@@ -1,17 +1,12 @@
 import { z } from "zod";
 
 import type { GitHubHttpResponse, GitHubHttpTransport } from "../adapters/interfaces";
+import { looseLabelName, projectId } from "../contracts/primitives";
 import type { ProjectProfile } from "../contracts/project-profile";
 import type { MutationRecord, MutationState, NewMutation } from "../ledger";
 import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
 import type { GitHubApiClient, GitHubFailureClassification } from "./client";
 
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-const labelName = z.string().min(1).max(50);
 const labelColor = z.string().regex(/^[0-9a-f]{6}$/u);
 const commentBody = z.string().min(1).max(65_536);
 const subjectIdentity = {
@@ -21,7 +16,7 @@ const subjectIdentity = {
 } as const;
 const subjectMutation = {
   ...subjectIdentity,
-  label: labelName,
+  label: looseLabelName,
 } as const;
 
 export const GitHubAllowedMutationSchema = z
@@ -37,15 +32,15 @@ export const GitHubAllowedMutationSchema = z
     z.strictObject({
       kind: z.literal("create-label"),
       projectId,
-      name: labelName,
+      name: looseLabelName,
       color: labelColor,
       description: z.string().max(100),
     }),
     z.strictObject({
       kind: z.literal("update-label"),
       projectId,
-      currentName: labelName,
-      name: labelName,
+      currentName: looseLabelName,
+      name: looseLabelName,
       color: labelColor,
       description: z.string().max(100),
     }),
@@ -124,7 +119,7 @@ const repositoryLabelResponse = z.strictObject({
   id: z.number().int().nonnegative(),
   node_id: z.string(),
   url: z.url(),
-  name: labelName,
+  name: looseLabelName,
   color: labelColor,
   default: z.boolean(),
   description: z.string().nullable(),

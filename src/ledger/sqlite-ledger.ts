@@ -21,6 +21,7 @@ import {
 } from "../controller/model";
 import {
   DEFAULT_REDACTION_BOUNDARY,
+  plainJsonValue,
   type RedactedJson,
   type RedactionBoundary,
   sanitizeAuditJson,
@@ -78,14 +79,6 @@ import {
 } from "./types";
 
 export const LEDGER_FILENAME = "ledger.sqlite3";
-
-type JsonValue =
-  | boolean
-  | null
-  | number
-  | string
-  | readonly JsonValue[]
-  | { readonly [key: string]: JsonValue };
 
 interface ControllerStateRow {
   readonly revision: number;
@@ -209,6 +202,128 @@ interface AuditRow {
   readonly payloadJson: string;
 }
 
+const CONTROLLER_STATE_COLUMNS = `
+  revision,
+  state_json AS stateJson
+`;
+
+const LEDGER_OWNER_COLUMNS = `
+  instance_id AS instanceId,
+  acquired_at AS acquiredAt,
+  heartbeat_at AS heartbeatAt,
+  expires_at AS expiresAt
+`;
+
+const EXECUTION_COLUMNS = `
+  execution_id AS executionId,
+  project_id AS projectId,
+  lane,
+  provider,
+  workflow,
+  claim_state AS claimState,
+  issue_number AS issueNumber,
+  pull_request_number AS pullRequestNumber,
+  branch,
+  worktree_id AS worktreeId,
+  head_sha AS headSha,
+  status
+`;
+
+const EXECUTION_ATTEMPT_COLUMNS = `
+  execution_id AS executionId,
+  attempt_number AS attemptNumber,
+  status,
+  started_at AS startedAt,
+  finished_at AS finishedAt,
+  checkpoint,
+  outcome,
+  reason_code AS reasonCode
+`;
+
+const PROVIDER_SESSION_COLUMNS = `
+  session.session_key AS sessionKey,
+  session.execution_id AS executionId,
+  session.attempt_number AS attemptNumber,
+  session.provider,
+  session.provider_session_id AS providerSessionId,
+  session.model,
+  session.reasoning_effort AS reasoningEffort,
+  session.runtime_metadata_json AS runtimeMetadataJson,
+  session.created_at AS createdAt,
+  session.last_resumed_at AS lastResumedAt
+`;
+
+const PROCESS_METADATA_COLUMNS = `
+  execution_id AS executionId,
+  attempt_number AS attemptNumber,
+  pane_id AS paneId,
+  process_id AS processId,
+  process_started_at AS processStartedAt,
+  host_identity AS hostIdentity,
+  runtime_metadata_json AS runtimeMetadataJson,
+  updated_at AS updatedAt
+`;
+
+const GITHUB_MUTATION_COLUMNS = `
+  mutation_id AS mutationId,
+  project_id AS projectId,
+  execution_id AS executionId,
+  kind,
+  subject_type AS subjectType,
+  subject_number AS subjectNumber,
+  intended_mutation_json AS intendedMutationJson,
+  idempotency_key AS idempotencyKey,
+  state,
+  result_json AS resultJson,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
+const REVIEW_BASELINE_COLUMNS = `
+  project_id AS projectId,
+  pull_request_number AS pullRequestNumber,
+  head_sha AS headSha,
+  review_observation_json AS reviewObservationJson,
+  check_observation_json AS checkObservationJson,
+  quiescent_poll_count AS quiescentPollCount,
+  updated_at AS updatedAt
+`;
+
+const PROVIDER_CIRCUIT_COLUMNS = `
+  provider,
+  status,
+  reason_code AS reasonCode,
+  opened_at AS openedAt,
+  updated_at AS updatedAt
+`;
+
+const MAINTENANCE_REQUEST_COLUMNS = `
+  request_id AS requestId,
+  kind,
+  status,
+  reason_code AS reasonCode,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
+const RELEASE_COLUMNS = `
+  release_id AS releaseId,
+  commit_sha AS commitSha,
+  status,
+  artifact_path AS artifactPath,
+  required_schema_version AS requiredSchemaVersion,
+  metadata_json AS metadataJson,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
+const AUDIT_EVENT_COLUMNS = `
+  sequence,
+  timestamp,
+  kind,
+  payload_json AS payloadJson
+`;
+
 export interface OpenSqliteLedgerOptions {
   readonly stateDirectory: string;
   readonly instanceId: string;
@@ -241,43 +356,10 @@ function clockTimestamp(clock: ClockAdapter): string {
   return value.toISOString();
 }
 
-function jsonValue(input: unknown, path = "$", seen = new Set<object>()): JsonValue {
-  if (input === null || typeof input === "string" || typeof input === "boolean") {
-    return input;
-  }
-  if (typeof input === "number") {
-    if (!Number.isFinite(input)) {
-      throw new LedgerError(`ledger JSON contains a non-finite number at ${path}`);
-    }
-    return input;
-  }
-  if (typeof input !== "object") {
-    throw new LedgerError(`ledger JSON contains an unsupported value at ${path}`);
-  }
-  if (seen.has(input)) {
-    throw new LedgerError(`ledger JSON contains a cycle at ${path}`);
-  }
-  seen.add(input);
-  try {
-    if (Array.isArray(input)) {
-      return input.map((value, index) => jsonValue(value, `${path}[${index}]`, seen));
-    }
-    const prototype = Object.getPrototypeOf(input);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new LedgerError(`ledger JSON contains a non-plain object at ${path}`);
-    }
-    const result: Record<string, JsonValue> = {};
-    for (const key of Object.keys(input).sort()) {
-      result[key] = jsonValue((input as Record<string, unknown>)[key], `${path}.${key}`, seen);
-    }
-    return result;
-  } finally {
-    seen.delete(input);
-  }
-}
+const ledgerJsonError = (message: string): LedgerError => new LedgerError(`ledger JSON ${message}`);
 
 function encodeJson(input: unknown): string {
-  return JSON.stringify(jsonValue(input));
+  return JSON.stringify(plainJsonValue(input, ledgerJsonError));
 }
 
 function decodeJson(input: string, description: string): unknown {
@@ -644,11 +726,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<OwnerRow, []>(
         `
-          SELECT
-            instance_id AS instanceId,
-            acquired_at AS acquiredAt,
-            heartbeat_at AS heartbeatAt,
-            expires_at AS expiresAt
+          SELECT ${LEDGER_OWNER_COLUMNS}
           FROM ledger_owner
           WHERE singleton = 1
         `,
@@ -678,17 +756,6 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
       throw new LedgerError("failed to read controller state");
     }
     return snapshot;
-  }
-
-  public renewOwnership(): LedgerOwner {
-    const at = clockTimestamp(this.#clock);
-    this.#database
-      .transaction(() => {
-        this.#assertOwned();
-        this.#heartbeat(at);
-      })
-      .immediate();
-    return this.owner();
   }
 
   public async commit(
@@ -745,19 +812,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     return this.#database
       .query<ExecutionRow, []>(
         `
-          SELECT
-            execution_id AS executionId,
-            project_id AS projectId,
-            lane,
-            provider,
-            workflow,
-            claim_state AS claimState,
-            issue_number AS issueNumber,
-            pull_request_number AS pullRequestNumber,
-            branch,
-            worktree_id AS worktreeId,
-            head_sha AS headSha,
-            status
+          SELECT ${EXECUTION_COLUMNS}
           FROM executions
           ORDER BY created_at, execution_id
         `,
@@ -949,17 +1004,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const sessions = this.#database
       .query<SessionRow, [string, number]>(
         `
-          SELECT
-            session.session_key AS sessionKey,
-            session.execution_id AS executionId,
-            session.attempt_number AS attemptNumber,
-            session.provider,
-            session.provider_session_id AS providerSessionId,
-            session.model,
-            session.reasoning_effort AS reasoningEffort,
-            session.runtime_metadata_json AS runtimeMetadataJson,
-            session.created_at AS createdAt,
-            session.last_resumed_at AS lastResumedAt
+          SELECT ${PROVIDER_SESSION_COLUMNS}
           FROM provider_sessions AS session
           INNER JOIN executions AS execution
             ON execution.execution_id = session.execution_id
@@ -1064,15 +1109,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const attempts = this.#database
       .query<AttemptRow, [string]>(
         `
-          SELECT
-            execution_id AS executionId,
-            attempt_number AS attemptNumber,
-            status,
-            started_at AS startedAt,
-            finished_at AS finishedAt,
-            checkpoint,
-            outcome,
-            reason_code AS reasonCode
+          SELECT ${EXECUTION_ATTEMPT_COLUMNS}
           FROM execution_attempts
           WHERE execution_id = ?
           ORDER BY attempt_number
@@ -1083,18 +1120,8 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const sessions = this.#database
       .query<SessionRow, [string]>(
         `
-          SELECT
-            session_key AS sessionKey,
-            execution_id AS executionId,
-            attempt_number AS attemptNumber,
-            provider,
-            provider_session_id AS providerSessionId,
-            model,
-            reasoning_effort AS reasoningEffort,
-            runtime_metadata_json AS runtimeMetadataJson,
-            created_at AS createdAt,
-            last_resumed_at AS lastResumedAt
-          FROM provider_sessions
+          SELECT ${PROVIDER_SESSION_COLUMNS}
+          FROM provider_sessions AS session
           WHERE execution_id = ?
           ORDER BY attempt_number, created_at, session_key
         `,
@@ -1104,15 +1131,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const processRow = this.#database
       .query<ProcessRow, [string]>(
         `
-          SELECT
-            execution_id AS executionId,
-            attempt_number AS attemptNumber,
-            pane_id AS paneId,
-            process_id AS processId,
-            process_started_at AS processStartedAt,
-            host_identity AS hostIdentity,
-            runtime_metadata_json AS runtimeMetadataJson,
-            updated_at AS updatedAt
+          SELECT ${PROCESS_METADATA_COLUMNS}
           FROM process_metadata
           WHERE execution_id = ?
         `,
@@ -1241,7 +1260,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
         updated = MutationRecordSchema.parse({
           ...current,
           state,
-          result: result === null ? null : jsonValue(result),
+          result: result === null ? null : plainJsonValue(result, ledgerJsonError),
           updatedAt,
         });
         this.#heartbeat(updatedAt);
@@ -1264,19 +1283,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const all = this.#database
       .query<MutationRow, []>(
         `
-          SELECT
-            mutation_id AS mutationId,
-            project_id AS projectId,
-            execution_id AS executionId,
-            kind,
-            subject_type AS subjectType,
-            subject_number AS subjectNumber,
-            intended_mutation_json AS intendedMutationJson,
-            idempotency_key AS idempotencyKey,
-            state,
-            result_json AS resultJson,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${GITHUB_MUTATION_COLUMNS}
           FROM github_mutations
           ORDER BY created_at, mutation_id
         `,
@@ -1344,14 +1351,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<ReviewBaselineRow, [string, number]>(
         `
-          SELECT
-            project_id AS projectId,
-            pull_request_number AS pullRequestNumber,
-            head_sha AS headSha,
-            review_observation_json AS reviewObservationJson,
-            check_observation_json AS checkObservationJson,
-            quiescent_poll_count AS quiescentPollCount,
-            updated_at AS updatedAt
+          SELECT ${REVIEW_BASELINE_COLUMNS}
           FROM review_baselines
           WHERE project_id = ? AND pull_request_number = ?
         `,
@@ -1365,12 +1365,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     return this.#database
       .query<CircuitRow, []>(
         `
-          SELECT
-            provider,
-            status,
-            reason_code AS reasonCode,
-            opened_at AS openedAt,
-            updated_at AS updatedAt
+          SELECT ${PROVIDER_CIRCUIT_COLUMNS}
           FROM provider_circuits
           ORDER BY provider
         `,
@@ -1451,13 +1446,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     return this.#database
       .query<MaintenanceRow, []>(
         `
-          SELECT
-            request_id AS requestId,
-            kind,
-            status,
-            reason_code AS reasonCode,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${MAINTENANCE_REQUEST_COLUMNS}
           FROM maintenance_requests
           ORDER BY created_at, request_id
         `,
@@ -1526,15 +1515,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     return this.#database
       .query<ReleaseRow, []>(
         `
-          SELECT
-            release_id AS releaseId,
-            commit_sha AS commitSha,
-            status,
-            artifact_path AS artifactPath,
-            required_schema_version AS requiredSchemaVersion,
-            metadata_json AS metadataJson,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${RELEASE_COLUMNS}
           FROM releases
           ORDER BY created_at, release_id
         `,
@@ -1622,11 +1603,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     return this.#database
       .query<AuditRow, [number, number]>(
         `
-          SELECT
-            sequence,
-            timestamp,
-            kind,
-            payload_json AS payloadJson
+          SELECT ${AUDIT_EVENT_COLUMNS}
           FROM audit_events
           WHERE sequence > ?
           ORDER BY sequence
@@ -1794,11 +1771,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
         const existing = this.#database
           .query<OwnerRow, []>(
             `
-            SELECT
-              instance_id AS instanceId,
-              acquired_at AS acquiredAt,
-              heartbeat_at AS heartbeatAt,
-              expires_at AS expiresAt
+            SELECT ${LEDGER_OWNER_COLUMNS}
             FROM ledger_owner
             WHERE singleton = 1
           `,
@@ -1881,7 +1854,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<ControllerStateRow, []>(
         `
-          SELECT revision, state_json AS stateJson
+          SELECT ${CONTROLLER_STATE_COLUMNS}
           FROM controller_state
           WHERE singleton = 1
         `,
@@ -1986,19 +1959,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<ExecutionRow, [string]>(
         `
-          SELECT
-            execution_id AS executionId,
-            project_id AS projectId,
-            lane,
-            provider,
-            workflow,
-            claim_state AS claimState,
-            issue_number AS issueNumber,
-            pull_request_number AS pullRequestNumber,
-            branch,
-            worktree_id AS worktreeId,
-            head_sha AS headSha,
-            status
+          SELECT ${EXECUTION_COLUMNS}
           FROM executions
           WHERE execution_id = ?
         `,
@@ -2014,15 +1975,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<AttemptRow, [string, number]>(
         `
-          SELECT
-            execution_id AS executionId,
-            attempt_number AS attemptNumber,
-            status,
-            started_at AS startedAt,
-            finished_at AS finishedAt,
-            checkpoint,
-            outcome,
-            reason_code AS reasonCode
+          SELECT ${EXECUTION_ATTEMPT_COLUMNS}
           FROM execution_attempts
           WHERE execution_id = ? AND attempt_number = ?
         `,
@@ -2038,18 +1991,8 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<SessionRow, [string]>(
         `
-          SELECT
-            session_key AS sessionKey,
-            execution_id AS executionId,
-            attempt_number AS attemptNumber,
-            provider,
-            provider_session_id AS providerSessionId,
-            model,
-            reasoning_effort AS reasoningEffort,
-            runtime_metadata_json AS runtimeMetadataJson,
-            created_at AS createdAt,
-            last_resumed_at AS lastResumedAt
-          FROM provider_sessions
+          SELECT ${PROVIDER_SESSION_COLUMNS}
+          FROM provider_sessions AS session
           WHERE session_key = ?
         `,
       )
@@ -2065,19 +2008,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<MutationRow, [string]>(
         `
-          SELECT
-            mutation_id AS mutationId,
-            project_id AS projectId,
-            execution_id AS executionId,
-            kind,
-            subject_type AS subjectType,
-            subject_number AS subjectNumber,
-            intended_mutation_json AS intendedMutationJson,
-            idempotency_key AS idempotencyKey,
-            state,
-            result_json AS resultJson,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${GITHUB_MUTATION_COLUMNS}
           FROM github_mutations
           WHERE idempotency_key = ?
         `,
@@ -2090,19 +2021,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<MutationRow, [string]>(
         `
-          SELECT
-            mutation_id AS mutationId,
-            project_id AS projectId,
-            execution_id AS executionId,
-            kind,
-            subject_type AS subjectType,
-            subject_number AS subjectNumber,
-            intended_mutation_json AS intendedMutationJson,
-            idempotency_key AS idempotencyKey,
-            state,
-            result_json AS resultJson,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${GITHUB_MUTATION_COLUMNS}
           FROM github_mutations
           WHERE mutation_id = ?
         `,
@@ -2118,13 +2037,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<MaintenanceRow, [string]>(
         `
-          SELECT
-            request_id AS requestId,
-            kind,
-            status,
-            reason_code AS reasonCode,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${MAINTENANCE_REQUEST_COLUMNS}
           FROM maintenance_requests
           WHERE request_id = ?
         `,
@@ -2141,15 +2054,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     const row = this.#database
       .query<ReleaseRow, [string]>(
         `
-          SELECT
-            release_id AS releaseId,
-            commit_sha AS commitSha,
-            status,
-            artifact_path AS artifactPath,
-            required_schema_version AS requiredSchemaVersion,
-            metadata_json AS metadataJson,
-            created_at AS createdAt,
-            updated_at AS updatedAt
+          SELECT ${RELEASE_COLUMNS}
           FROM releases
           WHERE release_id = ?
         `,

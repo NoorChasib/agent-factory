@@ -23,10 +23,6 @@ export class ScriptedGitHubTransport implements GitHubHttpTransport {
     this.#steps.push(...structuredClone(steps));
   }
 
-  public enqueue(...steps: readonly ScriptedGitHubStep[]): void {
-    this.#steps.push(...structuredClone(steps));
-  }
-
   public async request(request: GitHubHttpRequest): Promise<GitHubHttpResponse> {
     this.requests.push(structuredClone(request));
     const step = this.#steps.shift();

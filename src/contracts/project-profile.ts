@@ -2,75 +2,15 @@ import { parse } from "yaml";
 import { z } from "zod";
 import type { FileSystemAdapter } from "../adapters/interfaces";
 import { ProjectLabelMappingSchema } from "../domain/stages";
-
-const safeIdentifier = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-
-const workflowEntryPoint = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:/-]*[A-Za-z0-9])?$/u);
-
-const githubLogin = z
-  .string()
-  .min(1)
-  .max(100)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/u);
-
-const githubLabel = z
-  .string()
-  .min(1)
-  .max(50)
-  .refine((value) => value.trim() === value, "label must not have surrounding whitespace")
-  .refine(
-    (value) =>
-      ![...value].some((character) => {
-        const codePoint = character.codePointAt(0);
-        return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
-      }),
-    "label must not contain controls",
-  );
-
-const githubRepository = z
-  .string()
-  .min(3)
-  .max(201)
-  .regex(
-    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u,
-    "repository must be an owner/name GitHub repository",
-  );
-
-function hasForbiddenGitCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const codePoint = character.codePointAt(0);
-    return (
-      codePoint === undefined ||
-      codePoint <= 0x20 ||
-      codePoint === 0x7f ||
-      "~^:?*[\\\\".includes(character)
-    );
-  });
-}
-
-const gitBranch = z
-  .string()
-  .min(1)
-  .max(255)
-  .refine((value) => value.trim() === value, "branch must not have surrounding whitespace")
-  .refine(
-    (value) =>
-      !value.startsWith("/") &&
-      !value.endsWith("/") &&
-      !value.endsWith(".") &&
-      !value.includes("..") &&
-      !value.includes("@{") &&
-      !hasForbiddenGitCharacter(value),
-    "defaultBranch must be a valid Git branch name",
-  );
+import {
+  githubCheckName,
+  githubLogin,
+  projectDefaultBranch,
+  projectId,
+  projectProfileLabelName,
+  projectProfileRepository,
+  workflowEntryPoint,
+} from "./primitives";
 
 const reviewCompletionSignal = z.discriminatedUnion("kind", [
   z.strictObject({
@@ -78,7 +18,7 @@ const reviewCompletionSignal = z.discriminatedUnion("kind", [
   }),
   z.strictObject({
     kind: z.literal("check-run"),
-    name: z.string().min(1).max(255),
+    name: githubCheckName,
   }),
 ]);
 
@@ -91,7 +31,7 @@ const reviewer = z.strictObject({
 });
 
 const requiredCheck = z.strictObject({
-  name: z.string().min(1).max(255),
+  name: githubCheckName,
   appSlug: githubLogin.optional(),
 });
 
@@ -105,10 +45,10 @@ const DEFAULT_TIMEOUTS = {
 export const ProjectProfileSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
-    id: safeIdentifier,
+    id: projectId,
     enabled: z.boolean(),
-    repository: githubRepository,
-    defaultBranch: gitBranch,
+    repository: projectProfileRepository,
+    defaultBranch: projectDefaultBranch,
     workflow: z.strictObject({
       implement: workflowEntryPoint,
       feedback: workflowEntryPoint,
@@ -117,8 +57,8 @@ export const ProjectProfileSchema = z
     }),
     labels: ProjectLabelMappingSchema,
     reviewPolicy: z.strictObject({
-      required: z.array(safeIdentifier).min(1),
-      optionalOwnerLabel: githubLabel.optional(),
+      required: z.array(projectId).min(1),
+      optionalOwnerLabel: projectProfileLabelName.optional(),
     }),
     defaultBranchProtection: z.strictObject({
       requiresPullRequest: z.boolean(),
@@ -150,7 +90,7 @@ export const ProjectProfileSchema = z
           });
         }
       }),
-    reviewers: z.record(safeIdentifier, reviewer),
+    reviewers: z.record(projectId, reviewer),
     issueSelection: z.strictObject({
       owner: z.literal("project-workflow"),
       controllerProvidesIssueNumber: z.literal(false),

@@ -7,6 +7,7 @@ import type {
   ProcessTreeAdapter,
 } from "../adapters/interfaces";
 import type { HerdrPane } from "../contracts/herdr-output";
+import { safeId } from "../contracts/primitives";
 import type { ExecutionRecord } from "../controller/model";
 import type { ExecutionRecovery, ProcessMetadata, ProcessMetadataInput } from "../ledger";
 import { FACTORY_HERDR_SESSION, type GuardedHerdrCommandAdapter } from "./guard";
@@ -100,12 +101,7 @@ export class HerdrSessionManager {
     this.#processes = options.processes;
     this.#repository = options.repository;
     this.#clock = options.clock;
-    this.#hostIdentity = z
-      .string()
-      .min(1)
-      .max(200)
-      .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u)
-      .parse(options.hostIdentity);
+    this.#hostIdentity = safeId.parse(options.hostIdentity);
   }
 
   public async ensureSession(): Promise<void> {

@@ -1,52 +1,14 @@
 import { z } from "zod";
 
+import { gitObjectId, projectId, recoveryGitBranch, safeId } from "../contracts/primitives";
 import type { AuditEvent } from "../ledger";
 import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
 import { RecoveryReasonCodeSchema } from "./reason-codes";
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
-const projectAlias = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
 const recoverableText = z.string().max(16_384).nullable();
-const gitObjectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
-
-function forbiddenGitCharacter(value: string): boolean {
-  return [...value].some((character) => {
-    const codePoint = character.codePointAt(0);
-    return (
-      codePoint === undefined ||
-      codePoint <= 0x20 ||
-      codePoint === 0x7f ||
-      "~^:?*[\\\\".includes(character)
-    );
-  });
-}
-
-const gitBranch = z
-  .string()
-  .min(1)
-  .max(255)
-  .refine(
-    (value) =>
-      value.trim() === value &&
-      !value.startsWith("/") &&
-      !value.endsWith("/") &&
-      !value.endsWith(".") &&
-      !value.includes("..") &&
-      !value.includes("@{") &&
-      !forbiddenGitCharacter(value),
-    "invalid recovery branch",
-  );
 
 export const RecoveryRecordSchema = z.strictObject({
-  projectAlias,
+  projectAlias: projectId,
   executionId: safeId,
   subject: z.strictObject({
     kind: z.enum(["issue", "pull-request"]),
@@ -117,7 +79,7 @@ function renderRecord(
     ["Project", record.projectAlias],
     ["Execution", record.executionId],
     ["Subject", subject],
-    ["Branch", inlineValue(record.branch, redaction, gitBranch)],
+    ["Branch", inlineValue(record.branch, redaction, recoveryGitBranch)],
     ["Commit", inlineValue(record.commit, redaction, gitObjectId)],
     ["Pane", inlineValue(record.pane, redaction, safeId)],
     ["Provider session", inlineValue(record.providerSessionId, redaction, safeId)],

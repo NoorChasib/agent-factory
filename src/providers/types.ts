@@ -1,39 +1,17 @@
 import { z } from "zod";
-
+import {
+  looseBranch,
+  projectId,
+  repository,
+  safeId,
+  workflowEntryPoint,
+} from "../contracts/primitives";
 import type { ProviderFailureClassification } from "../contracts/provider-output";
 import type { WorkerResult, WorkerTerminalStatus } from "../contracts/worker-result";
 import type { Provider } from "../controller/model";
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
-
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-
-const workflow = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:/-]*[A-Za-z0-9])?$/u);
-
-const repository = z
-  .string()
-  .min(3)
-  .max(201)
-  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
-
 export const ProviderRuntimeSchema = z.strictObject({
-  model: z
-    .string()
-    .min(1)
-    .max(200)
-    .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u),
+  model: safeId,
   effort: z.enum(["low", "medium", "high", "max"]),
 });
 export type ProviderRuntime = z.infer<typeof ProviderRuntimeSchema>;
@@ -47,8 +25,8 @@ export const PreparedCheckoutSchema = z.strictObject({
     .refine((value) => !/[\0\r\n]/u.test(value), "checkout path contains a control character"),
   projectId,
   repository,
-  defaultBranch: z.string().min(1).max(255),
-  workflow,
+  defaultBranch: looseBranch,
+  workflow: workflowEntryPoint,
 });
 export type PreparedCheckout = z.infer<typeof PreparedCheckoutSchema>;
 
@@ -63,8 +41,8 @@ export type ProviderRunRequest = z.infer<typeof ProviderRunRequestSchema>;
 export const ProviderSessionContextSchema = z.strictObject({
   projectId,
   repository,
-  defaultBranch: z.string().min(1).max(255),
-  workflow,
+  defaultBranch: looseBranch,
+  workflow: workflowEntryPoint,
   issueNumber: z.number().int().positive().nullable(),
   pullRequestNumber: z.number().int().positive().nullable(),
 });

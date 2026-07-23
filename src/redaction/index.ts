@@ -34,39 +34,51 @@ const PEM_BLOCK =
   /-----BEGIN [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----[\s\S]*?-----END [A-Z0-9 ]*(?:PRIVATE KEY|CERTIFICATE)-----/gu;
 const DEFAULT_MAXIMUM_STRING_LENGTH = 4_096;
 
-function plainJsonValue(input: unknown, path = "$", seen = new Set<object>()): RedactedJson {
-  if (input === null || typeof input === "string" || typeof input === "boolean") {
-    return input;
-  }
-  if (typeof input === "number") {
-    if (!Number.isFinite(input)) {
-      throw new Error(`redaction input contains a non-finite number at ${path}`);
+export type PlainJsonErrorFactory = (message: string) => Error;
+
+export function plainJsonValue(
+  input: unknown,
+  errorFactory: PlainJsonErrorFactory = (message) => new Error(`redaction input ${message}`),
+): RedactedJson {
+  const normalize = (candidate: unknown, path: string, seen: Set<object>): RedactedJson => {
+    if (candidate === null || typeof candidate === "string" || typeof candidate === "boolean") {
+      return candidate;
     }
-    return input;
-  }
-  if (typeof input !== "object") {
-    throw new Error(`redaction input contains an unsupported value at ${path}`);
-  }
-  if (seen.has(input)) {
-    throw new Error(`redaction input contains a cycle at ${path}`);
-  }
-  seen.add(input);
-  try {
-    if (Array.isArray(input)) {
-      return input.map((value, index) => plainJsonValue(value, `${path}[${index}]`, seen));
+    if (typeof candidate === "number") {
+      if (!Number.isFinite(candidate)) {
+        throw errorFactory(`contains a non-finite number at ${path}`);
+      }
+      return candidate;
     }
-    const prototype = Object.getPrototypeOf(input);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new Error(`redaction input contains a non-plain object at ${path}`);
+    if (typeof candidate !== "object") {
+      throw errorFactory(`contains an unsupported value at ${path}`);
     }
-    const result: Record<string, RedactedJson> = {};
-    for (const key of Object.keys(input).sort()) {
-      result[key] = plainJsonValue((input as Record<string, unknown>)[key], `${path}.${key}`, seen);
+    if (seen.has(candidate)) {
+      throw errorFactory(`contains a cycle at ${path}`);
     }
-    return result;
-  } finally {
-    seen.delete(input);
-  }
+    seen.add(candidate);
+    try {
+      if (Array.isArray(candidate)) {
+        return candidate.map((value, index) => normalize(value, `${path}[${index}]`, seen));
+      }
+      const prototype = Object.getPrototypeOf(candidate);
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw errorFactory(`contains a non-plain object at ${path}`);
+      }
+      const result: Record<string, RedactedJson> = {};
+      for (const key of Object.keys(candidate).sort()) {
+        result[key] = normalize(
+          (candidate as Record<string, unknown>)[key],
+          `${path}.${key}`,
+          seen,
+        );
+      }
+      return result;
+    } finally {
+      seen.delete(candidate);
+    }
+  };
+  return normalize(input, "$", new Set<object>());
 }
 
 function replaceAbsolutePaths(input: string): string {

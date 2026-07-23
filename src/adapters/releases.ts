@@ -29,6 +29,7 @@ import type { LedgerMigration, NewReleaseRecord, ReleaseRecord, SqliteLedger } f
 import { validateLedgerMigrations } from "../ledger";
 import type { MaintenanceCoordinator } from "../operations/lifecycle";
 import type { FactoryNotifications } from "../operations/observability";
+import { normalizedAbsolutePath, within } from "../path-guard";
 import type { ReleasePolicySnapshot } from "../releases";
 import type { CommandAdapter, CommandExecutionResult, CommandRequest } from "./interfaces";
 import type {
@@ -42,24 +43,12 @@ import type {
   ReleaseServiceAdapter,
 } from "./release-interfaces";
 
-function normalizedAbsolute(path: string, description: string): string {
-  if (!isAbsolute(path) || /[\0\r\n]/u.test(path)) {
-    throw new Error(`${description} must be an absolute path without controls`);
-  }
-  return resolve(path);
-}
-
 function sha256(value: Uint8Array | string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
 function relativeInventoryPath(root: string, path: string): string {
   return relative(root, path).split(sep).join("/");
-}
-
-function within(parent: string, candidate: string): boolean {
-  const path = relative(parent, candidate);
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
 }
 
 export interface LocalReleaseFileSystemOptions {
@@ -226,8 +215,8 @@ export class LocalFactoryReleaseBuildAdapter implements FactoryReleaseBuildAdapt
     readonly bunExecutable?: string;
   }) {
     this.#commands = input.commands;
-    this.#repositoryRoot = normalizedAbsolute(input.repositoryRoot, "factory repository root");
-    this.#checkoutRoot = normalizedAbsolute(input.checkoutRoot, "release checkout root");
+    this.#repositoryRoot = normalizedAbsolutePath(input.repositoryRoot, "factory repository root");
+    this.#checkoutRoot = normalizedAbsolutePath(input.checkoutRoot, "release checkout root");
     this.#environment = { ...input.environment };
     this.#gitExecutable = input.gitExecutable ?? "git";
     this.#bunExecutable = input.bunExecutable ?? "bun";
@@ -343,7 +332,7 @@ export class LocalFactoryReleaseBuildAdapter implements FactoryReleaseBuildAdapt
 
 export class LocalReleaseMigrationSourceAdapter implements ReleaseMigrationSourceAdapter {
   public async load(releasePathInput: string): Promise<readonly LedgerMigration[]> {
-    const releasePath = normalizedAbsolute(releasePathInput, "release artifact path");
+    const releasePath = normalizedAbsolutePath(releasePathInput, "release artifact path");
     const moduleUrl = pathToFileURL(join(releasePath, "src", "ledger", "migrations.ts")).href;
     const loaded = (await import(moduleUrl)) as { readonly LEDGER_MIGRATIONS?: unknown };
     if (!Array.isArray(loaded.LEDGER_MIGRATIONS)) {
@@ -361,7 +350,10 @@ export class SqliteReleaseLedgerAdapter implements ReleaseLedgerAdapter {
 
   public constructor(input: { readonly ledger: SqliteLedger; readonly backupDirectory: string }) {
     this.#ledger = input.ledger;
-    this.#backupDirectory = normalizedAbsolute(input.backupDirectory, "release backup directory");
+    this.#backupDirectory = normalizedAbsolutePath(
+      input.backupDirectory,
+      "release backup directory",
+    );
   }
 
   public get schemaVersion(): number {
@@ -499,8 +491,8 @@ export class SystemdReleaseServiceAdapter implements ReleaseServiceAdapter {
     readonly unit?: string;
   }) {
     this.#commands = input.commands;
-    this.#releaseDirectory = normalizedAbsolute(input.releaseDirectory, "release directory");
-    this.#runtimeRoot = normalizedAbsolute(input.runtimeRoot, "running factory root");
+    this.#releaseDirectory = normalizedAbsolutePath(input.releaseDirectory, "release directory");
+    this.#runtimeRoot = normalizedAbsolutePath(input.runtimeRoot, "running factory root");
     this.#environment = { ...input.environment };
     this.#executable = input.executable ?? "systemctl";
     this.#unit = z

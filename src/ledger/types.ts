@@ -1,20 +1,10 @@
 import { z } from "zod";
 
+import { gitObjectId, projectId, safeId } from "../contracts/primitives";
 import { CircuitStatusSchema, ExecutionRecordSchema, ProviderSchema } from "../controller/model";
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
 const timestamp = z.iso.datetime({ offset: true });
 const issueNumber = z.number().int().positive();
-const gitObjectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 const nonEmptyText = z.string().min(1).max(500);
 
 export const AttemptStatusSchema = z.enum([
@@ -58,14 +48,6 @@ export const ExecutionAttemptSchema = z.strictObject({
   reasonCode: safeId.nullable(),
 });
 export type ExecutionAttempt = z.infer<typeof ExecutionAttemptSchema>;
-
-export const NewExecutionAttemptSchema = ExecutionAttemptSchema.omit({
-  attemptNumber: true,
-  startedAt: true,
-}).extend({
-  status: AttemptStatusSchema.default("active"),
-});
-export type NewExecutionAttempt = z.input<typeof NewExecutionAttemptSchema>;
 
 export const ProviderSessionSchema = z.strictObject({
   sessionKey: safeId,

@@ -1,12 +1,18 @@
 import { z } from "zod";
-
+import {
+  githubCheckName,
+  gitObjectId,
+  looseBranch,
+  looseGithubLogin,
+  looseLabelName,
+} from "../contracts/primitives";
 import type { ProjectProfile } from "../contracts/project-profile";
 import { type GitHubProjectObservation, GitHubProjectObservationSchema } from "../controller/model";
 import type { GitHubApiClient, GitHubReadResult } from "./client";
 
 const labelConnection = z.strictObject({
   totalCount: z.number().int().nonnegative(),
-  nodes: z.array(z.strictObject({ name: z.string().min(1).max(50) })),
+  nodes: z.array(z.strictObject({ name: looseLabelName })),
 });
 
 const pageInfo = z.strictObject({
@@ -21,15 +27,15 @@ const issueNode = z.strictObject({
 });
 
 const reviewNode = z.strictObject({
-  author: z.strictObject({ login: z.string().min(1).max(100) }).nullable(),
+  author: z.strictObject({ login: looseGithubLogin }).nullable(),
   state: z.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED", "PENDING"]),
   submittedAt: z.iso.datetime({ offset: true }).nullable(),
-  commit: z.strictObject({ oid: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u) }).nullable(),
+  commit: z.strictObject({ oid: gitObjectId }).nullable(),
 });
 
 const checkRunNode = z.strictObject({
   __typename: z.literal("CheckRun"),
-  name: z.string().min(1).max(255),
+  name: githubCheckName,
   status: z.enum(["QUEUED", "IN_PROGRESS", "COMPLETED", "WAITING", "REQUESTED", "PENDING"]),
   conclusion: z
     .enum([
@@ -44,12 +50,12 @@ const checkRunNode = z.strictObject({
       "TIMED_OUT",
     ])
     .nullable(),
-  app: z.strictObject({ slug: z.string().min(1).max(100) }).nullable(),
+  app: z.strictObject({ slug: looseGithubLogin }).nullable(),
 });
 
 const statusContextNode = z.strictObject({
   __typename: z.literal("StatusContext"),
-  context: z.string().min(1).max(255),
+  context: githubCheckName,
   state: z.enum(["ERROR", "EXPECTED", "FAILURE", "PENDING", "SUCCESS"]),
 });
 
@@ -57,8 +63,8 @@ const pullRequestNode = z.strictObject({
   number: z.number().int().positive(),
   state: z.enum(["OPEN", "CLOSED", "MERGED"]),
   isDraft: z.boolean(),
-  headRefName: z.string().min(1).max(255),
-  headRefOid: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u),
+  headRefName: looseBranch,
+  headRefOid: gitObjectId,
   updatedAt: z.iso.datetime({ offset: true }),
   mergedAt: z.iso.datetime({ offset: true }).nullable().default(null),
   mergeable: z.enum(["MERGEABLE", "CONFLICTING", "UNKNOWN"]),
@@ -90,7 +96,7 @@ const pullRequestNode = z.strictObject({
       .array(
         z.strictObject({
           commit: z.strictObject({
-            oid: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u),
+            oid: gitObjectId,
             statusCheckRollup: z
               .strictObject({
                 contexts: z.strictObject({
@@ -110,7 +116,7 @@ const pullRequestNode = z.strictObject({
 
 const branchProtectionNode = z.strictObject({
   pattern: z.string().min(1).max(255),
-  requiredStatusCheckContexts: z.array(z.string().min(1).max(255)),
+  requiredStatusCheckContexts: z.array(githubCheckName),
 });
 
 export const GitHubObservationResponseSchema = z.strictObject({

@@ -1,18 +1,6 @@
 import { z } from "zod";
-
+import { safeId } from "./primitives";
 import { WorkerResultSchema } from "./worker-result";
-
-const opaqueId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
-
-const providerModel = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
 
 export const ProviderFailureClassificationSchema = z.enum([
   "account-limit",
@@ -34,14 +22,14 @@ export const ClaudeInitializationEventSchema = z.object({
   type: z.literal("system"),
   subtype: z.literal("init"),
   session_id: z.uuid(),
-  model: providerModel,
+  model: safeId,
   effort: z.enum(["low", "medium", "high", "max"]),
 });
 export type ClaudeInitializationEvent = z.infer<typeof ClaudeInitializationEventSchema>;
 
 export const CodexThreadStartedEventSchema = z.object({
   type: z.literal("thread.started"),
-  thread_id: opaqueId,
+  thread_id: safeId,
 });
 export type CodexThreadStartedEvent = z.infer<typeof CodexThreadStartedEventSchema>;
 
@@ -54,7 +42,7 @@ export type WorkerResultEvent = z.infer<typeof WorkerResultEventSchema>;
 export const ProviderFailureEventSchema = z.strictObject({
   type: z.literal("agent_factory.provider_failure"),
   classification: ProviderFailureClassificationSchema,
-  reasonCode: opaqueId,
+  reasonCode: safeId,
 });
 export type ProviderFailureEvent = z.infer<typeof ProviderFailureEventSchema>;
 

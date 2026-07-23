@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { GitHubObserveOptions } from "../adapters/interfaces";
+import { githubCheckName, looseGithubLogin } from "../contracts/primitives";
 import type { ProjectProfile } from "../contracts/project-profile";
 import { resolveCanonicalLabels } from "../domain/stages";
 import type { ReviewBaseline, ReviewBaselineInput } from "../ledger";
@@ -18,7 +19,7 @@ const reviewMarkerSchema = z.strictObject({
   unresolvedThreads: z.number().int().nonnegative(),
   reviews: z.array(
     z.strictObject({
-      login: z.string().min(1).max(100),
+      login: looseGithubLogin,
       state: z.enum(["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED", "PENDING"]),
       submittedAt: z.iso.datetime({ offset: true }).nullable(),
       headSha: z.string().nullable(),
@@ -29,7 +30,7 @@ const reviewMarkerSchema = z.strictObject({
 const checkMarkerSchema = z.strictObject({
   checks: z.array(
     z.strictObject({
-      name: z.string().min(1).max(255),
+      name: githubCheckName,
       appSlug: z.string().nullable(),
       status: z.enum(["queued", "in-progress", "completed"]),
       conclusion: z.string().nullable(),

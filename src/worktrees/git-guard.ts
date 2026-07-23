@@ -1,4 +1,4 @@
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { join } from "node:path";
 import { z } from "zod";
 
 import type {
@@ -9,25 +9,11 @@ import type {
   GitWorktreeObservation,
 } from "../adapters/interfaces";
 import { GitBranchSchema, parseGitWorktreePorcelain } from "../contracts/git-worktree-output";
+import { absolutePath, projectId, repository } from "../contracts/primitives";
 import type { GitHubProjectTokenProvider } from "../github/mutations";
+import { normalizedAbsolutePath, within } from "../path-guard";
 
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-const repository = z
-  .string()
-  .min(3)
-  .max(201)
-  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
 const issueNumber = z.number().int().positive();
-const absolutePath = z
-  .string()
-  .min(1)
-  .max(4_096)
-  .startsWith("/")
-  .refine((value) => !/[\0\r\n]/u.test(value));
 export const GitCustodyOperationSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("inspect-mirror"),
@@ -109,18 +95,6 @@ export function assertAllowedGitOperation(input: unknown): GitCustodyOperation {
     throw new ForbiddenGitOperationError();
   }
   return parsed.data;
-}
-
-function normalizedAbsolutePath(value: string, description: string): string {
-  if (!isAbsolute(value) || /[\0\r\n]/u.test(value)) {
-    throw new Error(`${description} must be an absolute path without controls`);
-  }
-  return resolve(value);
-}
-
-function within(parent: string, candidate: string): boolean {
-  const path = relative(parent, candidate);
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
 }
 
 export interface FactoryCustodyPathsOptions {

@@ -1,17 +1,8 @@
 import { z } from "zod";
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
+import { gitObjectId, projectId, safeId } from "./primitives";
+
 const hash = z.string().regex(/^[0-9a-f]{64}$/u);
-const gitCommit = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
 export const AgentFactoryOperationSchema = z.union([
   z.strictObject({ operation: z.literal("status") }),
@@ -66,7 +57,7 @@ export const AgentFactoryOperationSchema = z.union([
   z.strictObject({
     operation: z.literal("update"),
     action: z.literal("queue"),
-    releaseId: gitCommit,
+    releaseId: gitObjectId,
   }),
   z.strictObject({ operation: z.literal("doctor-live") }),
   z.strictObject({ operation: z.literal("reconcile") }),

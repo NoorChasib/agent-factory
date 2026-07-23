@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const GitCommitShaSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
+import { gitObjectId as GitCommitShaSchema } from "./primitives";
+
+export { GitCommitShaSchema };
 
 export const ReleaseRelativePathSchema = z
   .string()

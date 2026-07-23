@@ -1,4 +1,5 @@
-import type { ClockAdapter, CommandExecutionResult } from "../adapters/interfaces";
+import type { ClockAdapter, CommandAdapter, CommandExecutionResult } from "../adapters/interfaces";
+import { parseCommandExecutionResult } from "../contracts/command-result";
 import {
   type ProviderFailureEvent,
   ProviderOutputError,
@@ -7,12 +8,16 @@ import {
 } from "../contracts/provider-output";
 import type { WorkerResult } from "../contracts/worker-result";
 import { circuitSignalForFailure } from "./circuits";
+import { buildWorkerEnvironment } from "./environment";
 import type {
   CapturedProviderSession,
   ProviderRunOutcome,
   ProviderRunRequest,
+  ProviderSessionContext,
+  ResumeProviderSession,
   WorkerOutcomeVerification,
   WorkerOutcomeVerifier,
+  WorkerTokenBroker,
 } from "./types";
 
 export interface CommonProviderEvents {
@@ -40,6 +45,138 @@ export function workflowPrompt(request: ProviderRunRequest): string {
     "Do not merge, rewrite history, bypass branch protection, or ask an interactive question.",
     "Finish by emitting one JSON-lines record with type 'agent_factory.worker_result' and a v1 WorkerResult in its 'result' field.",
   ].join("\n");
+}
+
+export function sessionMetadata(request: ProviderRunRequest): ProviderSessionContext {
+  return {
+    projectId: request.checkout.projectId,
+    repository: request.checkout.repository,
+    defaultBranch: request.checkout.defaultBranch,
+    workflow: request.checkout.workflow,
+    issueNumber: request.issueNumber,
+    pullRequestNumber: request.pullRequestNumber,
+  };
+}
+
+export function resumeContextMatches(
+  request: ProviderRunRequest,
+  session: ResumeProviderSession,
+): boolean {
+  const metadata = session.runtimeMetadata;
+  return (
+    metadata.projectId === request.checkout.projectId &&
+    metadata.repository === request.checkout.repository &&
+    metadata.defaultBranch === request.checkout.defaultBranch &&
+    metadata.workflow === request.checkout.workflow &&
+    metadata.issueNumber === request.issueNumber &&
+    metadata.pullRequestNumber === request.pullRequestNumber
+  );
+}
+
+export type ProviderCommandPreamble =
+  | {
+      readonly ok: true;
+      readonly commandResult: CommandExecutionResult & { readonly status: "exited" };
+      readonly processStartedAt: string;
+    }
+  | {
+      readonly ok: false;
+      readonly outcome: ProviderRunOutcome;
+    };
+
+export async function executeProviderCommand(input: {
+  readonly provider: "claude" | "codex";
+  readonly request: ProviderRunRequest;
+  readonly session: CapturedProviderSession | null;
+  readonly commands: CommandAdapter;
+  readonly tokens: WorkerTokenBroker;
+  readonly clock: ClockAdapter;
+  readonly controllerEnvironment: Readonly<Record<string, string | undefined>>;
+  readonly executable: string;
+  readonly argv: readonly string[];
+}): Promise<ProviderCommandPreamble> {
+  let token: string;
+  try {
+    token = await input.tokens.tokenForProject(input.request.checkout.projectId);
+  } catch {
+    return {
+      ok: false,
+      outcome: failedProviderOutcome({
+        provider: input.provider,
+        reasonCode: "github-token-unavailable",
+        session: input.session,
+        commandStarted: false,
+        processStartedAt: null,
+        circuitSignal: circuitSignalForFailure(
+          "github",
+          "provider-unavailable",
+          "github-token-unavailable",
+        ),
+      }),
+    };
+  }
+
+  let environment: Readonly<Record<string, string>>;
+  try {
+    environment = buildWorkerEnvironment(input.controllerEnvironment, token);
+  } catch {
+    return {
+      ok: false,
+      outcome: failedProviderOutcome({
+        provider: input.provider,
+        reasonCode: "worker-environment-invalid",
+        session: input.session,
+        commandStarted: false,
+        processStartedAt: null,
+      }),
+    };
+  }
+
+  const processStartedAt = clockTimestamp(input.clock);
+  let commandResult: CommandExecutionResult;
+  try {
+    commandResult = parseCommandExecutionResult(
+      await input.commands.execute({
+        executable: input.executable,
+        argv: input.argv,
+        cwd: input.request.checkout.path,
+        env: environment,
+        stdin: workflowPrompt(input.request),
+        stdout: "capture-json-lines",
+        stderr: "capture",
+      }),
+    );
+  } catch {
+    return {
+      ok: false,
+      outcome: failedProviderOutcome({
+        provider: input.provider,
+        reasonCode: "command-adapter-error",
+        session: input.session,
+        commandStarted: true,
+        processStartedAt,
+      }),
+    };
+  }
+  if (commandResult.status === "failed") {
+    const circuitSignal =
+      commandResult.classification === "timeout" || commandResult.classification === "transport"
+        ? circuitSignalForFailure(input.provider, commandResult.classification)
+        : null;
+    return {
+      ok: false,
+      outcome: failedProviderOutcome({
+        provider: input.provider,
+        reasonCode: `command-${commandResult.classification}`,
+        session: input.session,
+        commandStarted: true,
+        processStartedAt,
+        commandResult,
+        circuitSignal,
+      }),
+    };
+  }
+  return { ok: true, commandResult, processStartedAt };
 }
 
 export function parseCommonProviderEvents(stdout: string): CommonProviderEvents {

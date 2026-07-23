@@ -103,10 +103,4 @@ export class InMemoryGitCustodyAdapter implements GitCustodyAdapter {
       (this.#worktrees.get(projectId) ?? []).filter((worktree) => worktree.path !== path),
     );
   }
-
-  public seedWorktree(projectId: string, worktree: GitWorktreeObservation): void {
-    const existing = this.#worktrees.get(projectId) ?? [];
-    existing.push(structuredClone(worktree));
-    this.#worktrees.set(projectId, existing);
-  }
 }

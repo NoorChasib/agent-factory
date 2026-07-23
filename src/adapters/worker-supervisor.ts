@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-
-import { z } from "zod";
+import { dirname, join, resolve } from "node:path";
+import { safeId } from "../contracts/primitives";
 import type { ProjectProfile } from "../contracts/project-profile";
 import {
   type ExecutionRecord,
@@ -10,6 +9,7 @@ import {
   type StopRequest,
 } from "../controller/model";
 import { LedgerRevisionConflictError, type SqliteLedger } from "../ledger";
+import { within } from "../path-guard";
 import {
   type ClaudeCodeRunner,
   type CodexFeedbackRunner,
@@ -21,11 +21,6 @@ import type { RecoveryHandoffCoordinator } from "../recovery";
 import type { WorktreeCustody } from "../worktrees";
 import type { HerdrCommandExecutionAdapter } from "./herdr-command";
 import type { GitCustodyAdapter, WorkerProcessAdapter } from "./interfaces";
-
-function within(parent: string, candidate: string): boolean {
-  const path = relative(parent, candidate);
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path));
-}
 
 export class SelectionCheckoutCustody {
   readonly #git: GitCustodyAdapter;
@@ -138,12 +133,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
   }
 
   public async start(request: LaunchRequest): Promise<unknown> {
-    const executionId = z
-      .string()
-      .min(1)
-      .max(200)
-      .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u)
-      .parse(this.#nextExecutionId());
+    const executionId = safeId.parse(this.#nextExecutionId());
     this.#launches.set(executionId, structuredClone(request));
     return ExecutionRecordSchema.parse({
       executionId,

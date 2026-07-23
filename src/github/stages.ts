@@ -108,16 +108,7 @@ export class CanonicalStageManager {
       });
       mutationResults.push(result);
       if (result.status !== "verified") {
-        return {
-          verified: false,
-          lost: result.status === "not-observed",
-          mutationResults,
-          observedLabels: await this.#mutations.gateway.readSubjectLabels(
-            this.#profile.id,
-            input.subjectType,
-            input.subjectNumber,
-          ),
-        };
+        return this.#unverifiedTransition(input, result.status === "not-observed", mutationResults);
       }
     }
 
@@ -157,16 +148,7 @@ export class CanonicalStageManager {
         });
         mutationResults.push(cleanup);
       }
-      return {
-        verified: false,
-        lost: true,
-        mutationResults,
-        observedLabels: await this.#mutations.gateway.readSubjectLabels(
-          this.#profile.id,
-          input.subjectType,
-          input.subjectNumber,
-        ),
-      };
+      return this.#unverifiedTransition(input, true, mutationResults);
     }
 
     if (
@@ -187,16 +169,7 @@ export class CanonicalStageManager {
       });
       mutationResults.push(result);
       if (result.status !== "verified") {
-        return {
-          verified: false,
-          lost: result.status === "not-observed",
-          mutationResults,
-          observedLabels: await this.#mutations.gateway.readSubjectLabels(
-            this.#profile.id,
-            input.subjectType,
-            input.subjectNumber,
-          ),
-        };
+        return this.#unverifiedTransition(input, result.status === "not-observed", mutationResults);
       }
     }
 
@@ -211,6 +184,26 @@ export class CanonicalStageManager {
       lost: resolved.stage !== input.desiredStage,
       mutationResults,
       observedLabels,
+    };
+  }
+
+  async #unverifiedTransition(
+    input: {
+      readonly subjectType: "issue" | "pull-request";
+      readonly subjectNumber: number;
+    },
+    lost: boolean,
+    mutationResults: readonly GitHubMutationExecutionResult[],
+  ): Promise<StageTransitionResult> {
+    return {
+      verified: false,
+      lost,
+      mutationResults,
+      observedLabels: await this.#mutations.gateway.readSubjectLabels(
+        this.#profile.id,
+        input.subjectType,
+        input.subjectNumber,
+      ),
     };
   }
 

@@ -2,17 +2,8 @@ import { z } from "zod";
 
 import type { GitCustodyAdapter, GitWorktreeObservation } from "../adapters/interfaces";
 import { GitBranchSchema } from "../contracts/git-worktree-output";
+import { projectId, repository } from "../contracts/primitives";
 
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-const repository = z
-  .string()
-  .min(3)
-  .max(201)
-  .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
 const issueNumber = z.number().int().positive();
 const timestamp = z.iso.datetime({ offset: true });
 

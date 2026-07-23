@@ -228,34 +228,12 @@ function transitionForExecution(
       };
     }
 
-    const resolved = resolveCanonicalLabels(profile.labels, issue.labels);
-    if (resolved.conflictingStages.length > 0) {
-      return {
-        executionId: execution.executionId,
-        kind: "release",
-        reason: "external-stage-conflict",
-      };
-    }
-    if (resolved.stage === "in-progress" && execution.claimState !== "verified") {
-      return {
-        executionId: execution.executionId,
-        kind: "verify-claim",
-        reason: "external-claim-verified",
-      };
-    }
-    if (
-      resolved.stage !== "in-progress" &&
-      (execution.claimState === "verified" ||
-        (execution.claimState === "awaiting-verification" &&
-          resolved.stage !== "ready-for-implementation-agent"))
-    ) {
-      return {
-        executionId: execution.executionId,
-        kind: "release",
-        reason: "external-stage-changed",
-      };
-    }
-    return null;
+    return transitionForObservedClaim(
+      execution,
+      profile,
+      issue.labels,
+      "ready-for-implementation-agent",
+    );
   }
 
   if (execution.pullRequestNumber === null) {
@@ -283,7 +261,21 @@ function transitionForExecution(
     };
   }
 
-  const resolved = resolveCanonicalLabels(profile.labels, pullRequest.labels);
+  return transitionForObservedClaim(
+    execution,
+    profile,
+    pullRequest.labels,
+    "ready-for-feedback-agent",
+  );
+}
+
+function transitionForObservedClaim(
+  execution: ExecutionRecord,
+  profile: ProjectProfile,
+  observedLabels: readonly string[],
+  awaitingVerificationStage: "ready-for-implementation-agent" | "ready-for-feedback-agent",
+): PlannedTransition | null {
+  const resolved = resolveCanonicalLabels(profile.labels, observedLabels);
   if (resolved.conflictingStages.length > 0) {
     return {
       executionId: execution.executionId,
@@ -302,7 +294,7 @@ function transitionForExecution(
     resolved.stage !== "in-progress" &&
     (execution.claimState === "verified" ||
       (execution.claimState === "awaiting-verification" &&
-        resolved.stage !== "ready-for-feedback-agent"))
+        resolved.stage !== awaitingVerificationStage))
   ) {
     return {
       executionId: execution.executionId,

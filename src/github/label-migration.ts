@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-
+import { looseLabelName } from "../contracts/primitives";
 import type { ProjectProfile } from "../contracts/project-profile";
 import { CANONICAL_CONDITION_SEMANTICS, CANONICAL_STAGE_SEMANTICS } from "../domain/stages";
 import type { GitHubMutationExecutor, RepositoryLabel } from "./mutations";
 
 const hashSchema = z.string().regex(/^[0-9a-f]{64}$/u);
 const repositoryLabelSchema = z.strictObject({
-  name: z.string().min(1).max(50),
+  name: looseLabelName,
   color: z.string().regex(/^[0-9a-f]{6}$/u),
   description: z.string().max(100),
 });

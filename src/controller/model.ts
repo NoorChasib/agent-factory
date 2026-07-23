@@ -1,25 +1,14 @@
 import { z } from "zod";
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
+import {
+  gitObjectId,
+  looseBranch,
+  looseLabelName,
+  projectId,
+  safeId,
+  workflowEntryPoint,
+} from "../contracts/primitives";
 
-const workflowEntryPoint = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:/-]*[A-Za-z0-9])?$/u);
-
-const projectId = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
-
-const branch = z.string().min(1).max(255);
-const gitObjectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 const issueNumber = z.number().int().positive();
 
 export const LaneSchema = z.enum(["implementation", "feedback"]);
@@ -47,7 +36,7 @@ export const ExecutionRecordSchema = z
     claimState: ClaimStateSchema,
     issueNumber: issueNumber.nullable(),
     pullRequestNumber: issueNumber.nullable(),
-    branch: branch.nullable(),
+    branch: looseBranch.nullable(),
     worktreeId: safeId.nullable(),
     headSha: gitObjectId.nullable(),
     status: ExecutionStatusSchema,
@@ -99,8 +88,8 @@ export type ExecutionRecord = z.infer<typeof ExecutionRecordSchema>;
 export const GitHubIssueObservationSchema = z.strictObject({
   number: issueNumber,
   state: z.enum(["open", "closed"]),
-  labels: z.array(z.string().min(1).max(50)),
-  branch: branch.nullable(),
+  labels: z.array(looseLabelName),
+  branch: looseBranch.nullable(),
   worktreeId: safeId.nullable(),
   pullRequestNumber: issueNumber.nullable(),
 });
@@ -108,9 +97,9 @@ export const GitHubIssueObservationSchema = z.strictObject({
 export const GitHubPullRequestObservationSchema = z.strictObject({
   number: issueNumber,
   state: z.enum(["open", "closed", "merged"]),
-  labels: z.array(z.string().min(1).max(50)),
+  labels: z.array(looseLabelName),
   linkedIssueNumber: issueNumber.nullable(),
-  branch,
+  branch: looseBranch,
   headSha: gitObjectId,
   mergedAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });

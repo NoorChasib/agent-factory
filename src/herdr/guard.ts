@@ -12,24 +12,14 @@ import {
   parseHerdrPaneOutput,
   parseHerdrPaneProcessOutput,
 } from "../contracts/herdr-output";
+import { absolutePath, safeId } from "../contracts/primitives";
 
 export const FACTORY_HERDR_SESSION = "agent-factory" as const;
 
-const safeId = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u);
 const commandText = z
   .string()
   .min(1)
   .max(16_384)
-  .refine((value) => !/[\0\r\n]/u.test(value));
-const absolutePath = z
-  .string()
-  .min(1)
-  .max(4_096)
-  .startsWith("/")
   .refine((value) => !/[\0\r\n]/u.test(value));
 const commandRequest = z.strictObject({
   executable: z.literal("bun"),
