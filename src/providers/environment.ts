@@ -10,14 +10,6 @@ const INHERITED_WORKER_ENVIRONMENT_KEYS = [
   "XDG_CONFIG_HOME",
 ] as const;
 
-export const WORKER_ENVIRONMENT_ALLOWLIST = [
-  ...INHERITED_WORKER_ENVIRONMENT_KEYS,
-  "GH_PROMPT_DISABLED",
-  "GH_TOKEN",
-  "GITHUB_TOKEN",
-  "GIT_TERMINAL_PROMPT",
-] as const;
-
 function validEnvironmentValue(value: string): boolean {
   return value.length <= 32_768 && !/[\0\r\n]/u.test(value);
 }

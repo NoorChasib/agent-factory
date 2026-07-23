@@ -19,7 +19,7 @@ export {
   type CodexResumeRequest,
   type CodexRunnerOptions,
 } from "./codex-runner";
-export { buildWorkerEnvironment, WORKER_ENVIRONMENT_ALLOWLIST } from "./environment";
+export { buildWorkerEnvironment } from "./environment";
 export {
   type PersistedProviderRun,
   ProviderExecutionRecorder,

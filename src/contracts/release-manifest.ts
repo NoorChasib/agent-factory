@@ -62,10 +62,6 @@ export const ReleaseBuildMetadataSchema = z.strictObject({
 });
 export type ReleaseBuildMetadata = z.infer<typeof ReleaseBuildMetadataSchema>;
 
-export function parseReleaseManifest(input: unknown): ReleaseManifest {
-  return ReleaseManifestSchema.parse(input);
-}
-
 export function parseReleaseBuildMetadata(input: unknown): ReleaseBuildMetadata {
   return ReleaseBuildMetadataSchema.parse(input);
 }

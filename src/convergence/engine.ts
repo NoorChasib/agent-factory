@@ -20,9 +20,6 @@ import type { ReviewBaseline } from "../ledger";
 import { circuitSignalForFailure } from "../providers/circuits";
 import type { ProviderCircuitSignal } from "../providers/types";
 
-export const DEFAULT_REVIEWER_TIMEOUT_MINUTES = 45;
-export const DEFAULT_REQUIRED_CHECK_TIMEOUT_MINUTES = 90;
-export const DEFAULT_QUIESCENCE_POLLS = 2;
 export const QUIESCENCE_POLL_INTERVAL_MS = 60_000;
 export const MAX_CODE_CHANGING_FEEDBACK_ROUNDS = 3;
 export const MAX_TOTAL_FEEDBACK_INVOCATIONS = 6;

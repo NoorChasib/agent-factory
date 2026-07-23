@@ -102,10 +102,6 @@ export const DaemonResponseSchema = z.discriminatedUnion("ok", [
 ]);
 export type DaemonResponse = z.infer<typeof DaemonResponseSchema>;
 
-export function parseDaemonRequest(input: unknown): DaemonRequest {
-  return DaemonRequestSchema.parse(input);
-}
-
 export function parseDaemonResponse(input: unknown): DaemonResponse {
   return DaemonResponseSchema.parse(input);
 }
