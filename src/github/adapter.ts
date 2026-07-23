@@ -18,7 +18,10 @@ export interface ProductionGitHubAdapterOptions {
 	readonly mutations?: GitHubMutationExecutor;
 	readonly lifecycle?: GitHubLifecycleReconciler;
 	readonly convergence?: {
-		reconcileProject(snapshot: GitHubProjectSnapshot): Promise<{ readonly mutated: boolean }>;
+		reconcileProject(snapshot: GitHubProjectSnapshot): Promise<{
+			readonly mutated: boolean;
+			readonly conflictRepairPullRequestNumbers?: readonly number[];
+		}>;
 	};
 	readonly associations?: GitHubObservationAssociations;
 }
@@ -80,6 +83,7 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 			if (options?.allowMutations === true) {
 				let recovered = 0;
 				let lifecycleTransitions = 0;
+				const conflictRepairPullRequestNumbers = new Set<number>();
 				if (full) {
 					recovered =
 						this.#mutations === undefined
@@ -95,6 +99,9 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 							? null
 							: await this.#lifecycle.reconcileProject(read.value, activeFeedback);
 					lifecycleTransitions = lifecycle?.transitions.length ?? 0;
+					for (const pullRequestNumber of lifecycle?.conflictRepairPullRequestNumbers ?? []) {
+						conflictRepairPullRequestNumbers.add(pullRequestNumber);
+					}
 				}
 				if (recovered > 0 || lifecycleTransitions > 0) {
 					read = await readGitHubObservation(
@@ -106,6 +113,9 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 					);
 				}
 				const convergence = await this.#convergence?.reconcileProject(read.value);
+				for (const pullRequestNumber of convergence?.conflictRepairPullRequestNumbers ?? []) {
+					conflictRepairPullRequestNumbers.add(pullRequestNumber);
+				}
 				if (convergence?.mutated === true) {
 					read = await readGitHubObservation(
 						this.#client,
@@ -115,6 +125,10 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 						this.#associations,
 					);
 				}
+				const observation = toControllerObservation(read.value, conflictRepairPullRequestNumbers);
+				this.#lastObservations.set(projectId, observation);
+				observations.push(observation);
+				continue;
 			}
 			const observation = toControllerObservation(read.value);
 			this.#lastObservations.set(projectId, observation);

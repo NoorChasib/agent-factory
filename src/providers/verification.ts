@@ -81,6 +81,21 @@ export function verifyWorkerResultAgainstObservation(input: {
 			if (pullRequest.headSha !== result.branch.headSha) {
 				reasons.push("head-not-observed");
 			}
+			if (request.purpose === "conflict-repair" && result.terminalStatus === "completed") {
+				if (request.initialHeadSha === undefined) {
+					reasons.push("repair-initial-head-missing");
+				} else if (pullRequest.headSha === request.initialHeadSha) {
+					reasons.push("repair-head-unchanged");
+				}
+				if (request.branch === undefined || pullRequest.branch !== request.branch) {
+					reasons.push("repair-branch-mismatch");
+				}
+				if (pullRequest.mergeability === undefined) {
+					reasons.push("repair-mergeability-unavailable");
+				} else if (pullRequest.mergeability === "conflicting") {
+					reasons.push("repair-still-conflicting");
+				}
+			}
 		}
 		if (issue !== undefined && issue.pullRequestNumber !== result.pullRequest.number) {
 			reasons.push("issue-pull-request-association-mismatch");

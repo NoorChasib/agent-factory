@@ -150,6 +150,8 @@ class SessionRecordingWorkers implements WorkerProcessAdapter {
 	public async stop(request: StopRequest): Promise<void> {
 		this.stops.push(structuredClone(request));
 	}
+
+	public async handoffConflictRepair(): Promise<void> {}
 }
 
 class MemoryStageGateway implements GitHubLabelGateway {

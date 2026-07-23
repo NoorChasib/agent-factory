@@ -11,6 +11,7 @@ import type { GitHubProjectSnapshot } from "@/github/index.ts";
 export interface ProjectConvergenceResult {
 	readonly projectId: string;
 	readonly mutated: boolean;
+	readonly conflictRepairPullRequestNumbers: readonly number[];
 	readonly evaluations: readonly {
 		readonly pullRequestNumber: number;
 		readonly emission: ReadyEmissionResult;
@@ -87,6 +88,9 @@ export class ReviewConvergenceCoordinator {
 			projectId: snapshot.projectId,
 			mutated: evaluations.some(
 				({ emission }) => (emission.transition?.mutationResults.length ?? 0) > 0,
+			),
+			conflictRepairPullRequestNumbers: evaluations.flatMap(({ pullRequestNumber, emission }) =>
+				emission.decision.action === "repair-conflict" ? [pullRequestNumber] : [],
 			),
 			evaluations,
 		};

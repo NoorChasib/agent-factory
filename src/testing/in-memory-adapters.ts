@@ -12,6 +12,7 @@ import type {
 } from "@/adapters/interfaces.ts";
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import {
+	type ConflictRepairHandoffRequest,
 	type ControllerLocalState,
 	ControllerLocalStateSchema,
 	type ExecutionRecord,
@@ -126,6 +127,7 @@ export class InMemoryWorkerProcessAdapter implements WorkerProcessAdapter {
 	readonly starts: LaunchRequest[] = [];
 	readonly activations: ExecutionRecord[] = [];
 	readonly stops: StopRequest[] = [];
+	readonly conflictRepairHandoffs: ConflictRepairHandoffRequest[] = [];
 	readonly #queuedExecutions: unknown[] = [];
 	#nextExecution = 1;
 
@@ -160,6 +162,10 @@ export class InMemoryWorkerProcessAdapter implements WorkerProcessAdapter {
 
 	public async stop(request: StopRequest): Promise<void> {
 		this.stops.push(clone(request));
+	}
+
+	public async handoffConflictRepair(request: ConflictRepairHandoffRequest): Promise<void> {
+		this.conflictRepairHandoffs.push(clone(request));
 	}
 
 	public async activate(execution: ExecutionRecord): Promise<void> {

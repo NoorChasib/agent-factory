@@ -140,6 +140,14 @@ export class CodexFeedbackRunner {
 		if (request.issueNumber === null || request.pullRequestNumber === null) {
 			throw new Error("Codex feedback execution must identify one issue and pull request");
 		}
+		if (
+			request.purpose === "conflict-repair" &&
+			(request.branch === undefined || request.initialHeadSha === undefined)
+		) {
+			throw new Error(
+				"Codex conflict-repair execution must identify its PR branch and initial head",
+			);
+		}
 	}
 
 	async #execute(

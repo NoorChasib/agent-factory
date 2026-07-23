@@ -1,6 +1,7 @@
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import type { ControllerConfig } from "@/controller/config.ts";
 import type {
+	ConflictRepairHandoffRequest,
 	ControllerLocalState,
 	ExecutionRecord,
 	GitHubProjectObservation,
@@ -10,6 +11,7 @@ import type {
 	PlannerBlock,
 	PlannerPlan,
 } from "@/controller/model.ts";
+import { assessConflictRepairInvocation, conflictRepairBudget } from "@/domain/conflict-repair.ts";
 import { clampLimitsToRollout } from "@/domain/rollout.ts";
 import { resolveCanonicalLabels } from "@/domain/stages.ts";
 
@@ -17,6 +19,12 @@ interface PlannerInput {
 	readonly config: ControllerConfig;
 	readonly state: ControllerLocalState;
 	readonly observations: readonly GitHubProjectObservation[];
+}
+
+interface FeedbackLaunchCandidate {
+	readonly pullRequest: GitHubProjectObservation["pullRequests"][number];
+	readonly workflow: string;
+	readonly purpose?: "conflict-repair";
 }
 
 function enabled(profile: ProjectProfile, state: ControllerLocalState): boolean {
@@ -149,6 +157,11 @@ function collectInvariantViolations(
 			if (resolved.stage === "ready-for-feedback-agent" && pullRequest.linkedIssueNumber === null) {
 				violations.push(
 					`${profile.id}: feedback-ready pull request ${pullRequest.number} has no linked issue`,
+				);
+			}
+			if (pullRequest.conflictRepairEligible === true && pullRequest.linkedIssueNumber === null) {
+				violations.push(
+					`${profile.id}: conflict-repair pull request ${pullRequest.number} has no linked issue`,
 				);
 			}
 		}
@@ -377,6 +390,7 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
 	});
 	const executions = applyTransitions(input.state.executions, transitions);
 	const launches: LaunchRequest[] = [];
+	const conflictRepairHandoffs: ConflictRepairHandoffRequest[] = [];
 	const blocks: PlannerBlock[] = [];
 	const rotation = { ...input.state.rotation };
 	const enabledProfiles = profiles.filter((profile) => enabled(profile, input.state));
@@ -511,11 +525,25 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
 				: [],
 		),
 	);
+	const unverifiedConflictRepairClaim = executions.some(
+		(execution) =>
+			execution.status === "active" &&
+			execution.lane === "feedback" &&
+			execution.claimState !== "verified" &&
+			input.state.conflictRepair.invocations.some(
+				(invocation) =>
+					invocation.executionId === execution.executionId && invocation.status === "active",
+			),
+	);
+	if (unverifiedConflictRepairClaim) {
+		addBlock({ projectId: null, lane: "feedback", reason: "claim-in-flight" });
+		feedbackGloballyBlocked = true;
+	}
 	const feedbackByProject = new Map<
 		string,
 		{
 			profile: ProjectProfile;
-			pullRequests: GitHubProjectObservation["pullRequests"][number][];
+			pullRequests: FeedbackLaunchCandidate[];
 			active: number;
 		}
 	>();
@@ -534,16 +562,87 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
 			addBlock({ projectId: profile.id, lane: "feedback", reason: "project-limit" });
 			continue;
 		}
-		const pullRequests = observation.pullRequests
+		const regularPullRequests: FeedbackLaunchCandidate[] = observation.pullRequests
 			.filter(
 				(pullRequest) =>
 					pullRequest.state === "open" &&
 					pullRequest.linkedIssueNumber !== null &&
 					resolveCanonicalLabels(profile.labels, pullRequest.labels).stage ===
 						"ready-for-feedback-agent" &&
+					!(
+						profile.workflow.conflictRepair !== undefined &&
+						pullRequest.mergeability === "conflicting" &&
+						pullRequest.conflictRepairEligible === true
+					) &&
 					!activePullRequests.has(`${profile.id}:${pullRequest.number}`),
 			)
-			.sort((left, right) => left.number - right.number);
+			.map((pullRequest) => ({
+				pullRequest,
+				workflow: profile.workflow.feedback,
+			}));
+		const repairPullRequests: FeedbackLaunchCandidate[] = [];
+		if (profile.workflow.conflictRepair !== undefined) {
+			for (const pullRequest of observation.pullRequests) {
+				if (
+					pullRequest.state !== "open" ||
+					pullRequest.linkedIssueNumber === null ||
+					pullRequest.mergeability !== "conflicting" ||
+					pullRequest.conflictRepairEligible !== true ||
+					activePullRequests.has(`${profile.id}:${pullRequest.number}`)
+				) {
+					continue;
+				}
+				if (unverifiedConflictRepairClaim) {
+					addBlock({
+						projectId: profile.id,
+						lane: "feedback",
+						reason: "claim-in-flight",
+					});
+					continue;
+				}
+				const budgetDecision = assessConflictRepairInvocation({
+					state: input.state.conflictRepair,
+					projectId: profile.id,
+					pullRequestNumber: pullRequest.number,
+					headSha: pullRequest.headSha,
+					budget: conflictRepairBudget(profile),
+				});
+				if (!budgetDecision.allowed) {
+					addBlock({
+						projectId: profile.id,
+						lane: "feedback",
+						reason: "conflict-repair-budget-exhausted",
+					});
+					const alreadyHandedOff = input.state.conflictRepair.handoffs.some(
+						(handoff) =>
+							handoff.projectId === profile.id &&
+							handoff.pullRequestNumber === pullRequest.number &&
+							handoff.headSha === pullRequest.headSha,
+					);
+					if (!alreadyHandedOff && !observationMode && !githubCircuitOpen) {
+						conflictRepairHandoffs.push({
+							projectId: profile.id,
+							pullRequestNumber: pullRequest.number,
+							branch: pullRequest.branch,
+							headSha: pullRequest.headSha,
+							executionId: budgetDecision.priorExecutionId,
+							reason: budgetDecision.reason,
+						});
+					}
+					continue;
+				}
+				repairPullRequests.push({
+					pullRequest,
+					workflow: profile.workflow.conflictRepair,
+					purpose: "conflict-repair",
+				});
+			}
+		}
+		const pullRequests = [...repairPullRequests, ...regularPullRequests].sort(
+			(left, right) =>
+				Number(right.purpose === "conflict-repair") - Number(left.purpose === "conflict-repair") ||
+				left.pullRequest.number - right.pullRequest.number,
+		);
 		if (pullRequests.length > 0) {
 			feedbackByProject.set(profile.id, { profile, pullRequests, active });
 		}
@@ -567,8 +666,13 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
 			addBlock({ projectId: selectedId, lane: "feedback", reason: "project-limit" });
 			continue;
 		}
-		const pullRequest = candidate.pullRequests.shift();
-		if (pullRequest === undefined || pullRequest.linkedIssueNumber === null) {
+		const selected = candidate.pullRequests.shift();
+		const pullRequest = selected?.pullRequest;
+		if (
+			selected === undefined ||
+			pullRequest === undefined ||
+			pullRequest.linkedIssueNumber === null
+		) {
 			feedbackByProject.delete(selectedId);
 			continue;
 		}
@@ -577,17 +681,21 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
 			projectId: selectedId,
 			lane: "feedback",
 			provider: "codex",
-			workflow: candidate.profile.workflow.feedback,
+			workflow: selected.workflow,
 			issueNumber: pullRequest.linkedIssueNumber,
 			pullRequestNumber: pullRequest.number,
 			branch: pullRequest.branch,
 			headSha: pullRequest.headSha,
+			...(selected.purpose === undefined ? {} : { purpose: selected.purpose }),
 		});
 		activePullRequests.add(`${selectedId}:${pullRequest.number}`);
 		candidate.active += 1;
 		feedbackCapacity -= 1;
 		feedbackCursor = selectedId;
 		rotation.feedback = selectedId;
+		if (selected.purpose === "conflict-repair") {
+			feedbackCapacity = 0;
+		}
 		if (
 			candidate.pullRequests.length === 0 ||
 			candidate.active >= effectiveLimit(candidate.profile, "feedback", rolloutLimits)
@@ -599,6 +707,7 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
 	return {
 		transitions,
 		launches,
+		conflictRepairHandoffs,
 		rotation,
 		blocks,
 		invariantViolations,

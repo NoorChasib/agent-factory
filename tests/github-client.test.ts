@@ -319,17 +319,31 @@ describe("production observation mapping", () => {
 			convergence: {
 				async reconcileProject(snapshot) {
 					snapshots.push(snapshot.projectId);
-					return { mutated: false };
+					return {
+						mutated: false,
+						conflictRepairPullRequestNumbers: [101],
+					};
 				},
 			},
 		});
 
-		await adapter.observe(["lumen-notes"], {
+		const observed = await adapter.observe(["lumen-notes"], {
 			reason: "poll",
 			allowMutations: true,
 			enabledProjectIds: ["lumen-notes"],
 			activeFeedbackPullRequests: [],
 		});
 		expect(snapshots).toEqual(["lumen-notes"]);
+		expect(observed).toMatchObject([
+			{
+				pullRequests: [
+					{
+						number: 101,
+						mergeability: "mergeable",
+						conflictRepairEligible: true,
+					},
+				],
+			},
+		]);
 	});
 });

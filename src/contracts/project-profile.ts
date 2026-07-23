@@ -54,6 +54,7 @@ export const ProjectProfileSchema = z
 			feedback: workflowEntryPoint,
 			operatorImplement: workflowEntryPoint,
 			operatorFeedback: workflowEntryPoint,
+			conflictRepair: workflowEntryPoint.optional(),
 		}),
 		labels: ProjectLabelMappingSchema,
 		reviewPolicy: z.strictObject({
@@ -111,6 +112,12 @@ export const ProjectProfileSchema = z
 				implementation: laneCeiling.optional(),
 				feedback: laneCeiling.optional(),
 				readyToMerge: laneCeiling.optional(),
+			})
+			.optional(),
+		conflictRepair: z
+			.strictObject({
+				perHeadInvocations: z.number().int().min(1).max(2).default(2),
+				perPullRequestInvocations: z.number().int().min(1).max(4).default(4),
 			})
 			.optional(),
 	})

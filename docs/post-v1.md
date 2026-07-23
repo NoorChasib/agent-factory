@@ -1,15 +1,19 @@
-# Post-v1 work: documented, not authorized
+# Post-v1 work
 
-The approved v1 specification explicitly excludes the following capabilities. They are recorded
-here so later design work does not leak into the v1 controller, release updater, or rollout
-machinery.
+The approved v1 specification originally excluded the capabilities below. Issue #5 separately
+authorized the narrow conflict-repair item for v1.1. The other items remain future work and this
+record does not authorize them.
 
-## Agent-assisted rebase and conflict repair
+## Just-in-time conflict repair — implemented in v1.1
 
-A future specification may define attended, auditable conflict analysis and repair. It must
-separately decide authority, protected-branch behavior, history-rewrite rules, stale-review
-handling, verification, and operator handoff. V1 contains no rebase, amend, force-push, merge, or
-conflict-repair operation.
+Issue #5 implements conflict repair only when a PR is converged except for
+`mergeability: conflicting`. It is profile-opt-in, bounded independently from feedback, uses the
+existing feedback lane and PR-scoped Codex thread, and requires a newly observed non-conflicting
+head before accepting completion. Normal current-head convergence then starts again.
+
+This is not a rebase assistant. Rebase, amend, force-push, history rewriting, default-branch
+push, and automatic PR merge remain forbidden. See
+[Just-in-time conflict repair](conflict-repair.md).
 
 ## Automatic rollout promotion
 
@@ -27,5 +31,5 @@ dependencies. The self-update adapter can invoke the existing Git and Bun binari
 factory and systemctl to restart its service, but it cannot install, replace, or upgrade those
 tools.
 
-None of these notes grant implementation authority. A separate approved issue/specification is
-required before adding any of them.
+Except for issue #5's conflict-repair scope above, these notes grant no implementation authority.
+A separate approved issue/specification is required before adding the remaining capabilities.

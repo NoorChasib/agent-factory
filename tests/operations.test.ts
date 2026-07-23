@@ -174,6 +174,7 @@ class MemoryController implements Controller {
 			startedExecutionIds: [],
 			stoppedExecutionIds: [],
 			verifiedExecutionIds: [],
+			conflictRepairHandoffExecutionIds: [],
 			blocks: [],
 			invariantViolations: [],
 			nextPollDelayMs: 60_000,

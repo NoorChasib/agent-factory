@@ -602,6 +602,100 @@ describe("persistent Codex feedback sessions", () => {
 		expect(commands.requests[1]?.stdin).toContain(profile.workflow.feedback);
 		expect(commands.requests[1]?.stdin).toContain("pull request #101");
 	});
+
+	test("reuses the PR thread and recorded runtime for the narrow conflict-repair workflow", async () => {
+		const runtime: ProviderRuntime = { model: "gpt-5.6-codex", effort: "high" };
+		const commands = new ScriptedCommandAdapter([
+			exited(
+				lines(
+					{ type: "thread.started", thread_id: codexThreadId },
+					resultEvent(workerResult("codex", codexThreadId)),
+				),
+			),
+			exited(
+				lines(
+					{ type: "thread.started", thread_id: codexThreadId },
+					resultEvent(workerResult("codex", codexThreadId)),
+				),
+				43,
+			),
+		]);
+		const runner = new CodexFeedbackRunner({
+			commands,
+			tokens: new Tokens(),
+			clock: new FixedClockAdapter(),
+			verifier: new AcceptingVerifier(),
+			controllerEnvironment: {},
+		});
+		const initial = await runner.launch({ request: feedbackRequest, runtime });
+		const captured = initial.session;
+		if (captured === null) {
+			throw new Error("test expected a captured Codex thread");
+		}
+		const recorded: ResumeProviderSession = {
+			...captured,
+			sessionKey: "session-key-conflict-repair",
+			executionId: feedbackRequest.executionId,
+		};
+		const repairRequest: ProviderRunRequest = {
+			...feedbackRequest,
+			executionId: "execution-conflict-repair",
+			checkout: {
+				...feedbackRequest.checkout,
+				workflow: "notes/repair-conflict",
+			},
+			purpose: "conflict-repair",
+			branch: "factory/issue-11",
+			initialHeadSha: headSha,
+		};
+
+		const resumed = await runner.resume({
+			request: repairRequest,
+			runtime: { model: "gpt-retuned", effort: "max" },
+			session: recorded,
+		});
+		const unrelatedWorkflow = await runner.resume({
+			request: {
+				...feedbackRequest,
+				checkout: {
+					...feedbackRequest.checkout,
+					workflow: "notes/unrelated-workflow",
+				},
+			},
+			runtime,
+			session: recorded,
+		});
+
+		expect(resumed).toMatchObject({
+			status: "completed",
+			session: {
+				id: codexThreadId,
+				model: runtime.model,
+				reasoningEffort: runtime.effort,
+			},
+		});
+		expect(commands.requests[1]?.argv).toContain(runtime.model);
+		expect(commands.requests[1]?.argv).toContain(`model_reasoning_effort="${runtime.effort}"`);
+		expect(commands.requests[1]?.stdin).toContain("Forward-merge");
+		expect(commands.requests[1]?.stdin).toContain(profile.defaultBranch);
+		expect(commands.requests[1]?.stdin).toContain("Resolve merge conflicts only");
+		expect(commands.requests[1]?.stdin).toContain("push only the pull-request branch");
+		for (const forbidden of [
+			"rebase",
+			"force-push",
+			"amend",
+			"merge the pull request",
+			"default branch",
+		]) {
+			expect(commands.requests[1]?.stdin).toContain(forbidden);
+		}
+		expect(unrelatedWorkflow).toMatchObject({
+			status: "failed",
+			reasonCode: "resume-session-mismatch",
+			commandStarted: false,
+		});
+		expect(commands.requests).toHaveLength(2);
+	});
 });
 
 describe("outcome verification, persistence, and circuits", () => {
@@ -734,6 +828,7 @@ describe("outcome verification, persistence, and circuits", () => {
 				nextState.executions.push({
 					...previous,
 					executionId: "execution-102",
+					workflow: "notes/repair-conflict",
 					status: "active",
 				});
 				await ledger.commit(ledgerSnapshot.revision, nextState);

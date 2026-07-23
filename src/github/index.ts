@@ -73,6 +73,7 @@ export {
 	GitHubLifecycleReconciler,
 	type GitHubReviewBaselineRepository,
 	inspectCurrentHeadRequirements,
+	isConvergedExceptConflict,
 	type LateFeedbackReason,
 	type LifecycleReconcileResult,
 	type ReadyToMergeRevocationReason,

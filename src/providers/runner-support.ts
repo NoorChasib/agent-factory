@@ -39,6 +39,17 @@ export function clockTimestamp(clock: ClockAdapter): string {
 }
 
 export function workflowPrompt(request: ProviderRunRequest): string {
+	if (request.purpose === "conflict-repair") {
+		return [
+			`Run the target-owned conflict-repair workflow entry point '${request.checkout.workflow}' autonomously.`,
+			`Factory execution: ${request.executionId}. Repair pull request #${request.pullRequestNumber} for issue #${request.issueNumber}.`,
+			`Claim the pull request with the configured in-progress stage and verify that claim before changing the checkout.`,
+			`Forward-merge the target default branch '${request.checkout.defaultBranch}' into the pull-request branch '${request.branch}'.`,
+			"Resolve merge conflicts only, make no unrelated changes, and push only the pull-request branch.",
+			"Do not rebase, force-push, amend, rewrite history, merge the pull request, push to or change the default branch, bypass branch protection, or ask an interactive question.",
+			"Finish by emitting one JSON-lines record with type 'agent_factory.worker_result' and a v1 WorkerResult in its 'result' field.",
+		].join("\n");
+	}
 	const subject =
 		request.pullRequestNumber === null
 			? "Select and claim work according to the project workflow; no issue was preselected."
@@ -59,6 +70,9 @@ export function sessionMetadata(request: ProviderRunRequest): ProviderSessionCon
 		workflow: request.checkout.workflow,
 		issueNumber: request.issueNumber,
 		pullRequestNumber: request.pullRequestNumber,
+		...(request.purpose === undefined ? {} : { purpose: request.purpose }),
+		...(request.branch === undefined ? {} : { branch: request.branch }),
+		...(request.initialHeadSha === undefined ? {} : { initialHeadSha: request.initialHeadSha }),
 	};
 }
 
@@ -67,11 +81,13 @@ export function resumeContextMatches(
 	session: ResumeProviderSession,
 ): boolean {
 	const metadata = session.runtimeMetadata;
+	const crossesConflictRepairBoundary =
+		request.purpose === "conflict-repair" || metadata.purpose === "conflict-repair";
 	return (
 		metadata.projectId === request.checkout.projectId &&
 		metadata.repository === request.checkout.repository &&
 		metadata.defaultBranch === request.checkout.defaultBranch &&
-		metadata.workflow === request.checkout.workflow &&
+		(metadata.workflow === request.checkout.workflow || crossesConflictRepairBoundary) &&
 		metadata.issueNumber === request.issueNumber &&
 		metadata.pullRequestNumber === request.pullRequestNumber
 	);

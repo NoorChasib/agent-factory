@@ -4,7 +4,9 @@ import type { HerdrCommandExecutionAdapter } from "@/adapters/herdr-command.ts";
 import type { GitCustodyAdapter, WorkerProcessAdapter } from "@/adapters/interfaces.ts";
 import { safeId } from "@/contracts/primitives.ts";
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import type { WorkerTerminalStatus } from "@/contracts/worker-result.ts";
 import {
+	type ConflictRepairHandoffRequest,
 	type ExecutionRecord,
 	ExecutionRecordSchema,
 	type LaunchRequest,
@@ -153,7 +155,25 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 
 	public async activate(execution: ExecutionRecord): Promise<void> {
 		if (!this.#launches.has(execution.executionId)) {
-			throw new Error(`execution '${execution.executionId}' has no prepared launch`);
+			const profile = this.#profiles.get(execution.projectId);
+			if (profile === undefined) {
+				throw new Error(`execution '${execution.executionId}' belongs to an unknown project`);
+			}
+			const state = await this.#ledger.read();
+			const conflictRepair = state.state.conflictRepair.invocations.some(
+				(invocation) => invocation.executionId === execution.executionId,
+			);
+			this.#launches.set(execution.executionId, {
+				projectId: execution.projectId,
+				lane: execution.lane,
+				provider: execution.provider,
+				workflow: execution.workflow,
+				issueNumber: execution.issueNumber,
+				pullRequestNumber: execution.pullRequestNumber,
+				branch: execution.branch,
+				headSha: execution.headSha,
+				...(conflictRepair ? { purpose: "conflict-repair" as const } : {}),
+			});
 		}
 		void this.#run(execution).catch((error: unknown) =>
 			this.#recordSupervisionFailure(execution.executionId, error),
@@ -164,10 +184,41 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 		await this.#stopExecution(request.executionId);
 	}
 
+	public async handoffConflictRepair(request: ConflictRepairHandoffRequest): Promise<void> {
+		const profile = this.#profiles.get(request.projectId);
+		if (profile === undefined) {
+			throw new Error(`conflict-repair handoff targeted unknown project '${request.projectId}'`);
+		}
+		const snapshot = await this.#ledger.read();
+		const execution = snapshot.state.executions.find(
+			(candidate) => candidate.executionId === request.executionId,
+		);
+		if (execution === undefined) {
+			throw new Error(
+				`conflict-repair handoff targeted unknown execution '${request.executionId}'`,
+			);
+		}
+		await this.#handoff({
+			profile,
+			execution,
+			terminalStatus: "operator_required",
+			branch: request.branch,
+			headSha: request.headSha,
+			checkpoint: `conflict-repair-${request.reason}`,
+		});
+	}
+
 	public async resumeExecution(executionId: string): Promise<unknown> {
 		const recovery = this.#ledger.readExecutionRecovery(executionId);
-		const recorded = recovery.sessions.at(-1);
-		if (recorded === undefined) {
+		const recorded =
+			recovery.sessions.at(-1) ??
+			(recovery.execution.provider === "codex" && recovery.execution.pullRequestNumber !== null
+				? this.#ledger.findCodexSessionForPullRequest(
+						recovery.execution.projectId,
+						recovery.execution.pullRequestNumber,
+					)
+				: null);
+		if (recorded === undefined || recorded === null) {
 			throw new Error(`execution '${executionId}' has no provider session to resume`);
 		}
 		const session = resumeProviderSessionFromLedger(recorded);
@@ -184,6 +235,10 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 		}
 		state.executions[index] = { ...execution, status: "active" };
 		await this.#ledger.commit(snapshot.revision, state);
+		const invocation = state.conflictRepair.invocations.find(
+			(candidate) => candidate.executionId === executionId,
+		);
+		const purpose = invocation === undefined ? undefined : ("conflict-repair" as const);
 		void this.#commands
 			.runForExecution(executionId, async () => {
 				const path =
@@ -197,10 +252,13 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 						projectId: profile.id,
 						repository: profile.repository,
 						defaultBranch: profile.defaultBranch,
-						workflow: session.runtimeMetadata.workflow,
+						workflow: execution.workflow,
 					},
-					issueNumber: session.runtimeMetadata.issueNumber,
-					pullRequestNumber: session.runtimeMetadata.pullRequestNumber,
+					issueNumber: execution.issueNumber,
+					pullRequestNumber: execution.pullRequestNumber,
+					...(purpose === undefined ? {} : { purpose }),
+					...(execution.branch === null ? {} : { branch: execution.branch }),
+					...(invocation === undefined ? {} : { initialHeadSha: invocation.headSha }),
 				};
 				return this.#recorder.runResume(executionId, session, () =>
 					session.provider === "claude"
@@ -208,8 +266,27 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 						: this.#codex.resume({ request, runtime: this.#codexRuntime, session }),
 				);
 			})
-			.then((persisted) =>
-				this.#finish(executionId, {
+			.then(async (persisted) => {
+				const result = persisted.outcome.workerResult;
+				if (persisted.outcome.status !== "completed") {
+					try {
+						await this.#handoff({
+							profile,
+							execution,
+							terminalStatus: persisted.outcome.status,
+							branch: result?.branch.name ?? execution.branch,
+							headSha: result?.branch.headSha ?? execution.headSha,
+							checkpoint:
+								result?.checkpoint.code ?? persisted.outcome.reasonCode ?? "execution-failed",
+						});
+					} catch (error) {
+						this.#ledger.appendAudit("recovery-handoff-failed", {
+							executionId,
+							message: error instanceof Error ? error.message : "recovery handoff failed",
+						});
+					}
+				}
+				return this.#finish(executionId, {
 					issueNumber: persisted.outcome.workerResult?.issue.number ?? execution.issueNumber,
 					pullRequestNumber:
 						persisted.outcome.workerResult?.pullRequest?.number ?? execution.pullRequestNumber,
@@ -218,8 +295,15 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 					worktreeId: execution.worktreeId,
 					circuitSignal: persisted.outcome.circuitSignal,
 					status: persisted.outcome.status,
-				}),
-			)
+					conflictRepair:
+						purpose === "conflict-repair"
+							? {
+									initialHeadSha: invocation?.headSha ?? execution.headSha,
+									handoff: persisted.outcome.status !== "completed",
+								}
+							: null,
+				});
+			})
 			.catch((error: unknown) => this.#recordSupervisionFailure(executionId, error));
 		return { executionId, resumeStarted: true };
 	}
@@ -254,39 +338,44 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			},
 			issueNumber: launch.issueNumber,
 			pullRequestNumber: launch.pullRequestNumber,
+			...(launch.purpose === undefined ? {} : { purpose: launch.purpose }),
+			...(launch.branch === null ? {} : { branch: launch.branch }),
+			...(launch.purpose === "conflict-repair" && launch.headSha !== null
+				? { initialHeadSha: launch.headSha }
+				: {}),
 		};
-		const persisted = await this.#commands.runForExecution(execution.executionId, () =>
-			this.#recorder.runInitial(execution.executionId, () =>
-				launch.lane === "implementation"
-					? this.#claude.launch(request)
-					: this.#codex.launch({ request, runtime: this.#codexRuntime }),
-			),
-		);
+		const existingCodexSession =
+			launch.lane === "feedback" && launch.pullRequestNumber !== null
+				? this.#ledger.findCodexSessionForPullRequest(profile.id, launch.pullRequestNumber)
+				: null;
+		const persisted = await this.#commands.runForExecution(execution.executionId, () => {
+			if (launch.lane === "implementation") {
+				return this.#recorder.runInitial(execution.executionId, () => this.#claude.launch(request));
+			}
+			if (existingCodexSession === null) {
+				return this.#recorder.runInitial(execution.executionId, () =>
+					this.#codex.launch({ request, runtime: this.#codexRuntime }),
+				);
+			}
+			const session = resumeProviderSessionFromLedger(existingCodexSession);
+			return this.#recorder.runResume(execution.executionId, session, () =>
+				this.#codex.resume({
+					request,
+					runtime: this.#codexRuntime,
+					session,
+				}),
+			);
+		});
 		const result = persisted.outcome.workerResult;
-		if (
-			persisted.outcome.status !== "completed" &&
-			result !== null &&
-			this.#recoveryHandoff !== undefined
-		) {
-			const recovery = this.#ledger.readExecutionRecovery(execution.executionId);
+		if (persisted.outcome.status !== "completed") {
 			try {
-				await this.#recoveryHandoff.handoff({
+				await this.#handoff({
+					profile,
+					execution,
 					terminalStatus: persisted.outcome.status,
-					record: {
-						projectAlias: profile.id,
-						executionId: execution.executionId,
-						subject:
-							result.pullRequest === null
-								? { kind: "issue", number: result.issue.number }
-								: { kind: "pull-request", number: result.pullRequest.number },
-						branch: result.branch.name,
-						commit: result.branch.headSha,
-						pane: recovery.process?.paneId ?? null,
-						providerSessionId: recovery.sessions.at(-1)?.providerSessionId ?? null,
-						checkpoint: result.checkpoint.code,
-						reasonCode: "execution-failed",
-					},
-					existingCommentId: null,
+					branch: result?.branch.name ?? launch.branch,
+					headSha: result?.branch.headSha ?? launch.headSha,
+					checkpoint: result?.checkpoint.code ?? persisted.outcome.reasonCode ?? "execution-failed",
 				});
 			} catch (error) {
 				this.#ledger.appendAudit("recovery-handoff-failed", {
@@ -312,6 +401,13 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			worktreeId,
 			circuitSignal: persisted.outcome.circuitSignal,
 			status: persisted.outcome.status,
+			conflictRepair:
+				launch.purpose === "conflict-repair"
+					? {
+							initialHeadSha: launch.headSha,
+							handoff: persisted.outcome.status !== "completed",
+						}
+					: null,
 		});
 		this.#launches.delete(execution.executionId);
 	}
@@ -326,6 +422,10 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			readonly worktreeId: string | null;
 			readonly circuitSignal: Awaited<ReturnType<ClaudeCodeRunner["launch"]>>["circuitSignal"];
 			readonly status: string;
+			readonly conflictRepair: {
+				readonly initialHeadSha: string | null;
+				readonly handoff: boolean;
+			} | null;
 		},
 	): Promise<void> {
 		for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -348,6 +448,35 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				claimState: input.issueNumber === null ? "selecting" : "awaiting-verification",
 				status: current.status === "released" ? "released" : "completed",
 			});
+			if (input.conflictRepair !== null) {
+				const invocationIndex = state.conflictRepair.invocations.findIndex(
+					(candidate) => candidate.executionId === executionId,
+				);
+				const invocation = state.conflictRepair.invocations[invocationIndex];
+				if (invocation !== undefined) {
+					state.conflictRepair.invocations[invocationIndex] = {
+						...invocation,
+						status: input.status === "completed" ? "completed" : "failed",
+					};
+					if (
+						input.conflictRepair.handoff &&
+						!state.conflictRepair.handoffs.some(
+							(handoff) =>
+								handoff.projectId === invocation.projectId &&
+								handoff.pullRequestNumber === invocation.pullRequestNumber &&
+								handoff.headSha === invocation.headSha,
+						)
+					) {
+						state.conflictRepair.handoffs.push({
+							projectId: invocation.projectId,
+							pullRequestNumber: invocation.pullRequestNumber,
+							headSha: invocation.headSha,
+							executionId,
+							reason: "worker-failure",
+						});
+					}
+				}
+			}
 			if (input.circuitSignal !== null) {
 				state.circuits[input.circuitSignal.provider] = {
 					status: "open",
@@ -372,6 +501,22 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 	async #recordSupervisionFailure(executionId: string, error: unknown): Promise<void> {
 		try {
 			const recovery = this.#ledger.readExecutionRecovery(executionId);
+			const launch = this.#launches.get(executionId);
+			const profile = this.#profiles.get(recovery.execution.projectId);
+			if (launch?.purpose === "conflict-repair" && profile !== undefined) {
+				try {
+					await this.#handoff({
+						profile,
+						execution: recovery.execution,
+						terminalStatus: "failed",
+						branch: launch.branch,
+						headSha: launch.headSha,
+						checkpoint: "worker-supervision-failed",
+					});
+				} catch {
+					// The audit below records the supervision failure even if handoff publication fails.
+				}
+			}
 			const latest = recovery.attempts.at(-1);
 			if (latest?.status === "active") {
 				this.#ledger.updateAttempt({
@@ -390,10 +535,38 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 					(candidate) => candidate.executionId === executionId,
 				);
 				const current = state.executions[index];
-				if (current === undefined || current.status !== "active") {
+				if (current === undefined) {
 					break;
 				}
-				state.executions[index] = { ...current, status: "completed" };
+				if (current.status === "active") {
+					state.executions[index] = { ...current, status: "completed" };
+				}
+				const invocationIndex = state.conflictRepair.invocations.findIndex(
+					(candidate) => candidate.executionId === executionId,
+				);
+				const invocation = state.conflictRepair.invocations[invocationIndex];
+				if (invocation !== undefined) {
+					state.conflictRepair.invocations[invocationIndex] = {
+						...invocation,
+						status: "failed",
+					};
+					if (
+						!state.conflictRepair.handoffs.some(
+							(handoff) =>
+								handoff.projectId === invocation.projectId &&
+								handoff.pullRequestNumber === invocation.pullRequestNumber &&
+								handoff.headSha === invocation.headSha,
+						)
+					) {
+						state.conflictRepair.handoffs.push({
+							projectId: invocation.projectId,
+							pullRequestNumber: invocation.pullRequestNumber,
+							headSha: invocation.headSha,
+							executionId,
+							reason: "worker-failure",
+						});
+					}
+				}
 				try {
 					await this.#ledger.commit(snapshot.revision, state);
 					break;
@@ -421,5 +594,59 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				// The ledger may already be closed during daemon shutdown.
 			}
 		}
+	}
+
+	async #handoff(input: {
+		readonly profile: ProjectProfile;
+		readonly execution: ExecutionRecord;
+		readonly terminalStatus: Exclude<WorkerTerminalStatus, "completed">;
+		readonly branch: string | null;
+		readonly headSha: string | null;
+		readonly checkpoint: string;
+	}): Promise<void> {
+		if (this.#recoveryHandoff === undefined) {
+			return;
+		}
+		const recovery = this.#ledger.readExecutionRecovery(input.execution.executionId);
+		const session =
+			recovery.sessions.at(-1) ??
+			(input.execution.pullRequestNumber === null
+				? null
+				: this.#ledger.findCodexSessionForPullRequest(
+						input.profile.id,
+						input.execution.pullRequestNumber,
+					));
+		const sessionRecovery =
+			session === null || session === undefined
+				? null
+				: this.#ledger.readExecutionRecovery(session.executionId);
+		const subject =
+			input.execution.pullRequestNumber === null
+				? {
+						kind: "issue" as const,
+						number: input.execution.issueNumber,
+					}
+				: {
+						kind: "pull-request" as const,
+						number: input.execution.pullRequestNumber,
+					};
+		if (subject.number === null) {
+			throw new Error("recovery handoff execution has no subject");
+		}
+		await this.#recoveryHandoff.handoff({
+			terminalStatus: input.terminalStatus,
+			record: {
+				projectAlias: input.profile.id,
+				executionId: input.execution.executionId,
+				subject: { ...subject, number: subject.number },
+				branch: input.branch,
+				commit: input.headSha,
+				pane: recovery.process?.paneId ?? sessionRecovery?.process?.paneId ?? null,
+				providerSessionId: session?.providerSessionId ?? null,
+				checkpoint: input.checkpoint,
+				reasonCode: "execution-failed",
+			},
+			existingCommentId: null,
+		});
 	}
 }

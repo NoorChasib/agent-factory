@@ -125,8 +125,7 @@ export class ProviderExecutionRecorder {
 			target.pullRequestNumber !== null &&
 			recordedSession.runtimeMetadata.projectId === target.projectId &&
 			recordedSession.runtimeMetadata.issueNumber === target.issueNumber &&
-			recordedSession.runtimeMetadata.pullRequestNumber === target.pullRequestNumber &&
-			recordedSession.runtimeMetadata.workflow === target.workflow;
+			recordedSession.runtimeMetadata.pullRequestNumber === target.pullRequestNumber;
 		if (!sameClaudeExecution && !sameCodexPullRequest) {
 			throw new Error("provider resume session belongs to a different execution");
 		}

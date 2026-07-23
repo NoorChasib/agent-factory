@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+	gitObjectId,
 	looseBranch,
 	projectId,
 	repository,
@@ -35,6 +36,9 @@ export const ProviderRunRequestSchema = z.strictObject({
 	checkout: PreparedCheckoutSchema,
 	issueNumber: z.number().int().positive().nullable(),
 	pullRequestNumber: z.number().int().positive().nullable(),
+	purpose: z.literal("conflict-repair").optional(),
+	branch: looseBranch.optional(),
+	initialHeadSha: gitObjectId.optional(),
 });
 export type ProviderRunRequest = z.infer<typeof ProviderRunRequestSchema>;
 
@@ -45,6 +49,9 @@ export const ProviderSessionContextSchema = z.strictObject({
 	workflow: workflowEntryPoint,
 	issueNumber: z.number().int().positive().nullable(),
 	pullRequestNumber: z.number().int().positive().nullable(),
+	purpose: z.literal("conflict-repair").optional(),
+	branch: looseBranch.optional(),
+	initialHeadSha: gitObjectId.optional(),
 });
 export type ProviderSessionContext = z.infer<typeof ProviderSessionContextSchema>;
 

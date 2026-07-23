@@ -450,7 +450,10 @@ export function mapGitHubObservation(
 	};
 }
 
-export function toControllerObservation(snapshot: GitHubProjectSnapshot): GitHubProjectObservation {
+export function toControllerObservation(
+	snapshot: GitHubProjectSnapshot,
+	conflictRepairPullRequestNumbers: ReadonlySet<number> = new Set(),
+): GitHubProjectObservation {
 	return GitHubProjectObservationSchema.parse({
 		projectId: snapshot.projectId,
 		issues: snapshot.issues.map((issue) => ({
@@ -469,6 +472,8 @@ export function toControllerObservation(snapshot: GitHubProjectSnapshot): GitHub
 			branch: pullRequest.branch,
 			headSha: pullRequest.headSha,
 			mergedAt: pullRequest.mergedAt,
+			mergeability: pullRequest.mergeability,
+			conflictRepairEligible: conflictRepairPullRequestNumbers.has(pullRequest.number),
 		})),
 	});
 }

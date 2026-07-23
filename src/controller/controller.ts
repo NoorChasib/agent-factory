@@ -67,6 +67,7 @@ export interface ReconcileResult {
 	readonly startedExecutionIds: readonly string[];
 	readonly stoppedExecutionIds: readonly string[];
 	readonly verifiedExecutionIds: readonly string[];
+	readonly conflictRepairHandoffExecutionIds: readonly string[];
 	readonly blocks: PlannerPlan["blocks"];
 	readonly invariantViolations: readonly string[];
 	readonly nextPollDelayMs: number;
@@ -347,6 +348,7 @@ class DeterministicController implements Controller {
 				startedExecutionIds: [],
 				stoppedExecutionIds: [],
 				verifiedExecutionIds: [],
+				conflictRepairHandoffExecutionIds: [],
 				blocks: context.plan.blocks,
 				invariantViolations: context.plan.invariantViolations,
 				nextPollDelayMs,
@@ -376,6 +378,19 @@ class DeterministicController implements Controller {
 			state.executions[index] = executionAfterTransition(execution, transition);
 		}
 
+		const conflictRepairHandoffExecutionIds: string[] = [];
+		for (const handoff of context.plan.conflictRepairHandoffs) {
+			await this.#adapters.processes.handoffConflictRepair(handoff);
+			state.conflictRepair.handoffs.push({
+				projectId: handoff.projectId,
+				pullRequestNumber: handoff.pullRequestNumber,
+				headSha: handoff.headSha,
+				executionId: handoff.executionId,
+				reason: handoff.reason,
+			});
+			conflictRepairHandoffExecutionIds.push(handoff.executionId);
+		}
+
 		const startedExecutionIds: string[] = [];
 		for (const launch of context.plan.launches) {
 			const execution = normalizedExecution(await this.#adapters.processes.start(launch), launch);
@@ -386,6 +401,18 @@ class DeterministicController implements Controller {
 				throw new Error(`launch '${execution.executionId}' violates one-owner execution identity`);
 			}
 			state.executions.push(execution);
+			if (launch.purpose === "conflict-repair") {
+				if (launch.pullRequestNumber === null || launch.headSha === null) {
+					throw new Error("conflict-repair launch lost its pull request or head");
+				}
+				state.conflictRepair.invocations.push({
+					projectId: launch.projectId,
+					pullRequestNumber: launch.pullRequestNumber,
+					headSha: launch.headSha,
+					executionId: execution.executionId,
+					status: "active",
+				});
+			}
 			startedExecutionIds.push(execution.executionId);
 		}
 		state.rotation = { ...context.plan.rotation };
@@ -393,6 +420,7 @@ class DeterministicController implements Controller {
 		let revision = context.ledger.revision;
 		const changed =
 			context.plan.transitions.length > 0 ||
+			conflictRepairHandoffExecutionIds.length > 0 ||
 			startedExecutionIds.length > 0 ||
 			state.rotation.implementation !== context.ledger.state.rotation.implementation ||
 			state.rotation.feedback !== context.ledger.state.rotation.feedback;
@@ -420,6 +448,7 @@ class DeterministicController implements Controller {
 			startedExecutionIds,
 			stoppedExecutionIds,
 			verifiedExecutionIds,
+			conflictRepairHandoffExecutionIds,
 			blocks: context.plan.blocks,
 			invariantViolations: context.plan.invariantViolations,
 			nextPollDelayMs,
