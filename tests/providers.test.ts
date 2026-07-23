@@ -311,6 +311,36 @@ describe("provider runtime configuration and Claude launch", () => {
     });
   });
 
+  test("preserves the session in a classified wrapper-death handoff", async () => {
+    const commands = new ScriptedCommandAdapter([
+      {
+        status: "failed",
+        classification: "wrapper-death",
+        stdout: "",
+        stderr: "",
+        processId: 77,
+      },
+    ]);
+    const runner = new ClaudeCodeRunner({
+      commands,
+      tokens: new Tokens(),
+      ids: new ClaudeIds(),
+      clock: new FixedClockAdapter(),
+      verifier: new AcceptingVerifier(),
+      runtime: parseClaudeRuntimeFromEnvironment({}),
+      controllerEnvironment: {},
+    });
+
+    expect(await runner.launch(implementationRequest)).toMatchObject({
+      status: "failed",
+      reasonCode: "command-wrapper-death",
+      session: { id: claudeSessionId },
+      commandStarted: true,
+      processId: 77,
+      circuitSignal: null,
+    });
+  });
+
   test("turns a structured provider limit into a lane-specific circuit signal", async () => {
     const commands = new ScriptedCommandAdapter([
       exited(

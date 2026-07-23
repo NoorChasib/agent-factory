@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { CommandExecutionResult } from "../src";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { CommandExecutionResult, GitHubProjectTokenProvider } from "../src";
 import {
   assertAllowedGitOperation,
   assessWorktreeCleanup,
@@ -9,11 +12,26 @@ import {
   GuardedGitCommandAdapter,
   MERGED_WORKTREE_RETENTION_MS,
   parseGitWorktreePorcelain,
+  parseProjectProfileYaml,
+  SelectionCheckoutCustody,
   WorktreeCleanupNotEligibleError,
   WorktreeCustody,
   WorktreeInvariantError,
 } from "../src";
 import { InMemoryGitCustodyAdapter, ScriptedCommandAdapter } from "../src/testing";
+
+const profile = parseProjectProfileYaml(
+  await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),
+);
+
+class Tokens implements GitHubProjectTokenProvider {
+  public readonly requests: string[] = [];
+
+  public async tokenForProject(projectId: string): Promise<string> {
+    this.requests.push(projectId);
+    return "ghs_private-mirror-token";
+  }
+}
 
 function ok(stdout = "", exitCode = 0): CommandExecutionResult {
   return {
@@ -151,23 +169,51 @@ describe("factory mirror and issue-worktree custody", () => {
         push: true,
       }),
     ).toThrow(ForbiddenGitOperationError);
+    expect(
+      assertAllowedGitOperation({
+        kind: "worktree-add-detached",
+        projectId: "project-one",
+        path: "/factory-data/worktrees/project-one/.selection-execution-1",
+        startPoint: "main",
+      }).kind,
+    ).toBe("worktree-add-detached");
+    expect(
+      assertAllowedGitOperation({
+        kind: "branch-show-current",
+        projectId: "project-one",
+        path: "/factory-data/worktrees/project-one/.selection-execution-1",
+      }).kind,
+    ).toBe("branch-show-current");
+    expect(
+      assertAllowedGitOperation({
+        kind: "worktree-move",
+        projectId: "project-one",
+        sourcePath: "/factory-data/worktrees/project-one/.selection-execution-1",
+        destinationPath: "/factory-data/worktrees/project-one/issue-7",
+      }).kind,
+    ).toBe("worktree-move");
 
     const commands = new ScriptedCommandAdapter([
       ok("", 128),
       ok(),
       ok(["worktree /factory-data/mirrors/project-one.git", "bare", ""].join("\n")),
       ok(),
+      ok(),
     ]);
+    const tokens = new Tokens();
     const git = new GuardedGitCommandAdapter({
       commands,
+      tokens,
       mirrorBaseDirectory: "/factory-data/mirrors",
       worktreeBaseDirectory: "/factory-data/worktrees",
       protectedCheckoutDirectories: ["/operator/checkout"],
     });
     const created = await new WorktreeCustody(git).createIssueWorktree(request);
+    await git.fetchMirror("project-one");
 
     expect(created.created).toBe(true);
     expect(commands.requests.map((command) => command.executable)).toEqual([
+      "git",
       "git",
       "git",
       "git",
@@ -190,12 +236,100 @@ describe("factory mirror and issue-worktree custody", () => {
       "/factory-data/worktrees/project-one/issue-7",
       "main",
     ]);
+    expect(commands.requests[4]?.argv).toEqual([
+      "--git-dir",
+      "/factory-data/mirrors/project-one.git",
+      "fetch",
+      "--prune",
+      "origin",
+    ]);
+    const expectedAuthorization = `Authorization: Basic ${Buffer.from(
+      "x-access-token:ghs_private-mirror-token",
+    ).toString("base64")}`;
+    expect(commands.requests[1]?.env).toEqual({
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+      GIT_CONFIG_VALUE_0: expectedAuthorization,
+      GIT_TERMINAL_PROMPT: "0",
+    });
+    expect(commands.requests[4]?.env).toEqual(commands.requests[1]?.env);
+    expect(tokens.requests).toEqual(["project-one", "project-one"]);
+    expect(
+      commands.requests
+        .filter((_, index) => index !== 1 && index !== 4)
+        .every((command) => Object.keys(command.env).length === 0),
+    ).toBe(true);
+    expect(commands.requests.flatMap((command) => command.argv)).not.toContain(
+      "ghs_private-mirror-token",
+    );
+    expect(commands.requests[1]?.argv[2]).toBe("https://github.com/ExampleOrg/project-one.git");
+    expect(commands.requests[1]?.argv.join(" ")).not.toContain("x-access-token");
     expect(
       commands.requests.some((command) =>
         command.argv.some((argument) => /^(?:push|rebase|reset|merge|commit)$/u.test(argument)),
       ),
     ).toBe(false);
     expect(commands.remaining()).toBe(0);
+  });
+
+  test("routes selection checkout operations through the local guarded Git allowlist", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "agent-factory-selection-"));
+    try {
+      const mirrorBaseDirectory = join(directory, "mirrors");
+      const worktreeBaseDirectory = join(directory, "worktrees");
+      const commands = new ScriptedCommandAdapter([ok(), ok("factory/issue-7\n"), ok()]);
+      const tokens = new Tokens();
+      const git = new GuardedGitCommandAdapter({
+        commands,
+        tokens,
+        mirrorBaseDirectory,
+        worktreeBaseDirectory,
+        protectedCheckoutDirectories: [],
+      });
+      const selections = new SelectionCheckoutCustody({
+        git,
+        worktreeDirectory: worktreeBaseDirectory,
+      });
+
+      const source = await selections.prepare(profile, "execution-1");
+      expect(
+        await selections.finalize({
+          profile,
+          executionId: "execution-1",
+          issueNumber: 7,
+          branch: "factory/issue-7",
+        }),
+      ).toBe("lumen-notes-issue-7");
+      const destination = join(worktreeBaseDirectory, "lumen-notes", "issue-7");
+
+      expect(commands.requests.map((command) => command.argv)).toEqual([
+        [
+          "--git-dir",
+          join(mirrorBaseDirectory, "lumen-notes.git"),
+          "worktree",
+          "add",
+          "--detach",
+          source,
+          "trunk",
+        ],
+        ["-C", source, "branch", "--show-current"],
+        [
+          "--git-dir",
+          join(mirrorBaseDirectory, "lumen-notes.git"),
+          "worktree",
+          "move",
+          source,
+          destination,
+        ],
+      ]);
+      expect(commands.requests.every((command) => Object.keys(command.env).length === 0)).toBe(
+        true,
+      );
+      expect(tokens.requests).toEqual([]);
+      expect(commands.remaining()).toBe(0);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
 
@@ -314,8 +448,10 @@ describe("worktree cleanup eligibility and safe removal", () => {
 
   test("builds safe removal without force for only the derived issue path", async () => {
     const commands = new ScriptedCommandAdapter([ok()]);
+    const tokens = new Tokens();
     const git = new GuardedGitCommandAdapter({
       commands,
+      tokens,
       mirrorBaseDirectory: "/factory-data/mirrors",
       worktreeBaseDirectory: "/factory-data/worktrees",
       protectedCheckoutDirectories: ["/operator/checkout"],
@@ -330,5 +466,7 @@ describe("worktree cleanup eligibility and safe removal", () => {
       "/factory-data/worktrees/project-one/issue-7",
     ]);
     expect(commands.requests[0]?.argv).not.toContain("--force");
+    expect(commands.requests[0]?.env).toEqual({});
+    expect(tokens.requests).toEqual([]);
   });
 });

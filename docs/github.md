@@ -134,6 +134,7 @@ is created. It then requests a repository-restricted installation token with exa
 {
   "administration": "read",
   "checks": "read",
+  "contents": "read",
   "issues": "write",
   "metadata": "read",
   "pull_requests": "read",
@@ -145,6 +146,15 @@ The returned permission set must match exactly. Tokens are cached per project un
 expiry-skew boundary. Installation IDs are also cached per project. PEM contents are passed only
 to the local signing primitive, are never sent through the transport, are never included as an
 error cause, and are never made available as worker environment.
+
+Factory-owned mirror clone and fetch operations obtain a token from this same project-scoped
+provider for each remote operation. The guarded Git adapter converts
+`x-access-token:<token>` to a Basic authorization header carried only through
+`GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_0`, and `GIT_CONFIG_VALUE_0`. Git argv retains the clean
+`https://github.com/{owner}/{repository}.git` URL, so the token is absent from process argv and
+the persisted `origin` URL. Mirror inspection and every local worktree/branch operation receive
+an empty environment rather than GitHub credentials. Command adapters do not log environment
+maps.
 
 ## HTTP and security boundary
 

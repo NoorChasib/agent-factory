@@ -25,15 +25,23 @@ const commandText = z
   .min(1)
   .max(16_384)
   .refine((value) => !/[\0\r\n]/u.test(value));
+const absolutePath = z
+  .string()
+  .min(1)
+  .max(4_096)
+  .startsWith("/")
+  .refine((value) => !/[\0\r\n]/u.test(value));
 const commandRequest = z.strictObject({
-  executable: commandText,
-  argv: z.array(commandText).max(1_024),
-  cwd: z.string().min(1).max(4_096).startsWith("/"),
-  env: z.record(
-    z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/u),
-    z.string().refine((value) => !value.includes("\0")),
-  ),
-  stdin: z.string().max(16 * 1_024 * 1_024),
+  executable: z.literal("bun"),
+  argv: z.tuple([absolutePath, absolutePath]),
+  cwd: absolutePath,
+  env: z
+    .record(
+      z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/u),
+      z.string().refine((value) => !value.includes("\0")),
+    )
+    .refine((value) => Object.keys(value).length === 0),
+  stdin: z.literal(""),
   stdout: z.literal("capture-json-lines"),
   stderr: z.literal("capture"),
 });
@@ -159,9 +167,6 @@ export class GuardedHerdrCommandAdapter {
   async #createPane(
     operation: Extract<HerdrOperation, { readonly kind: "create-pane" }>,
   ): Promise<HerdrOperationResult> {
-    const environment = Object.entries(operation.command.env)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .flatMap(([key, value]) => ["--env", `${key}=${value}`]);
     const split = await this.#run(
       [
         "pane",
@@ -171,7 +176,6 @@ export class GuardedHerdrCommandAdapter {
         "right",
         "--cwd",
         operation.command.cwd,
-        ...environment,
         "--no-focus",
       ],
       operation.kind,
@@ -200,18 +204,6 @@ export class GuardedHerdrCommandAdapter {
       operation.kind,
       operation.command.cwd,
     );
-    if (operation.command.stdin.length > 0) {
-      await this.#run(
-        ["pane", "send-text", reference.paneId, operation.command.stdin],
-        operation.kind,
-        operation.command.cwd,
-      );
-      await this.#run(
-        ["pane", "send-keys", reference.paneId, "ctrl+d", "ctrl+d"],
-        operation.kind,
-        operation.command.cwd,
-      );
-    }
     const process = await this.#processInfo(reference, operation.kind);
     if (process.processId === null) {
       throw new HerdrCommandError(operation.kind);

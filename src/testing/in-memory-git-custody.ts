@@ -41,6 +41,42 @@ export class InMemoryGitCustodyAdapter implements GitCustodyAdapter {
     return structuredClone(this.#worktrees.get(projectId) ?? []);
   }
 
+  public async addDetachedWorktree(input: {
+    readonly projectId: string;
+    readonly path: string;
+    readonly startPoint: string;
+  }): Promise<void> {
+    this.operations.push(`add-detached:${input.projectId}:${input.path}:${input.startPoint}`);
+  }
+
+  public async branchShowCurrent(input: {
+    readonly projectId: string;
+    readonly path: string;
+  }): Promise<string> {
+    this.operations.push(`branch-show-current:${input.projectId}:${input.path}`);
+    return (
+      (this.#worktrees.get(input.projectId) ?? []).find((worktree) => worktree.path === input.path)
+        ?.branch ?? ""
+    );
+  }
+
+  public async moveWorktree(input: {
+    readonly projectId: string;
+    readonly sourcePath: string;
+    readonly destinationPath: string;
+  }): Promise<void> {
+    this.operations.push(`move:${input.projectId}:${input.sourcePath}:${input.destinationPath}`);
+    const existing = this.#worktrees.get(input.projectId) ?? [];
+    this.#worktrees.set(
+      input.projectId,
+      existing.map((worktree) =>
+        worktree.path === input.sourcePath
+          ? { ...worktree, path: input.destinationPath }
+          : worktree,
+      ),
+    );
+  }
+
   public async addWorktree(input: {
     readonly projectId: string;
     readonly issueNumber: number;

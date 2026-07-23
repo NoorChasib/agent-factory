@@ -230,6 +230,21 @@ export class CodexFeedbackRunner {
         processStartedAt,
       });
     }
+    if (commandResult.status === "failed") {
+      const circuitSignal =
+        commandResult.classification === "timeout" || commandResult.classification === "transport"
+          ? circuitSignalForFailure("codex", commandResult.classification)
+          : null;
+      return failedProviderOutcome({
+        provider: "codex",
+        reasonCode: `command-${commandResult.classification}`,
+        session: recordedSession,
+        commandStarted: true,
+        processStartedAt,
+        commandResult,
+        circuitSignal,
+      });
+    }
 
     let events: ReturnType<typeof parseCommonProviderEvents>;
     try {
@@ -250,11 +265,6 @@ export class CodexFeedbackRunner {
         error instanceof ProviderOutputError
           ? "structured-output-invalid"
           : "structured-output-error";
-      const circuitSignal =
-        commandResult.status === "failed" &&
-        (commandResult.classification === "timeout" || commandResult.classification === "transport")
-          ? circuitSignalForFailure("codex", commandResult.classification)
-          : null;
       return failedProviderOutcome({
         provider: "codex",
         reasonCode,
@@ -262,7 +272,6 @@ export class CodexFeedbackRunner {
         commandStarted: true,
         processStartedAt,
         commandResult,
-        circuitSignal,
       });
     }
 

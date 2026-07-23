@@ -203,6 +203,7 @@ export async function productionDaemonMain(
 
   const git = new GuardedGitCommandAdapter({
     commands: command,
+    tokens,
     mirrorBaseDirectory: paths.mirrorDirectory,
     worktreeBaseDirectory: paths.worktreeDirectory,
     protectedCheckoutDirectories: [resolve(import.meta.dir, "..", "..")],
@@ -224,6 +225,7 @@ export async function productionDaemonMain(
     herdr,
     ledger,
     delay,
+    clock,
     stateDirectory: paths.stateDirectory,
     workerExecutable: resolve(import.meta.dir, "worker-command.ts"),
   });
@@ -256,7 +258,6 @@ export async function productionDaemonMain(
   });
   const recorder = new ProviderExecutionRecorder(new HerdrProviderExecutionRepository(ledger));
   const selections = new SelectionCheckoutCustody({
-    commands: command,
     git,
     worktreeDirectory: paths.worktreeDirectory,
   });

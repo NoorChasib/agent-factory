@@ -21,6 +21,11 @@ systemd `LoadCredential`, read by the token broker, and never passed to workers.
 only a short-lived, reduced-permission installation token in the allowlisted process
 environment. Token cache entries are scoped by target/installation.
 
+Worker tokens and workflow prompts cross Herdr custody only in a mode-`0600` specification
+inside a mode-`0700` state directory. Herdr argv contains only wrapper and specification paths.
+The wrapper unlinks the specification after validation and spawns the provider with exactly its
+recorded allowlisted environment, never the inherited pane environment.
+
 Profiles, runtime YAML, the environment file, logs, notifications, recovery comments, GitHub
 issues, and the repository must never contain PEM data or live tokens. Private credential sources
 and configuration files are owner-only.

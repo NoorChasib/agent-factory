@@ -127,11 +127,14 @@ function processInfoOutput(paneId: string, processId: number): string {
 
 function workerCommand(): CommandRequest {
   return {
-    executable: "claude",
-    argv: ["--print"],
+    executable: "bun",
+    argv: [
+      "/factory/bin/worker-command.ts",
+      "/factory/state/execution-details/execution-1-1.spec.json",
+    ],
     cwd: "/factory/worktrees/project-one/issue-1",
-    env: { FACTORY_EXECUTION: "execution-1" },
-    stdin: "fixture prompt",
+    env: {},
+    stdin: "",
     stdout: "capture-json-lines",
     stderr: "capture",
   };
@@ -217,6 +220,40 @@ describe("Herdr session scoping and pane custody", () => {
     for (const operation of operations) {
       expect(() => assertFactoryHerdrOperation(operation)).toThrow(HerdrScopeError);
     }
+    expect(() =>
+      assertFactoryHerdrOperation({
+        kind: "create-pane",
+        sessionName: FACTORY_HERDR_SESSION,
+        paneName: "execution-1",
+        command: {
+          ...command,
+          env: { GH_TOKEN: "ghs_must-not-reach-herdr-argv" },
+        },
+      }),
+    ).toThrow(HerdrScopeError);
+    expect(() =>
+      assertFactoryHerdrOperation({
+        kind: "create-pane",
+        sessionName: FACTORY_HERDR_SESSION,
+        paneName: "execution-1",
+        command: {
+          ...command,
+          stdin: "must not reach herdr send-text argv",
+        },
+      }),
+    ).toThrow(HerdrScopeError);
+    expect(() =>
+      assertFactoryHerdrOperation({
+        kind: "create-pane",
+        sessionName: FACTORY_HERDR_SESSION,
+        paneName: "execution-1",
+        command: {
+          ...command,
+          executable: "claude",
+          argv: ["--print"],
+        },
+      }),
+    ).toThrow(HerdrScopeError);
 
     const commands = new ScriptedCommandAdapter([]);
     const guarded = new GuardedHerdrCommandAdapter({
@@ -244,8 +281,6 @@ describe("Herdr session scoping and pane custody", () => {
       const commands = new ScriptedCommandAdapter([
         ok(),
         ok(paneInfoOutput("pane-1", null)),
-        ok(),
-        ok(),
         ok(),
         ok(),
         ok(paneProcess),
@@ -348,8 +383,6 @@ describe("Herdr session scoping and pane custody", () => {
         "right",
         "--cwd",
         "/factory/worktrees/project-one/issue-1",
-        "--env",
-        "FACTORY_EXECUTION=execution-1",
         "--no-focus",
       ]);
       expect(commands.requests[3]?.argv).toEqual([
@@ -359,17 +392,18 @@ describe("Herdr session scoping and pane custody", () => {
         "run",
         "pane-1",
         "--",
-        "claude",
-        "--print",
+        "bun",
+        "/factory/bin/worker-command.ts",
+        "/factory/state/execution-details/execution-1-1.spec.json",
       ]);
-      expect(commands.requests[11]?.argv).toEqual([
+      expect(commands.requests[9]?.argv).toEqual([
         "--session",
         FACTORY_HERDR_SESSION,
         "agent",
         "attach",
         "pane-1",
       ]);
-      expect(commands.requests[14]?.argv).toEqual([
+      expect(commands.requests[12]?.argv).toEqual([
         "--session",
         FACTORY_HERDR_SESSION,
         "agent",

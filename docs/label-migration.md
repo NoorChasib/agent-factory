@@ -58,4 +58,3 @@ Project ID is present in the plan, content hash, cache keys, idempotency keys, m
 records, token selection, and gateway lookup. Repository identity is derived from the validated
 profile rather than supplied by a mutation caller. A valid plan/hash pair for one profile is
 rejected when presented with another profile.
-

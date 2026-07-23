@@ -16,10 +16,17 @@ Herdr sessions.
 One outer worker receives one pane whose stable label is its execution ID. The guarded adapter
 uses the installed Herdr command grammar with `--session agent-factory` as a global scope:
 snapshot to ensure the session, split/rename/run to launch a pane, process-info to observe its
-shell, agent attach for attended access, and pane close for an explicit kill. Worker command
-arguments are passed as an argument vector; environment entries and terminal input use Herdr's
-dedicated pane options rather than a shell interpolation. The adapter itself never logs or
-persists the worker command, environment, or terminal input.
+shell, agent attach for attended access, and pane close for an explicit kill. Before pane
+creation, the command execution adapter writes the validated worker argv, exact allowlisted
+environment, stdin, and result path to an execution specification in the mode-`0700` details
+directory. The specification itself is mode `0600`. Herdr receives only `bun`, the wrapper path,
+and the non-secret specification path; its guarded create operation structurally rejects
+non-empty pane env or stdin, and never uses env or send-text argv. The wrapper validates and
+unlinks the specification before spawning the provider.
+
+The wrapper supplies exactly the environment recorded in the specification. It does not merge
+the pane or wrapper environment, so an unrelated variable present in either cannot reach the
+provider child. Result files are written atomically at mode `0600`.
 
 Herdr owns the launched worker process. The controller does not kill panes when its own process
 closes, and startup recovery performs only ensure/list/identity reads. Attaching and detaching
@@ -64,6 +71,14 @@ Recovery returns one of three stable classifications:
 | `orphaned` | No live identity remains but the execution has no terminal attempt result. |
 
 Recovery never infers success from a missing process and never sends a kill command.
+
+An active command wait polls result-file presence and the same pane/root-PID/start-time identity.
+It also requires the recorded direct worker child of the pane shell to remain in the inspected
+tree, so an idle but still-open pane does not mask a dead wrapper. A missing result plus dead
+identity returns `wrapper-death` immediately. A live identity without a result is bounded by an
+injected overall deadline whose production default is six hours; expiry returns `timeout`. Both
+are failed command results, allowing the provider recorder to produce a failed handoff while
+retaining the pane, process metadata, session, and checkout for recovery.
 
 ## Attach and takeover
 

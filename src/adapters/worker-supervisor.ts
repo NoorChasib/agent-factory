@@ -20,7 +20,7 @@ import {
 import type { RecoveryHandoffCoordinator } from "../recovery";
 import type { WorktreeCustody } from "../worktrees";
 import type { HerdrCommandExecutionAdapter } from "./herdr-command";
-import type { CommandAdapter, GitCustodyAdapter, WorkerProcessAdapter } from "./interfaces";
+import type { GitCustodyAdapter, WorkerProcessAdapter } from "./interfaces";
 
 function within(parent: string, candidate: string): boolean {
   const path = relative(parent, candidate);
@@ -28,16 +28,13 @@ function within(parent: string, candidate: string): boolean {
 }
 
 export class SelectionCheckoutCustody {
-  readonly #commands: CommandAdapter;
   readonly #git: GitCustodyAdapter;
   readonly #worktreeDirectory: string;
 
   public constructor(input: {
-    readonly commands: CommandAdapter;
     readonly git: GitCustodyAdapter;
     readonly worktreeDirectory: string;
   }) {
-    this.#commands = input.commands;
     this.#git = input.git;
     this.#worktreeDirectory = resolve(input.worktreeDirectory);
   }
@@ -51,26 +48,11 @@ export class SelectionCheckoutCustody {
     if (existsSync(path)) {
       return path;
     }
-    const result = await this.#commands.execute({
-      executable: "git",
-      argv: [
-        "--git-dir",
-        this.#git.mirrorPath(profile.id),
-        "worktree",
-        "add",
-        "--detach",
-        path,
-        profile.defaultBranch,
-      ],
-      cwd: this.#worktreeDirectory,
-      env: {},
-      stdin: "",
-      stdout: "capture-json-lines",
-      stderr: "capture",
+    await this.#git.addDetachedWorktree({
+      projectId: profile.id,
+      path,
+      startPoint: profile.defaultBranch,
     });
-    if (result.status !== "exited" || result.exitCode !== 0) {
-      throw new Error("failed to create factory selection checkout");
-    }
     return path;
   }
 
@@ -92,42 +74,19 @@ export class SelectionCheckoutCustody {
     if (existsSync(destination)) {
       throw new Error("claimed issue already has a factory worktree");
     }
-    const branch = await this.#commands.execute({
-      executable: "git",
-      argv: ["-C", source, "branch", "--show-current"],
-      cwd: source,
-      env: {},
-      stdin: "",
-      stdout: "capture-json-lines",
-      stderr: "capture",
+    const branch = await this.#git.branchShowCurrent({
+      projectId: input.profile.id,
+      path: source,
     });
-    if (
-      branch.status !== "exited" ||
-      branch.exitCode !== 0 ||
-      branch.stdout.trim() !== input.branch
-    ) {
+    if (branch !== input.branch) {
       throw new Error("selection checkout branch does not match the worker result");
     }
     mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
-    const moved = await this.#commands.execute({
-      executable: "git",
-      argv: [
-        "--git-dir",
-        this.#git.mirrorPath(input.profile.id),
-        "worktree",
-        "move",
-        source,
-        destination,
-      ],
-      cwd: this.#worktreeDirectory,
-      env: {},
-      stdin: "",
-      stdout: "capture-json-lines",
-      stderr: "capture",
+    await this.#git.moveWorktree({
+      projectId: input.profile.id,
+      sourcePath: source,
+      destinationPath: destination,
     });
-    if (moved.status !== "exited" || moved.exitCode !== 0) {
-      throw new Error("failed to move the claimed issue checkout into canonical custody");
-    }
     return `${input.profile.id}-issue-${input.issueNumber}`;
   }
 }

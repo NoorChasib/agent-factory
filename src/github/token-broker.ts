@@ -18,6 +18,7 @@ const TOKEN_REFRESH_SKEW_MS = 60_000;
 const INSTALLATION_TOKEN_PERMISSIONS = {
   administration: "read",
   checks: "read",
+  contents: "read",
   issues: "write",
   metadata: "read",
   pull_requests: "read",
@@ -269,6 +270,7 @@ export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
         Object.keys(INSTALLATION_TOKEN_PERMISSIONS).length ||
       parsed.permissions.administration !== INSTALLATION_TOKEN_PERMISSIONS.administration ||
       parsed.permissions.checks !== INSTALLATION_TOKEN_PERMISSIONS.checks ||
+      parsed.permissions.contents !== INSTALLATION_TOKEN_PERMISSIONS.contents ||
       parsed.permissions.issues !== INSTALLATION_TOKEN_PERMISSIONS.issues ||
       parsed.permissions.metadata !== INSTALLATION_TOKEN_PERMISSIONS.metadata ||
       parsed.permissions.pull_requests !== INSTALLATION_TOKEN_PERMISSIONS.pull_requests ||

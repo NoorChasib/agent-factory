@@ -86,6 +86,7 @@ describe("GitHub App token broker", () => {
       permissions: {
         administration: "read",
         checks: "read",
+        contents: "read",
         issues: "write",
         metadata: "read",
         pull_requests: "read",

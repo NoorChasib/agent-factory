@@ -233,6 +233,21 @@ export class ClaudeCodeRunner {
         processStartedAt,
       });
     }
+    if (commandResult.status === "failed") {
+      const circuitSignal =
+        commandResult.classification === "timeout" || commandResult.classification === "transport"
+          ? circuitSignalForFailure("claude", commandResult.classification)
+          : null;
+      return failedProviderOutcome({
+        provider: "claude",
+        reasonCode: `command-${commandResult.classification}`,
+        session,
+        commandStarted: true,
+        processStartedAt,
+        commandResult,
+        circuitSignal,
+      });
+    }
 
     let events: ReturnType<typeof parseCommonProviderEvents>;
     try {
@@ -242,11 +257,6 @@ export class ClaudeCodeRunner {
         error instanceof ProviderOutputError
           ? "structured-output-invalid"
           : "structured-output-error";
-      const circuitSignal =
-        commandResult.status === "failed" &&
-        (commandResult.classification === "timeout" || commandResult.classification === "transport")
-          ? circuitSignalForFailure("claude", commandResult.classification)
-          : null;
       return failedProviderOutcome({
         provider: "claude",
         reasonCode,
@@ -254,7 +264,6 @@ export class ClaudeCodeRunner {
         commandStarted: true,
         processStartedAt,
         commandResult,
-        circuitSignal,
       });
     }
 

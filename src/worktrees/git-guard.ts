@@ -9,6 +9,7 @@ import type {
   GitWorktreeObservation,
 } from "../adapters/interfaces";
 import { GitBranchSchema, parseGitWorktreePorcelain } from "../contracts/git-worktree-output";
+import type { GitHubProjectTokenProvider } from "../github/mutations";
 
 const projectId = z
   .string()
@@ -21,6 +22,12 @@ const repository = z
   .max(201)
   .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
 const issueNumber = z.number().int().positive();
+const absolutePath = z
+  .string()
+  .min(1)
+  .max(4_096)
+  .startsWith("/")
+  .refine((value) => !/[\0\r\n]/u.test(value));
 export const GitCustodyOperationSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("inspect-mirror"),
@@ -38,6 +45,23 @@ export const GitCustodyOperationSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("list-worktrees"),
     projectId,
+  }),
+  z.strictObject({
+    kind: z.literal("worktree-add-detached"),
+    projectId,
+    path: absolutePath,
+    startPoint: GitBranchSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("branch-show-current"),
+    projectId,
+    path: absolutePath,
+  }),
+  z.strictObject({
+    kind: z.literal("worktree-move"),
+    projectId,
+    sourcePath: absolutePath,
+    destinationPath: absolutePath,
   }),
   z.strictObject({
     kind: z.literal("add-worktree"),
@@ -154,6 +178,7 @@ export class FactoryCustodyPaths {
 
 export interface GuardedGitCommandAdapterOptions extends FactoryCustodyPathsOptions {
   readonly commands: CommandAdapter;
+  readonly tokens: GitHubProjectTokenProvider;
   readonly executable?: string;
 }
 
@@ -169,11 +194,13 @@ function requireSuccess(
 
 export class GuardedGitCommandAdapter implements GitCustodyAdapter {
   readonly #commands: CommandAdapter;
+  readonly #tokens: GitHubProjectTokenProvider;
   readonly #paths: FactoryCustodyPaths;
   readonly #executable: string;
 
   public constructor(options: GuardedGitCommandAdapterOptions) {
     this.#commands = options.commands;
+    this.#tokens = options.tokens;
     this.#paths = new FactoryCustodyPaths(options);
     this.#executable = z
       .string()
@@ -266,6 +293,79 @@ export class GuardedGitCommandAdapter implements GitCustodyAdapter {
     return parseGitWorktreePorcelain(result.stdout);
   }
 
+  public async addDetachedWorktree(input: {
+    readonly projectId: string;
+    readonly path: string;
+    readonly startPoint: string;
+  }): Promise<void> {
+    const operation = assertAllowedGitOperation({
+      kind: "worktree-add-detached",
+      ...input,
+    });
+    if (operation.kind !== "worktree-add-detached") {
+      throw new ForbiddenGitOperationError();
+    }
+    const path = this.#localWorktreePath(operation.projectId, operation.path);
+    requireSuccess(
+      await this.#run(operation, [
+        "--git-dir",
+        this.mirrorPath(operation.projectId),
+        "worktree",
+        "add",
+        "--detach",
+        path,
+        operation.startPoint,
+      ]),
+      operation.kind,
+    );
+  }
+
+  public async branchShowCurrent(input: {
+    readonly projectId: string;
+    readonly path: string;
+  }): Promise<string> {
+    const operation = assertAllowedGitOperation({
+      kind: "branch-show-current",
+      ...input,
+    });
+    if (operation.kind !== "branch-show-current") {
+      throw new ForbiddenGitOperationError();
+    }
+    const path = this.#localWorktreePath(operation.projectId, operation.path);
+    const result = requireSuccess(
+      await this.#run(operation, ["-C", path, "branch", "--show-current"]),
+      operation.kind,
+    );
+    return result.stdout.trim();
+  }
+
+  public async moveWorktree(input: {
+    readonly projectId: string;
+    readonly sourcePath: string;
+    readonly destinationPath: string;
+  }): Promise<void> {
+    const operation = assertAllowedGitOperation({
+      kind: "worktree-move",
+      ...input,
+    });
+    if (operation.kind !== "worktree-move") {
+      throw new ForbiddenGitOperationError();
+    }
+    const sourcePath = this.#localWorktreePath(operation.projectId, operation.sourcePath);
+    const destinationPath = this.#localWorktreePath(operation.projectId, operation.destinationPath);
+    requireSuccess(
+      await this.#run(operation, [
+        "--git-dir",
+        this.mirrorPath(operation.projectId),
+        "worktree",
+        "move",
+        sourcePath,
+        destinationPath,
+      ]),
+      operation.kind,
+    );
+  }
+
   public async addWorktree(input: {
     readonly projectId: string;
     readonly issueNumber: number;
@@ -316,16 +416,53 @@ export class GuardedGitCommandAdapter implements GitCustodyAdapter {
     );
   }
 
-  #run(_operation: GitCustodyOperation, argv: readonly string[]): Promise<CommandExecutionResult> {
+  #localWorktreePath(projectIdValue: string, value: string): string {
+    const path = normalizedAbsolutePath(value, "local worktree path");
+    const projectDirectory = join(
+      this.#paths.worktreeBaseDirectory,
+      projectId.parse(projectIdValue),
+    );
+    if (path === projectDirectory || !within(projectDirectory, path)) {
+      throw new ForbiddenGitOperationError();
+    }
+    return path;
+  }
+
+  async #run(
+    operation: GitCustodyOperation,
+    argv: readonly string[],
+  ): Promise<CommandExecutionResult> {
+    const env =
+      operation.kind === "clone-mirror" || operation.kind === "fetch-mirror"
+        ? await this.#remoteCredentialEnvironment(operation.projectId)
+        : {};
     const request: CommandRequest = {
       executable: this.#executable,
       argv,
       cwd: this.#paths.mirrorBaseDirectory,
-      env: {},
+      env,
       stdin: "",
       stdout: "capture-json-lines",
       stderr: "capture",
     };
     return this.#commands.execute(request);
+  }
+
+  async #remoteCredentialEnvironment(
+    projectIdValue: string,
+  ): Promise<Readonly<Record<string, string>>> {
+    const token = z
+      .string()
+      .min(1)
+      .max(4_096)
+      .refine((value) => !/[\0\r\n]/u.test(value))
+      .parse(await this.#tokens.tokenForProject(projectIdValue));
+    const authorization = Buffer.from(`x-access-token:${token}`, "utf8").toString("base64");
+    return {
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+      GIT_CONFIG_VALUE_0: `Authorization: Basic ${authorization}`,
+      GIT_TERMINAL_PROMPT: "0",
+    };
   }
 }

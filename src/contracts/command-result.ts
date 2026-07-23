@@ -16,7 +16,7 @@ export const CommandExecutionResultSchema = z.discriminatedUnion("status", [
   }),
   z.strictObject({
     status: z.literal("failed"),
-    classification: z.enum(["cancelled", "spawn", "timeout", "transport"]),
+    classification: z.enum(["cancelled", "spawn", "timeout", "transport", "wrapper-death"]),
     ...commandOutput,
   }),
 ]) satisfies z.ZodType<CommandExecutionResult>;

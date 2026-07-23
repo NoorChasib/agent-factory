@@ -110,7 +110,12 @@ export interface WorkerProcessAdapter {
   stop(request: StopRequest): Promise<void>;
 }
 
-export type CommandFailureClassification = "cancelled" | "spawn" | "timeout" | "transport";
+export type CommandFailureClassification =
+  | "cancelled"
+  | "spawn"
+  | "timeout"
+  | "transport"
+  | "wrapper-death";
 
 export interface CommandRequest {
   readonly executable: string;
@@ -163,6 +168,17 @@ export interface GitCustodyAdapter {
   cloneMirror(projectId: string, repository: string): Promise<void>;
   fetchMirror(projectId: string): Promise<void>;
   listWorktrees(projectId: string): Promise<readonly GitWorktreeObservation[]>;
+  addDetachedWorktree(input: {
+    readonly projectId: string;
+    readonly path: string;
+    readonly startPoint: string;
+  }): Promise<void>;
+  branchShowCurrent(input: { readonly projectId: string; readonly path: string }): Promise<string>;
+  moveWorktree(input: {
+    readonly projectId: string;
+    readonly sourcePath: string;
+    readonly destinationPath: string;
+  }): Promise<void>;
   addWorktree(input: {
     readonly projectId: string;
     readonly issueNumber: number;

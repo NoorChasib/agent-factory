@@ -102,9 +102,15 @@ validated project alias and issue number:
 ```
 
 The Git adapter has no generic argv method. Its strict operation union permits mirror inspection,
-mirror clone/fetch, worktree list, worktree add with branch creation/checkout, and safe worktree
-remove. Push, commit, merge, force-push, rebase, amend, and reset are rejected. Removal derives
-the exact issue path, verifies its recorded branch, and uses no force option.
+authenticated mirror clone/fetch, worktree list, worktree add with branch creation/checkout,
+detached selection-worktree add, current-branch inspection, selection-worktree move, and safe
+worktree remove. Selection checkout custody calls those exact local operations rather than the
+generic command adapter. Push, commit, merge, force-push, rebase, amend, and reset are rejected.
+Removal derives the exact issue path, verifies its recorded branch, and uses no force option.
+
+Only clone and fetch receive a short-lived project installation credential, encoded into an
+environment-only Git `extraheader`. Local operations receive no credential environment. The
+clone URL and persisted mirror `origin` remain the token-free GitHub URL.
 
 Creating custody clones a missing target mirror or fetches an existing one, then refuses a second
 path for the same branch or a different branch at the same issue path. This enforces one issue ↔

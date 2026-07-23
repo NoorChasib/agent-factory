@@ -169,6 +169,48 @@ export class HerdrSessionManager {
     return result.panes;
   }
 
+  public async isExecutionAlive(executionId: string): Promise<boolean> {
+    const recovery = this.#repository.readExecutionRecovery(executionId);
+    const process = recovery.process;
+    if (
+      process === null ||
+      process.paneId === null ||
+      process.processId === null ||
+      process.processStartedAt === null
+    ) {
+      return false;
+    }
+    const panes = await this.listPanes();
+    const pane = panes.find(
+      (candidate) =>
+        candidate.paneId === process.paneId &&
+        candidate.name === recovery.execution.executionId &&
+        candidate.processId === process.processId,
+    );
+    const tree = sortedTree(await this.#processes.inspectTree(process.processId));
+    const root = rootIdentity(tree, process.processId);
+    const recordedWorkers = priorRuntime(process).processTree.filter(
+      (candidate) => candidate.parentProcessId === process.processId,
+    );
+    const workerMatches =
+      recordedWorkers.length === 0
+        ? tree.some((candidate) => candidate.parentProcessId === process.processId)
+        : recordedWorkers.some((recorded) =>
+            tree.some(
+              (candidate) =>
+                candidate.processId === recorded.processId &&
+                candidate.parentProcessId === recorded.parentProcessId &&
+                candidate.startedAt === recorded.startedAt,
+            ),
+          );
+    return (
+      pane !== undefined &&
+      root !== null &&
+      root.startedAt === process.processStartedAt &&
+      workerMatches
+    );
+  }
+
   public async attach(executionId: string): Promise<ProcessMetadata> {
     return this.#operatorFlow(executionId, "attach-pane");
   }
