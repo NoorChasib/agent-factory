@@ -49,8 +49,9 @@ configured or accepted.
 
 Resume uses `--resume` with the recorded session ID and repeats the recorded model and effort.
 The runner also checks the recorded execution, project, workflow, issue, and pull request before
-starting a command. A new environment configuration that selects different runtime values is
-refused as `resume-runtime-mismatch`.
+starting a command. A new environment configuration that selects different runtime values affects
+only later executions; resume continues with the recorded values and verifies structured
+initialization against them.
 
 Claude Code retains ownership of its OAuth behavior. This module has no OAuth refresh loop and
 no paid-credit or fallback setting.
@@ -64,7 +65,8 @@ request. Runtime model and effort are captured with that session. Exactly one st
 The thread ID is retained as soon as a valid start event is present. Therefore a malformed or
 missing later worker result still becomes a failed handoff with the Codex thread available for
 recovery. Resume names the recorded thread and repeats the recorded model and effort; changes to
-the runtime, project, workflow, issue, or pull request are refused before command execution.
+the current launch runtime do not affect it. Changes to the project, workflow, issue, or pull
+request are refused before command execution.
 
 Unknown nested provider events are ignored. The factory records only the one outer Codex
 session. Target-workflow audit or review children do not create executions, attempts, provider

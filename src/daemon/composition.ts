@@ -121,7 +121,7 @@ export interface ComposedDaemon {
   stop(): Promise<void>;
 }
 
-function initialState(profiles: readonly ProjectProfile[]): ControllerLocalState {
+export function initialObservationState(profiles: readonly ProjectProfile[]): ControllerLocalState {
   return ControllerLocalStateSchema.parse({
     mode: "observation",
     rolloutStage: "observation",
@@ -137,6 +137,16 @@ function initialState(profiles: readonly ProjectProfile[]): ControllerLocalState
   });
 }
 
+export function commandEnvironment(
+  environment: Readonly<Record<string, string | undefined>>,
+): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    Object.entries(environment).flatMap(([name, value]) =>
+      value === undefined ? [] : [[name, value]],
+    ),
+  );
+}
+
 export function composeDaemon(options: DaemonCompositionOptions): ComposedDaemon {
   const redaction = options.redaction ?? DEFAULT_REDACTION_BOUNDARY;
   const ledger =
@@ -146,7 +156,7 @@ export function composeDaemon(options: DaemonCompositionOptions): ComposedDaemon
       instanceId: options.instanceId,
       clock: options.clock,
       ids: options.ids,
-      initialState: initialState(options.configuration.profiles),
+      initialState: initialObservationState(options.configuration.profiles),
       redaction,
     });
   const controller = createController(

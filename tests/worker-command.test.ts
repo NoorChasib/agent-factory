@@ -99,4 +99,26 @@ describe("worker command wrapper", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  test("deletes an owner-only specification that fails validation", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "agent-factory-worker-command-"));
+    try {
+      const specificationPath = join(directory, "execution-1-1.spec.json");
+      writeFileSync(specificationPath, JSON.stringify({ schemaVersion: 1, invalid: true }), {
+        mode: 0o600,
+      });
+      chmodSync(specificationPath, 0o600);
+
+      expect(
+        await workerCommandMain(
+          ["bun", "/factory/bin/worker-command.ts", specificationPath],
+          new RecordingSpawner(),
+          signals,
+        ),
+      ).toBe(64);
+      expect(existsSync(specificationPath)).toBe(false);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 });

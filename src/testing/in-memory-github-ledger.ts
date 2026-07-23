@@ -1,7 +1,7 @@
 import type { ClockAdapter } from "../adapters/interfaces";
 import type { GitHubMutationLedger } from "../github";
 import type { MutationRecord, MutationState, NewMutation } from "../ledger";
-import { MutationRecordSchema, NewMutationSchema } from "../ledger";
+import { allowedMutationTransition, MutationRecordSchema, NewMutationSchema } from "../ledger";
 
 export interface MutationIdAdapter {
   nextMutationId(): string;
@@ -17,19 +17,6 @@ function timestamp(clock: ClockAdapter): string {
     throw new Error("in-memory mutation ledger clock returned an invalid date");
   }
   return now.toISOString();
-}
-
-function allowedTransition(current: MutationState, next: MutationState): boolean {
-  switch (current) {
-    case "pending":
-      return next === "applied" || next === "ambiguous" || next === "reconciled";
-    case "applied":
-      return next === "ambiguous" || next === "reconciled";
-    case "ambiguous":
-      return next === "reconciled";
-    case "reconciled":
-      return false;
-  }
 }
 
 export class InMemoryGitHubMutationLedger implements GitHubMutationLedger {
@@ -87,7 +74,7 @@ export class InMemoryGitHubMutationLedger implements GitHubMutationLedger {
     if (index < 0 || current === undefined) {
       throw new Error(`unknown mutation '${mutationId}'`);
     }
-    if (!allowedTransition(current.state, nextState)) {
+    if (!allowedMutationTransition(current.state, nextState)) {
       throw new Error(`invalid mutation transition ${current.state} -> ${nextState}`);
     }
     const updated = MutationRecordSchema.parse({

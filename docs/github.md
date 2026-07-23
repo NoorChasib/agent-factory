@@ -134,10 +134,10 @@ is created. It then requests a repository-restricted installation token with exa
 {
   "administration": "read",
   "checks": "read",
-  "contents": "read",
+  "contents": "write",
   "issues": "write",
   "metadata": "read",
-  "pull_requests": "read",
+  "pull_requests": "write",
   "statuses": "read"
 }
 ```

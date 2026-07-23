@@ -132,9 +132,7 @@ export class HerdrCommandExecutionAdapter implements CommandAdapter {
       });
       processId = process.processId;
     } catch (error) {
-      if (existsSync(specificationPath) && lstatSync(specificationPath).isFile()) {
-        unlinkSync(specificationPath);
-      }
+      this.#deleteSpecification(specificationPath);
       throw error;
     }
     const maximumPolls = Math.ceil(this.#resultDeadlineMs / RESULT_POLL_INTERVAL_MS);
@@ -147,20 +145,20 @@ export class HerdrCommandExecutionAdapter implements CommandAdapter {
         throw new Error("Herdr command result clock moved backwards");
       }
       if (elapsed >= this.#resultDeadlineMs) {
-        return this.#failedResult("timeout", processId);
+        return this.#failedResult("timeout", processId, specificationPath);
       }
       if (!(await this.#herdr.isExecutionAlive(context.executionId))) {
         if (existsSync(resultPath)) {
           return parseCommandExecutionResult(JSON.parse(readFileSync(resultPath, "utf8")));
         }
-        return this.#failedResult("wrapper-death", processId);
+        return this.#failedResult("wrapper-death", processId, specificationPath);
       }
       await this.#delay.wait(Math.min(RESULT_POLL_INTERVAL_MS, this.#resultDeadlineMs - elapsed));
     }
     if (existsSync(resultPath)) {
       return parseCommandExecutionResult(JSON.parse(readFileSync(resultPath, "utf8")));
     }
-    return this.#failedResult("timeout", processId);
+    return this.#failedResult("timeout", processId, specificationPath);
   }
 
   #providerSessionId(request: CommandRequest): string | null {
@@ -216,7 +214,9 @@ export class HerdrCommandExecutionAdapter implements CommandAdapter {
   #failedResult(
     classification: "timeout" | "wrapper-death",
     processId: number | null,
+    specificationPath: string,
   ): CommandExecutionResult {
+    this.#deleteSpecification(specificationPath);
     return {
       status: "failed",
       classification,
@@ -224,5 +224,15 @@ export class HerdrCommandExecutionAdapter implements CommandAdapter {
       stderr: "",
       processId,
     };
+  }
+
+  #deleteSpecification(path: string): void {
+    try {
+      if (existsSync(path) && lstatSync(path).isFile()) {
+        unlinkSync(path);
+      }
+    } catch {
+      // Best-effort custody cleanup tolerates wrapper deletion and concurrent recovery.
+    }
   }
 }

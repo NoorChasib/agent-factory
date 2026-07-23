@@ -22,6 +22,19 @@ export type AttemptStatus = z.infer<typeof AttemptStatusSchema>;
 export const MutationStateSchema = z.enum(["pending", "applied", "reconciled", "ambiguous"]);
 export type MutationState = z.infer<typeof MutationStateSchema>;
 
+export function allowedMutationTransition(current: MutationState, next: MutationState): boolean {
+  switch (current) {
+    case "pending":
+      return next === "applied" || next === "ambiguous" || next === "reconciled";
+    case "applied":
+      return next === "ambiguous" || next === "reconciled";
+    case "ambiguous":
+      return next === "reconciled";
+    case "reconciled":
+      return false;
+  }
+}
+
 export const MaintenanceKindSchema = z.enum(["pause", "resume", "drain", "shutdown-when-idle"]);
 export type MaintenanceKind = z.infer<typeof MaintenanceKindSchema>;
 

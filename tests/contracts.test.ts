@@ -2,17 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
 import {
-  CANONICAL_CONDITION_SEMANTICS,
-  CANONICAL_STAGE_SEMANTICS,
   loadProjectProfileFile,
   ProjectProfileFileError,
   ProjectProfilesSchema,
   parseProjectProfile,
   parseProjectProfileYaml,
-  parseWorkerResult,
+} from "../src/contracts/project-profile";
+import { parseWorkerResult, WorkerTerminalStatusSchema } from "../src/contracts/worker-result";
+import {
+  CANONICAL_CONDITION_SEMANTICS,
+  CANONICAL_STAGE_SEMANTICS,
   resolveCanonicalLabels,
-  WorkerTerminalStatusSchema,
-} from "../src";
+} from "../src/domain/stages";
 import { InMemoryFileSystemAdapter } from "../src/testing";
 
 const hhcProfileYaml = await Bun.file(

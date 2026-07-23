@@ -13,9 +13,10 @@ GitHub App with:
 - repository permissions:
   - **Administration: Read-only** (default-branch protection observation)
   - **Checks: Read-only**
-  - **Metadata: Read-only**
+  - **Contents: Read and write**
   - **Issues: Read and write**
-  - **Pull requests: Read-only**
+  - **Metadata: Read-only**
+  - **Pull requests: Read and write**
   - **Commit statuses: Read-only**
 - no organization or account permissions unless local policy independently requires them.
 
@@ -23,9 +24,11 @@ Generate a private key and record the numeric App ID. Do not place the PEM in th
 profile, an environment file, a worker environment, a log, or a notification.
 
 The broker requests exactly those reduced permissions rather than inheriting broader App
-permissions. Administration, checks, metadata, pull requests, and commit statuses remain
-read-only; only issues are writable. The mutation surface is limited to guarded issue/PR label
-and recovery-comment operations; there is no merge or branch-protection API.
+permissions. Token minting fails with GitHub HTTP 422 if the App grants less than any requested
+permission. Contents, issues, and pull requests are writable so an implementation worker can push
+its issue branch and create a non-draft PR. Administration, checks, metadata, and commit statuses
+remain read-only. The controller's own mutation and Git operations remain constrained by guarded
+allowlists; there is no merge or branch-protection mutation API.
 
 ## Install only on enabled targets
 

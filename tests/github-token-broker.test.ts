@@ -1,15 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { generateKeyPairSync, verify } from "node:crypto";
-
+import { parseProjectProfile, parseProjectProfileYaml } from "../src/contracts/project-profile";
 import {
   GITHUB_APP_ID_ENVIRONMENT,
   GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT,
   GitHubAppTokenBroker,
   GitHubAppTokenBrokerError,
   parseGitHubAppEnvironment,
-  parseProjectProfile,
-  parseProjectProfileYaml,
-} from "../src";
+} from "../src/github";
 import {
   FixedClockAdapter,
   InMemoryFileSystemAdapter,
@@ -24,6 +22,9 @@ const installation = await Bun.file(
 ).text();
 const installationToken = await Bun.file(
   new URL("fixtures/github/installation-token.json", import.meta.url),
+).text();
+const githubAppDocumentation = await Bun.file(
+  new URL("../docs/github-app.md", import.meta.url),
 ).text();
 const credentialPath = "/run/credentials/agent-factory/github-app.pem";
 const environment = {
@@ -43,7 +44,22 @@ function response(status: number, body: string) {
 }
 
 describe("GitHub App token broker", () => {
-  test("signs an RS256 App JWT, mints reduced target-only credentials, and caches them", async () => {
+  test("documents the exact GitHub App permissions required for token minting", () => {
+    expect(githubAppDocumentation.split("\n").filter((line) => line.startsWith("  - **"))).toEqual([
+      "  - **Administration: Read-only** (default-branch protection observation)",
+      "  - **Checks: Read-only**",
+      "  - **Contents: Read and write**",
+      "  - **Issues: Read and write**",
+      "  - **Metadata: Read-only**",
+      "  - **Pull requests: Read and write**",
+      "  - **Commit statuses: Read-only**",
+    ]);
+    expect(githubAppDocumentation).toContain(
+      "Token minting fails with GitHub HTTP 422 if the App grants less",
+    );
+  });
+
+  test("mints target-only worker credentials with branch and pull-request write access", async () => {
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
       modulusLength: 2_048,
     });
@@ -86,10 +102,10 @@ describe("GitHub App token broker", () => {
       permissions: {
         administration: "read",
         checks: "read",
-        contents: "read",
+        contents: "write",
         issues: "write",
         metadata: "read",
-        pull_requests: "read",
+        pull_requests: "write",
         statuses: "read",
       },
     });
@@ -117,6 +133,43 @@ describe("GitHub App token broker", () => {
     expect(JSON.stringify(transport.requests)).not.toContain("PRIVATE KEY");
     expect(JSON.stringify(transport.requests)).not.toContain(privateKeyPem);
     expect(fileSystem.readCount).toBe(1);
+  });
+
+  test("rejects a token response with narrower worker permissions", async () => {
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2_048,
+    });
+    const privateKeyPem = privateKey
+      .export({
+        type: "pkcs8",
+        format: "pem",
+      })
+      .toString();
+    const fileSystem = new InMemoryFileSystemAdapter({
+      [credentialPath]: {
+        content: privateKeyPem,
+        metadata: { kind: "file", mode: 0o400 },
+      },
+    });
+    const parsedToken = JSON.parse(installationToken) as {
+      permissions: Record<string, string>;
+    };
+    parsedToken.permissions.contents = "read";
+    const broker = new GitHubAppTokenBroker({
+      environment,
+      profiles: [profile],
+      fileSystem,
+      clock: new FixedClockAdapter(),
+      transport: new ScriptedGitHubTransport([
+        response(200, installation),
+        response(201, JSON.stringify(parsedToken)),
+      ]),
+      apiUrl: "https://api.github.test",
+    });
+
+    await expect(broker.tokenForProject(profile.id)).rejects.toThrow(
+      "did not match the requested permission set",
+    );
   });
 
   test("never resolves installations for a target that is not explicitly enabled", async () => {

@@ -6,22 +6,22 @@ import { join } from "node:path";
 
 import {
   assertAllowedGitHubMutation,
-  conditionForRecoveryReason,
   type GitHubAllowedMutation,
   type GitHubLabelGateway,
   GitHubMutationExecutor,
-  type LedgerIdSource,
-  openSqliteLedger,
+  type RepositoryLabel,
+} from "../src/github";
+import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
+import {
+  conditionForRecoveryReason,
   RecoveryCommentPublisher,
   RecoveryHandoffCoordinator,
-  RedactingNotificationAdapter,
-  type RepositoryLabel,
   recoveryReasonForWorkerStatus,
   renderRecoveryComment,
   renderStallIncident,
   StallIncidentRecorder,
-  StructuredRedactionBoundary,
-} from "../src";
+} from "../src/recovery";
+import { RedactingNotificationAdapter, StructuredRedactionBoundary } from "../src/redaction";
 import {
   createInitialControllerState,
   FixedClockAdapter,

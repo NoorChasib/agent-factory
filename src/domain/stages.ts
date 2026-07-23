@@ -105,6 +105,10 @@ const STAGE_KEYS = {
   "ready-to-merge": "readyToMerge",
 } as const satisfies Record<CanonicalStage, keyof ProjectLabelMapping>;
 
+export function stageLabel(mapping: ProjectLabelMapping, stage: CanonicalStage): string {
+  return mapping[STAGE_KEYS[stage]];
+}
+
 const CONDITION_KEYS = {
   "worker-stalled": "workerStalled",
   "review-stalled": "reviewStalled",
@@ -123,7 +127,7 @@ export function resolveCanonicalLabels(
   labels: readonly string[],
 ): ResolvedLabels {
   const present = new Set(labels);
-  const stages = CANONICAL_STAGES.filter((stage) => present.has(mapping[STAGE_KEYS[stage]]));
+  const stages = CANONICAL_STAGES.filter((stage) => present.has(stageLabel(mapping, stage)));
   const conditions = CANONICAL_CONDITIONS.filter((condition) =>
     present.has(mapping[CONDITION_KEYS[condition]]),
   );

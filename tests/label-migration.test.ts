@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-
+import { parseProjectProfile, parseProjectProfileYaml } from "../src/contracts/project-profile";
 import {
   applyLabelMigration,
   approveLabelMigration,
@@ -8,12 +8,10 @@ import {
   GitHubMutationExecutor,
   LabelMigrationApprovalError,
   LabelMigrationDriftError,
-  parseProjectProfile,
-  parseProjectProfileYaml,
   planLabelMigration,
   type RepositoryLabel,
   renderLabelMigrationPreview,
-} from "../src";
+} from "../src/github";
 import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "../src/testing";
 
 const profile = parseProjectProfileYaml(

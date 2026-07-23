@@ -1,27 +1,30 @@
 import { describe, expect, test } from "bun:test";
-
 import type {
-  AuditEvent,
   CommandResult,
   Controller,
-  ControllerLocalState,
   ControllerStatus,
+  ReconcileResult,
+} from "../src/controller/controller";
+import type {
+  ControllerLocalState,
   ExecutionRecord,
-  ExecutionRecovery,
   LedgerSnapshot,
+} from "../src/controller/model";
+import type {
+  AuditEvent,
+  ExecutionRecovery,
   MaintenanceRequest,
   NewMaintenanceRequest,
-  ReconcileResult,
-} from "../src";
+} from "../src/ledger";
+import type { OperationsLedger } from "../src/operations/lifecycle";
 import {
   DiskGuard,
-  FactoryNotifications,
   MaintenanceCoordinator,
   RebootRecoveryCoordinator,
   RolloutCoordinator,
   ShutdownCoordinator,
-} from "../src";
-import type { OperationsLedger } from "../src/operations/lifecycle";
+} from "../src/operations/lifecycle";
+import { FactoryNotifications } from "../src/operations/observability";
 import { createInitialControllerState, InMemoryNotificationAdapter } from "../src/testing";
 
 function execution(id = "execution-1"): ExecutionRecord {

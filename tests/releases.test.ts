@@ -10,14 +10,21 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { LedgerIdSource, ReleaseIdSource, SqliteLedger } from "../src";
+import type { ReleaseIdSource } from "../src/adapters/release-interfaces";
+import {
+  LocalFactoryReleaseBuildAdapter,
+  LocalReleaseFileSystemAdapter,
+  SqliteReleaseLedgerAdapter,
+} from "../src/adapters/releases";
+import { parseReleaseBuildMetadata } from "../src/contracts/release-manifest";
 import {
   CURRENT_LEDGER_SCHEMA_VERSION,
   LEDGER_MIGRATIONS,
-  LocalFactoryReleaseBuildAdapter,
-  LocalReleaseFileSystemAdapter,
+  type LedgerIdSource,
   openSqliteLedger,
-  parseReleaseBuildMetadata,
+  type SqliteLedger,
+} from "../src/ledger";
+import {
   RELEASE_UPDATE_CAPABILITIES,
   ReleaseBootstrapper,
   ReleaseBuilder,
@@ -25,9 +32,8 @@ import {
   ReleaseStore,
   ReleaseUpdater,
   releaseInventoryHash,
-  SqliteReleaseLedgerAdapter,
   validateReleaseManifest,
-} from "../src";
+} from "../src/releases";
 import {
   createInitialControllerState,
   FixedClockAdapter,

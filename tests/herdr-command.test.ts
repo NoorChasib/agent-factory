@@ -1,22 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import { HerdrCommandExecutionAdapter } from "../src/adapters/herdr-command";
 import type {
   CommandExecutionResult,
   CommandRequest,
-  ControllerLocalState,
   DelayAdapter,
-  ExecutionRecord,
-} from "../src";
-import {
-  GuardedHerdrCommandAdapter,
-  HerdrCommandExecutionAdapter,
-  HerdrSessionManager,
-  type LedgerIdSource,
-  openSqliteLedger,
-} from "../src";
+} from "../src/adapters/interfaces";
+import type { ControllerLocalState, ExecutionRecord } from "../src/controller/model";
+import { GuardedHerdrCommandAdapter, HerdrSessionManager } from "../src/herdr";
+import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
 import {
   createInitialControllerState,
   FixedClockAdapter,
@@ -336,6 +330,9 @@ describe("Herdr command result custody", () => {
         processId: 101,
       });
       expect(delay.waits).toEqual([]);
+      expect(existsSync(join(directory, "execution-details", "execution-1-1.spec.json"))).toBe(
+        false,
+      );
       expect(processes.inspections).toEqual([101, 101]);
       expect(commands.remaining()).toBe(0);
       ledger.close();
@@ -400,6 +397,9 @@ describe("Herdr command result custody", () => {
         processId: 101,
       });
       expect(delay.waits).toEqual([1_000, 1_000]);
+      expect(existsSync(join(directory, "execution-details", "execution-1-1.spec.json"))).toBe(
+        false,
+      );
       expect(processes.inspections).toEqual([101, 101, 101]);
       expect(commands.remaining()).toBe(0);
       ledger.close();

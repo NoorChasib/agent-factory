@@ -1,27 +1,27 @@
 import { describe, expect, test } from "bun:test";
-
+import type { ProjectProfile } from "../src/contracts/project-profile";
+import { parseProjectProfileYaml } from "../src/contracts/project-profile";
+import {
+  assessFeedbackInvocation,
+  type ConvergenceDecision,
+  isSafeCheckRerunClassification,
+  ReadyToMergeEmitter,
+  ReviewConvergenceCoordinator,
+  ReviewConvergenceEngine,
+} from "../src/convergence";
 import {
   assertAllowedGitHubMutation,
-  assessFeedbackInvocation,
   CanonicalStageManager,
-  type ConvergenceDecision,
   type GitHubAllowedMutation,
   type GitHubCheckSnapshot,
   type GitHubLabelGateway,
   GitHubMutationExecutor,
   type GitHubProjectSnapshot,
   type GitHubPullRequestSnapshot,
-  isSafeCheckRerunClassification,
   mapGitHubObservation,
-  type ProjectProfile,
-  parseProjectProfileYaml,
-  ReadyToMergeEmitter,
   type RepositoryLabel,
-  type ReviewBaseline,
-  type ReviewBaselineInput,
-  ReviewConvergenceCoordinator,
-  ReviewConvergenceEngine,
-} from "../src";
+} from "../src/github";
+import type { ReviewBaseline, ReviewBaselineInput } from "../src/ledger";
 import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "../src/testing";
 
 const profileFixture = parseProjectProfileYaml(

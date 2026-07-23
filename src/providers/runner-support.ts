@@ -228,7 +228,7 @@ export async function completeProviderOutcome(input: {
   readonly provider: "claude" | "codex";
   readonly request: ProviderRunRequest;
   readonly session: CapturedProviderSession;
-  readonly commandResult: CommandExecutionResult;
+  readonly commandResult: CommandExecutionResult & { readonly status: "exited" };
   readonly processStartedAt: string;
   readonly events: CommonProviderEvents;
   readonly verifier: WorkerOutcomeVerifier;
@@ -247,21 +247,6 @@ export async function completeProviderOutcome(input: {
         events.providerFailure.classification,
         events.providerFailure.reasonCode,
       ),
-    });
-  }
-  if (commandResult.status === "failed") {
-    const circuitSignal =
-      commandResult.classification === "timeout" || commandResult.classification === "transport"
-        ? circuitSignalForFailure(provider, commandResult.classification)
-        : null;
-    return failedProviderOutcome({
-      provider,
-      reasonCode: `command-${commandResult.classification}`,
-      session,
-      commandStarted: true,
-      processStartedAt: input.processStartedAt,
-      commandResult,
-      circuitSignal,
     });
   }
   if (commandResult.exitCode !== 0) {

@@ -26,6 +26,12 @@ inside a mode-`0700` state directory. Herdr argv contains only wrapper and speci
 The wrapper unlinks the specification after validation and spawns the provider with exactly its
 recorded allowlisted environment, never the inherited pane environment.
 
+Worker tokens grant contents, issues, and pull-request write access because the contracted worker
+flow must push an issue branch and create a non-draft PR. The factory's never-merge and
+never-push-default guarantees do not depend on read-only token scopes: controller mutations and
+factory-owned Git operations are constrained by guarded allowlists, while protected default
+branches remain enforced by GitHub branch protection.
+
 Profiles, runtime YAML, the environment file, logs, notifications, recovery comments, GitHub
 issues, and the repository must never contain PEM data or live tokens. Private credential sources
 and configuration files are owner-only.

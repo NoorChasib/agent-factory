@@ -18,14 +18,7 @@ export const repository = z
   .max(201)
   .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u);
 
-export const projectProfileRepository = z
-  .string()
-  .min(3)
-  .max(201)
-  .regex(
-    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u,
-    "repository must be an owner/name GitHub repository",
-  );
+export const projectProfileRepository = repository;
 
 export const gitObjectId = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
@@ -57,37 +50,9 @@ export const gitBranch = z
     "invalid Git branch name",
   );
 
-export const projectDefaultBranch = z
-  .string()
-  .min(1)
-  .max(255)
-  .refine((value) => value.trim() === value, "branch must not have surrounding whitespace")
-  .refine(
-    (value) =>
-      !value.startsWith("/") &&
-      !value.endsWith("/") &&
-      !value.endsWith(".") &&
-      !value.includes("..") &&
-      !value.includes("@{") &&
-      !hasForbiddenGitCharacter(value),
-    "defaultBranch must be a valid Git branch name",
-  );
+export const projectDefaultBranch = gitBranch;
 
-export const recoveryGitBranch = z
-  .string()
-  .min(1)
-  .max(255)
-  .refine(
-    (value) =>
-      value.trim() === value &&
-      !value.startsWith("/") &&
-      !value.endsWith("/") &&
-      !value.endsWith(".") &&
-      !value.includes("..") &&
-      !value.includes("@{") &&
-      !hasForbiddenGitCharacter(value),
-    "invalid recovery branch",
-  );
+export const recoveryGitBranch = gitBranch;
 
 export const looseBranch = z.string().min(1).max(255);
 
@@ -121,19 +86,7 @@ export const projectProfileLabelName = z
     "label must not contain controls",
   );
 
-export const stageLabelName = z
-  .string()
-  .min(1)
-  .max(50)
-  .refine((value) => value.trim() === value, "labels must not have surrounding whitespace")
-  .refine(
-    (value) =>
-      ![...value].some((character) => {
-        const codePoint = character.codePointAt(0);
-        return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
-      }),
-    "labels must not contain controls",
-  );
+export const stageLabelName = projectProfileLabelName;
 
 export const looseLabelName = z.string().min(1).max(50);
 

@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 
 import { dirname, join, resolve } from "node:path";
-import type { ControllerLocalState } from "../controller/model";
-import { ControllerLocalStateSchema } from "../controller/model";
 import {
   BunCommandAdapter,
   BunDelayAdapter,
@@ -10,6 +8,7 @@ import {
   ClaudeCodeRunner,
   CodexFeedbackRunner,
   CryptoIdSource,
+  commandEnvironment,
   composeDaemon,
   FactoryNotifications,
   FetchGitHubTransport,
@@ -26,6 +25,7 @@ import {
   HerdrProviderExecutionRepository,
   HerdrSessionManager,
   HerdrWorkerOperator,
+  initialObservationState,
   LedgerOwnedProcessStopper,
   LedgerRecoveryVerifier,
   LedgerRetentionArtifacts,
@@ -76,24 +76,6 @@ function secretEnvironmentValues(
   );
 }
 
-function initialState(
-  profiles: Awaited<ReturnType<typeof loadFactoryConfiguration>>["profiles"],
-): ControllerLocalState {
-  return ControllerLocalStateSchema.parse({
-    mode: "observation",
-    rolloutStage: "observation",
-    projectEnabled: Object.fromEntries(profiles.map((profile) => [profile.id, profile.enabled])),
-    rotation: { implementation: null, feedback: null },
-    circuits: {
-      claude: { status: "closed", reasonCode: null },
-      codex: { status: "closed", reasonCode: null },
-      github: { status: "closed", reasonCode: null },
-      reviewer: { status: "closed", reasonCode: null },
-    },
-    executions: [],
-  });
-}
-
 export async function productionDaemonMain(
   environment: Readonly<Record<string, string | undefined>> = Bun.env,
 ): Promise<void> {
@@ -122,7 +104,7 @@ export async function productionDaemonMain(
     instanceId: `daemon-${process.pid}`,
     clock,
     ids,
-    initialState: initialState(configuration.profiles),
+    initialState: initialObservationState(configuration.profiles),
     redaction,
   });
 
@@ -137,17 +119,13 @@ export async function productionDaemonMain(
   await releaseStore.prepare();
   const factoryRoot = resolve(import.meta.dir, "..", "..");
   const factorySourceRepository = environment.AGENT_FACTORY_SOURCE_REPOSITORY ?? factoryRoot;
-  const commandEnvironment = Object.fromEntries(
-    Object.entries(environment).flatMap(([name, value]) =>
-      value === undefined ? [] : [[name, value]],
-    ),
-  );
+  const commandEnv = commandEnvironment(environment);
   const releaseBuilder = new ReleaseBuilder({
     builds: new LocalFactoryReleaseBuildAdapter({
       commands: command,
       repositoryRoot: factorySourceRepository,
       checkoutRoot: paths.releaseBuildDirectory,
-      environment: commandEnvironment,
+      environment: commandEnv,
     }),
     store: releaseStore,
   });
@@ -159,7 +137,7 @@ export async function productionDaemonMain(
     commands: command,
     releaseDirectory: paths.releaseDirectory,
     runtimeRoot: factoryRoot,
-    environment: commandEnvironment,
+    environment: commandEnv,
   });
   const http = new FetchGitHubTransport();
   const tokens = new GitHubAppTokenBroker({
@@ -196,7 +174,7 @@ export async function productionDaemonMain(
     profiles: configuration.profiles,
     client: githubClient,
     tokens,
-    mutationExecutors: new Map(configuration.profiles.map((profile) => [profile.id, mutations])),
+    mutations,
     lifecycle,
     convergence,
   });

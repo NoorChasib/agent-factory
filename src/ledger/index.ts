@@ -27,6 +27,7 @@ export {
   AttemptStatusSchema,
   type AuditEvent,
   AuditEventSchema,
+  allowedMutationTransition,
   type ExecutionAttempt,
   ExecutionAttemptSchema,
   type ExecutionRecovery,

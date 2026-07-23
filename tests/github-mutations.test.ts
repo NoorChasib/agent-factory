@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
+import {
+  type ProjectProfile,
+  parseProjectProfile,
+  parseProjectProfileYaml,
+} from "../src/contracts/project-profile";
 import {
   assertAllowedGitHubMutation,
   CanonicalStageManager,
@@ -14,13 +18,9 @@ import {
   GitHubMutationAmbiguousError,
   GitHubMutationExecutor,
   GuardedGitHubLabelApi,
-  type LedgerIdSource,
-  openSqliteLedger,
-  type ProjectProfile,
-  parseProjectProfile,
-  parseProjectProfileYaml,
   type RepositoryLabel,
-} from "../src";
+} from "../src/github";
+import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
 import {
   createInitialControllerState,
   FixedClockAdapter,

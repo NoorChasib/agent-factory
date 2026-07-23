@@ -2,12 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type {
-  CommandExecutionResult,
-  CommandRequest,
-  ControllerLocalState,
-  ExecutionRecord,
-} from "../src";
+import type { CommandExecutionResult, CommandRequest } from "../src/adapters/interfaces";
+import type { ControllerLocalState, ExecutionRecord } from "../src/controller/model";
 import {
   assertFactoryHerdrOperation,
   FACTORY_HERDR_SESSION,
@@ -15,11 +11,10 @@ import {
   type HerdrPane,
   HerdrScopeError,
   HerdrSessionManager,
-  type LedgerIdSource,
-  openSqliteLedger,
   parseHerdrPaneOutput,
   parseHerdrPaneProcessOutput,
-} from "../src";
+} from "../src/herdr";
+import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
 import {
   createInitialControllerState,
   FixedClockAdapter,

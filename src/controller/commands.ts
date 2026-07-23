@@ -35,6 +35,3 @@ export const ReconcileRequestSchema = z.strictObject({
     .enum(["startup", "poll", "change", "capacity", "recovery", "operator"])
     .default("operator"),
 });
-
-export type ControllerCommand = z.infer<typeof ControllerCommandSchema>;
-export type ReconcileRequest = z.infer<typeof ReconcileRequestSchema>;

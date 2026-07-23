@@ -1,15 +1,13 @@
 import { describe, expect, test } from "bun:test";
-
+import type { DaemonTransport } from "../src/cli/client";
+import { AgentFactoryDaemonClient, DaemonUnavailableError } from "../src/cli/client";
+import { runCli } from "../src/cli/main";
+import { parseCliArguments } from "../src/cli/parser";
 import {
-  AgentFactoryDaemonClient,
   type AgentFactoryOperation,
   DAEMON_PROTOCOL_VERSION,
   DaemonRequestSchema,
-  DaemonUnavailableError,
-  parseCliArguments,
-} from "../src";
-import type { DaemonTransport } from "../src/cli/client";
-import { runCli } from "../src/cli/main";
+} from "../src/contracts/daemon-protocol";
 
 const hash = "a".repeat(64);
 const commitSha = "b".repeat(40);

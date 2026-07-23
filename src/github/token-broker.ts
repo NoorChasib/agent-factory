@@ -18,10 +18,10 @@ const TOKEN_REFRESH_SKEW_MS = 60_000;
 const INSTALLATION_TOKEN_PERMISSIONS = {
   administration: "read",
   checks: "read",
-  contents: "read",
+  contents: "write",
   issues: "write",
   metadata: "read",
-  pull_requests: "read",
+  pull_requests: "write",
   statuses: "read",
 } as const;
 
@@ -277,7 +277,7 @@ export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
       parsed.permissions.statuses !== INSTALLATION_TOKEN_PERMISSIONS.statuses
     ) {
       throw new GitHubAppTokenBrokerError(
-        "GitHub App token response exceeded the requested permission set",
+        "GitHub App token response did not match the requested permission set",
       );
     }
     const expiresAt = Date.parse(parsed.expires_at);

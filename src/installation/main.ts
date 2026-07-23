@@ -10,8 +10,7 @@ import {
   LocalReleaseFileSystemAdapter,
   SqliteReleaseLedgerAdapter,
 } from "../adapters/releases";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { ControllerLocalStateSchema } from "../controller/model";
+import { commandEnvironment, initialObservationState } from "../daemon/composition";
 import { openSqliteLedger } from "../ledger";
 import {
   loadFactoryConfiguration,
@@ -21,22 +20,6 @@ import {
 import { ReleaseBootstrapper } from "../releases/bootstrap";
 import { ReleaseBuilder } from "../releases/builder";
 import { ReleaseStore } from "../releases/store";
-
-function initialState(profiles: readonly ProjectProfile[]) {
-  return ControllerLocalStateSchema.parse({
-    mode: "observation",
-    rolloutStage: "observation",
-    projectEnabled: Object.fromEntries(profiles.map((profile) => [profile.id, profile.enabled])),
-    rotation: { implementation: null, feedback: null },
-    circuits: {
-      claude: { status: "closed", reasonCode: null },
-      codex: { status: "closed", reasonCode: null },
-      github: { status: "closed", reasonCode: null },
-      reviewer: { status: "closed", reasonCode: null },
-    },
-    executions: [],
-  });
-}
 
 export async function bootstrapReleaseMain(
   argv: readonly string[],
@@ -58,7 +41,7 @@ export async function bootstrapReleaseMain(
     instanceId: `bootstrap-${process.pid}`,
     clock,
     ids,
-    initialState: initialState(configuration.profiles),
+    initialState: initialObservationState(configuration.profiles),
   });
   try {
     const releaseFiles = new LocalReleaseFileSystemAdapter();
@@ -71,17 +54,13 @@ export async function bootstrapReleaseMain(
     await store.prepare();
     const sourceRepository =
       environment.AGENT_FACTORY_SOURCE_REPOSITORY ?? resolve(import.meta.dir, "..", "..");
-    const commandEnvironment = Object.fromEntries(
-      Object.entries(environment).flatMap(([name, value]) =>
-        value === undefined ? [] : [[name, value]],
-      ),
-    );
+    const commandEnv = commandEnvironment(environment);
     const builder = new ReleaseBuilder({
       builds: new LocalFactoryReleaseBuildAdapter({
         commands: new BunCommandAdapter(),
         repositoryRoot: sourceRepository,
         checkoutRoot: paths.releaseBuildDirectory,
-        environment: commandEnvironment,
+        environment: commandEnv,
       }),
       store,
     });

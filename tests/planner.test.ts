@@ -1,19 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-
 import {
-  type ControllerConfig,
-  type ControllerLocalState,
-  createController,
-  type ExecutionRecord,
-  type GitHubIssueObservation,
-  type GitHubProjectObservation,
-  type GitHubPullRequestObservation,
   type ProjectProfile,
-  parseGlobalLimitsFromEnvironment,
   parseProjectProfile,
   parseProjectProfileYaml,
-} from "../src";
+} from "../src/contracts/project-profile";
+import { type ControllerConfig, parseGlobalLimitsFromEnvironment } from "../src/controller/config";
+import { createController } from "../src/controller/controller";
+import type {
+  ControllerLocalState,
+  ExecutionRecord,
+  GitHubIssueObservation,
+  GitHubProjectObservation,
+  GitHubPullRequestObservation,
+} from "../src/controller/model";
 import {
   createInitialControllerState,
   createInMemoryAdapters,

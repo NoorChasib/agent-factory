@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-
+import type { ProjectProfile } from "../src/contracts/project-profile";
+import { parseProjectProfileYaml } from "../src/contracts/project-profile";
 import {
   assertAllowedGitHubMutation,
   assessReadyToMerge,
@@ -13,14 +14,11 @@ import {
   type GitHubProjectSnapshot,
   type GitHubPullRequestSnapshot,
   mapGitHubObservation,
-  type ProjectProfile,
-  parseProjectProfileYaml,
   type ReadyToMergeRevocationReason,
   type RepositoryLabel,
-  type ReviewBaseline,
-  type ReviewBaselineInput,
   shouldFullyReconcile,
-} from "../src";
+} from "../src/github";
+import type { ReviewBaseline, ReviewBaselineInput } from "../src/ledger";
 import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "../src/testing";
 
 const profile = parseProjectProfileYaml(

@@ -95,14 +95,10 @@ export class CodexFeedbackRunner {
 
   public async resume(input: CodexResumeRequest): Promise<ProviderRunOutcome> {
     const request = ProviderRunRequestSchema.parse(input.request);
-    const runtime = ProviderRuntimeSchema.parse(input.runtime);
+    ProviderRuntimeSchema.parse(input.runtime);
     const session = input.session;
     this.#assertFeedbackRequest(request);
-    if (
-      session.provider !== "codex" ||
-      session.model !== runtime.model ||
-      session.reasoningEffort !== runtime.effort
-    ) {
+    if (session.provider !== "codex") {
       return failedProviderOutcome({
         provider: "codex",
         reasonCode: "resume-runtime-mismatch",
@@ -111,6 +107,10 @@ export class CodexFeedbackRunner {
         processStartedAt: null,
       });
     }
+    const runtime = ProviderRuntimeSchema.parse({
+      model: session.model,
+      effort: session.reasoningEffort,
+    });
     if (
       !CodexThreadStartedEventSchema.shape.thread_id.safeParse(session.id).success ||
       !resumeContextMatches(request, session)

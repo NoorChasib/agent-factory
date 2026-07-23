@@ -4,10 +4,10 @@
   "permissions": {
     "administration": "read",
     "checks": "read",
-    "contents": "read",
+    "contents": "write",
     "issues": "write",
     "metadata": "read",
-    "pull_requests": "read",
+    "pull_requests": "write",
     "statuses": "read"
   },
   "repository_selection": "selected"

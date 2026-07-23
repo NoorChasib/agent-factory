@@ -2,14 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-import {
-  FactoryNotifications,
-  NtfyNotificationAdapter,
-  RotatingJsonLinesSink,
-  StructuredLogger,
-  StructuredRedactionBoundary,
-} from "../src";
+import { NtfyNotificationAdapter } from "../src/adapters/ntfy";
+import { RotatingJsonLinesSink } from "../src/adapters/structured-log";
+import { FactoryNotifications, StructuredLogger } from "../src/operations/observability";
+import { StructuredRedactionBoundary } from "../src/redaction";
 import { FixedClockAdapter, InMemoryNotificationAdapter } from "../src/testing";
 
 describe("structured logging", () => {

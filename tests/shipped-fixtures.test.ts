@@ -1,13 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-
-import {
-  loadFactoryConfiguration,
-  parseWorkerResult,
-  resolveXdgPaths,
-  WorkerTerminalStatusSchema,
-} from "../src";
+import { parseWorkerResult, WorkerTerminalStatusSchema } from "../src/contracts/worker-result";
+import { loadFactoryConfiguration, resolveXdgPaths } from "../src/operations/runtime";
 import { InMemoryFileSystemAdapter } from "../src/testing";
 
 const repositoryRoot = join(import.meta.dir, "..");

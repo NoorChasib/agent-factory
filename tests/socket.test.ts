@@ -1,12 +1,7 @@
 import { describe, expect, test } from "bun:test";
-
-import {
-  AGENT_FACTORY_SOCKET_MODE,
-  DAEMON_PROTOCOL_VERSION,
-  type DaemonCommandRouter,
-  DaemonResponseSchema,
-  handleDaemonRequest,
-} from "../src";
+import { DAEMON_PROTOCOL_VERSION, DaemonResponseSchema } from "../src/contracts/daemon-protocol";
+import type { DaemonCommandRouter } from "../src/daemon/router";
+import { AGENT_FACTORY_SOCKET_MODE, handleDaemonRequest } from "../src/daemon/socket";
 
 class ScriptedRouter implements DaemonCommandRouter {
   public calls: unknown[] = [];

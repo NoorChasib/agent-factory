@@ -133,6 +133,19 @@ function readOwnerOnlySpecification(path: string): WorkerCommandSpecification {
   return parseWorkerCommandSpecification(JSON.parse(readFileSync(path, "utf8")));
 }
 
+function deleteSpecification(path: string): void {
+  if (!isAbsolute(path) || /[\0\r\n]/u.test(path)) {
+    return;
+  }
+  try {
+    if (lstatSync(path).isFile()) {
+      unlinkSync(path);
+    }
+  } catch {
+    // Best-effort custody cleanup tolerates a prior deletion.
+  }
+}
+
 function writeResult(path: string, result: CommandExecutionResult): void {
   const temporaryPath = `${path}.tmp`;
   writeFileSync(temporaryPath, JSON.stringify(result), {
@@ -158,6 +171,7 @@ export async function workerCommandMain(
     specification = readOwnerOnlySpecification(specificationPath);
     unlinkSync(specificationPath);
   } catch {
+    deleteSpecification(specificationPath);
     return 64;
   }
   const result = await executeWorkerCommandSpecification(specification, spawner, signals);

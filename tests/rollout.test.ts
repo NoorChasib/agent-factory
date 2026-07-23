@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { createController, parseProjectProfile, parseProjectProfileYaml } from "../src";
+import { parseProjectProfile, parseProjectProfileYaml } from "../src/contracts/project-profile";
+import { createController } from "../src/controller/controller";
 import { createInitialControllerState, createInMemoryAdapters } from "../src/testing";
 
 describe("rollout stage limit enforcement", () => {

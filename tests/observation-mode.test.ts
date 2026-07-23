@@ -7,18 +7,13 @@ import type {
   DoctorSystemAdapter,
   FileMetadata,
   GitHubObserveOptions,
-  LedgerIdSource,
-  ReleaseBuilder,
-  ReleaseStore,
   RuntimeFileSystemAdapter,
-} from "../src";
-import {
-  CURRENT_LEDGER_SCHEMA_VERSION,
-  composeDaemon,
-  Doctor,
-  loadFactoryConfiguration,
-  resolveXdgPaths,
-} from "../src";
+} from "../src/adapters/interfaces";
+import { composeDaemon } from "../src/daemon/composition";
+import { CURRENT_LEDGER_SCHEMA_VERSION, type LedgerIdSource } from "../src/ledger";
+import { Doctor } from "../src/operations/doctor";
+import { loadFactoryConfiguration, resolveXdgPaths } from "../src/operations/runtime";
+import type { ReleaseBuilder, ReleaseStore } from "../src/releases";
 import {
   FixedClockAdapter,
   InMemoryGitHubAdapter,

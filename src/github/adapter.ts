@@ -15,7 +15,7 @@ export interface ProductionGitHubAdapterOptions {
   readonly profiles: readonly ProjectProfile[];
   readonly client: GitHubApiClient;
   readonly tokens: GitHubProjectTokenProvider;
-  readonly mutationExecutors?: ReadonlyMap<string, GitHubMutationExecutor>;
+  readonly mutations?: GitHubMutationExecutor;
   readonly lifecycle?: GitHubLifecycleReconciler;
   readonly convergence?: {
     reconcileProject(snapshot: GitHubProjectSnapshot): Promise<{ readonly mutated: boolean }>;
@@ -31,7 +31,7 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
   readonly #profiles: ReadonlyMap<string, ProjectProfile>;
   readonly #client: GitHubApiClient;
   readonly #tokens: GitHubProjectTokenProvider;
-  readonly #mutationExecutors: ReadonlyMap<string, GitHubMutationExecutor>;
+  readonly #mutations: GitHubMutationExecutor | undefined;
   readonly #lifecycle: GitHubLifecycleReconciler | undefined;
   readonly #convergence: ProductionGitHubAdapterOptions["convergence"];
   readonly #associations: GitHubObservationAssociations;
@@ -41,7 +41,7 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
     this.#profiles = new Map(options.profiles.map((profile) => [profile.id, profile]));
     this.#client = options.client;
     this.#tokens = options.tokens;
-    this.#mutationExecutors = options.mutationExecutors ?? new Map();
+    this.#mutations = options.mutations;
     this.#lifecycle = options.lifecycle;
     this.#convergence = options.convergence;
     this.#associations = options.associations ?? {};
@@ -81,9 +81,10 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
         let recovered = 0;
         let lifecycleTransitions = 0;
         if (full) {
-          const executor = this.#mutationExecutors.get(projectId);
           recovered =
-            executor === undefined ? 0 : (await executor.reconcileOutstanding(projectId)).length;
+            this.#mutations === undefined
+              ? 0
+              : (await this.#mutations.reconcileOutstanding(projectId)).length;
           const activeFeedback = new Set(
             options.activeFeedbackPullRequests
               .filter((active) => active.projectId === projectId)

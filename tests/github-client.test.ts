@@ -1,14 +1,15 @@
 import { describe, expect, test } from "bun:test";
-
+import {
+  type ProjectProfile,
+  parseProjectProfile,
+  parseProjectProfileYaml,
+} from "../src/contracts/project-profile";
 import {
   GitHubApiClient,
   GitHubObservationResponseSchema,
   GitHubReadError,
   ProductionGitHubAdapter,
-  type ProjectProfile,
-  parseProjectProfile,
-  parseProjectProfileYaml,
-} from "../src";
+} from "../src/github";
 import {
   RecordingDelayAdapter,
   type ScriptedGitHubStep,

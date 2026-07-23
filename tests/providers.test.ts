@@ -2,34 +2,35 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { parseProjectProfileYaml } from "../src/contracts/project-profile";
+import type { WorkerResult } from "../src/contracts/worker-result";
+import {
+  DEFAULT_CLAUDE_EFFORT,
+  DEFAULT_CLAUDE_MODEL,
+  parseClaudeRuntimeFromEnvironment,
+} from "../src/controller/config";
+import type { ControllerLocalState } from "../src/controller/model";
+import { mapGitHubObservation, toControllerObservation } from "../src/github";
+import type { LedgerIdSource } from "../src/ledger";
+import { openSqliteLedger } from "../src/ledger";
 import {
   type CapturedProviderSession,
   ClaudeCodeRunner,
   CodexFeedbackRunner,
-  type ControllerLocalState,
   circuitSignalForFailure,
   circuitSignalFromGitHubFailure,
-  DEFAULT_CLAUDE_EFFORT,
-  DEFAULT_CLAUDE_MODEL,
-  mapGitHubObservation,
   openCircuitCommand,
-  openSqliteLedger,
   ProviderCircuitRecovery,
   type ProviderCircuitSignal,
   ProviderExecutionRecorder,
   type ProviderRunOutcome,
   type ProviderRunRequest,
   type ProviderRuntime,
-  parseClaudeRuntimeFromEnvironment,
-  parseProjectProfileYaml,
   type ResumeProviderSession,
-  toControllerObservation,
   verifyWorkerResultAgainstObservation,
   type WorkerOutcomeVerification,
   type WorkerOutcomeVerifier,
-  type WorkerResult,
-} from "../src";
-import type { LedgerIdSource } from "../src/ledger";
+} from "../src/providers";
 import {
   createInitialControllerState,
   FixedClockAdapter,
@@ -373,14 +374,10 @@ describe("provider runtime configuration and Claude launch", () => {
     });
   });
 
-  test("resumes only the pre-generated Claude session with its exact recorded runtime", async () => {
+  test("preserves the recorded Claude runtime after an environment retune", async () => {
     const runtime = parseClaudeRuntimeFromEnvironment({});
     const commands = new ScriptedCommandAdapter([
       exited(lines(claudeInitialization(), resultEvent(workerResult("claude", claudeSessionId)))),
-      exited(
-        lines(claudeInitialization(), resultEvent(workerResult("claude", claudeSessionId))),
-        43,
-      ),
     ]);
     const runner = new ClaudeCodeRunner({
       commands,
@@ -402,10 +399,39 @@ describe("provider runtime configuration and Claude launch", () => {
       executionId: implementationRequest.executionId,
     };
 
-    const resumed = await runner.resume({ request: implementationRequest, session: recorded });
+    const changedCommands = new ScriptedCommandAdapter([
+      exited(
+        lines(claudeInitialization(), resultEvent(workerResult("claude", claudeSessionId))),
+        43,
+      ),
+      exited(
+        lines(
+          claudeInitialization({ model: "claude-retuned", effort: "max" }),
+          resultEvent(workerResult("claude", claudeSessionId)),
+        ),
+      ),
+    ]);
+    const changedRunner = new ClaudeCodeRunner({
+      commands: changedCommands,
+      tokens: new Tokens(),
+      ids: new ClaudeIds(),
+      clock: new FixedClockAdapter(),
+      verifier: new AcceptingVerifier(),
+      runtime: { model: "claude-retuned", effort: "max" },
+      controllerEnvironment: {},
+    });
+
+    const resumed = await changedRunner.resume({
+      request: implementationRequest,
+      session: recorded,
+    });
+    const mismatchedInitialization = await changedRunner.resume({
+      request: implementationRequest,
+      session: recorded,
+    });
 
     expect(resumed.status).toBe("completed");
-    expect(commands.requests[1]?.argv).toEqual([
+    expect(changedCommands.requests[0]?.argv).toEqual([
       "--print",
       "--verbose",
       "--input-format",
@@ -419,30 +445,17 @@ describe("provider runtime configuration and Claude launch", () => {
       "--effort",
       DEFAULT_CLAUDE_EFFORT,
     ]);
-
-    const changedCommands = new ScriptedCommandAdapter([]);
-    const changedRunner = new ClaudeCodeRunner({
-      commands: changedCommands,
-      tokens: new Tokens(),
-      ids: new ClaudeIds(),
-      clock: new FixedClockAdapter(),
-      verifier: new AcceptingVerifier(),
-      runtime: { ...runtime, effort: "max" },
-      controllerEnvironment: {},
-    });
-    expect(
-      await changedRunner.resume({ request: implementationRequest, session: recorded }),
-    ).toMatchObject({
+    expect(mismatchedInitialization).toMatchObject({
       status: "failed",
-      reasonCode: "resume-runtime-mismatch",
-      commandStarted: false,
+      reasonCode: "claude-initialization-mismatch",
+      commandStarted: true,
     });
-    expect(changedCommands.requests).toEqual([]);
+    expect(changedCommands.requests[1]?.argv).toEqual(changedCommands.requests[0]?.argv);
   });
 });
 
 describe("persistent Codex feedback sessions", () => {
-  test("captures the thread before a malformed result and refuses changed resume runtime", async () => {
+  test("captures the thread before a malformed result and preserves its runtime on resume", async () => {
     const runtime: ProviderRuntime = { model: "gpt-5.6-codex", effort: "high" };
     const commands = new ScriptedCommandAdapter([
       exited(
@@ -452,6 +465,18 @@ describe("persistent Codex feedback sessions", () => {
             type: "agent_factory.worker_result",
             result: { schemaVersion: 1, malformed: true },
           },
+        ),
+      ),
+      exited(
+        lines(
+          { type: "thread.started", thread_id: codexThreadId },
+          resultEvent(workerResult("codex", codexThreadId)),
+        ),
+      ),
+      exited(
+        lines(
+          { type: "thread.started", thread_id: "retuned-thread" },
+          resultEvent(workerResult("codex", codexThreadId)),
         ),
       ),
     ]);
@@ -473,9 +498,14 @@ describe("persistent Codex feedback sessions", () => {
       sessionKey: "session-key-101",
       executionId: feedbackRequest.executionId,
     };
-    const refused = await runner.resume({
+    const resumed = await runner.resume({
       request: feedbackRequest,
-      runtime: { ...runtime, effort: "max" },
+      runtime: { model: "gpt-retuned", effort: "max" },
+      session: recorded,
+    });
+    const mismatchedInitialization = await runner.resume({
+      request: feedbackRequest,
+      runtime: { model: "gpt-retuned", effort: "max" },
       session: recorded,
     });
 
@@ -489,13 +519,25 @@ describe("persistent Codex feedback sessions", () => {
         reasoningEffort: runtime.effort,
       },
     });
-    expect(refused).toMatchObject({
+    expect(resumed.status).toBe("completed");
+    expect(commands.requests[1]?.argv).toEqual([
+      "exec",
+      "resume",
+      codexThreadId,
+      "--json",
+      "--model",
+      runtime.model,
+      "--config",
+      `model_reasoning_effort="${runtime.effort}"`,
+      "-",
+    ]);
+    expect(mismatchedInitialization).toMatchObject({
       status: "failed",
-      reasonCode: "resume-runtime-mismatch",
-      commandStarted: false,
+      reasonCode: "codex-thread-mismatch",
+      commandStarted: true,
       session: { id: codexThreadId },
     });
-    expect(commands.requests).toHaveLength(1);
+    expect(commands.requests).toHaveLength(3);
   });
 
   test("resumes the exact recorded thread, model, effort, PR, and workflow", async () => {

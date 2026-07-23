@@ -1,14 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import type {
-  Controller,
-  DiskGuard,
-  FactoryNotifications,
-  MaintenanceCoordinator,
-  RetentionCoordinator,
-  StructuredLogger,
-} from "../src";
-import { DaemonPollLoop } from "../src";
+import type { Controller } from "../src/controller/controller";
+import { DaemonPollLoop } from "../src/daemon/poll-loop";
+import type { DiskGuard, MaintenanceCoordinator } from "../src/operations/lifecycle";
+import type { FactoryNotifications, StructuredLogger } from "../src/operations/observability";
+import type { RetentionCoordinator } from "../src/operations/retention";
 
 describe("deterministic daemon poll loop", () => {
   test("drives startup reconcile, disk, retention, logging, and injected delay", async () => {

@@ -97,12 +97,7 @@ export class ClaudeCodeRunner {
     const request = ProviderRunRequestSchema.parse(input.request);
     this.#assertImplementationRequest(request);
     const session = input.session;
-    if (
-      session.provider !== "claude" ||
-      session.executionId !== request.executionId ||
-      session.model !== this.#runtime.model ||
-      session.reasoningEffort !== this.#runtime.effort
-    ) {
+    if (session.provider !== "claude" || session.executionId !== request.executionId) {
       return failedProviderOutcome({
         provider: "claude",
         reasonCode: "resume-runtime-mismatch",

@@ -2,14 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { DoctorSystemAdapter, FileMetadata, RuntimeFileSystemAdapter } from "../src";
+import type {
+  DoctorSystemAdapter,
+  FileMetadata,
+  RuntimeFileSystemAdapter,
+} from "../src/adapters/interfaces";
+import { CURRENT_LEDGER_SCHEMA_VERSION } from "../src/ledger";
+import { Doctor } from "../src/operations/doctor";
 import {
-  CURRENT_LEDGER_SCHEMA_VERSION,
-  Doctor,
   loadFactoryConfiguration,
   prepareXdgDirectories,
   resolveXdgPaths,
-} from "../src";
+} from "../src/operations/runtime";
 
 class RuntimeMemoryFileSystem implements RuntimeFileSystemAdapter {
   public files = new Map<string, { content: string; metadata: FileMetadata }>();

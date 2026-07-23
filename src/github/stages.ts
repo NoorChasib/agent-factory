@@ -1,5 +1,10 @@
 import type { ProjectProfile } from "../contracts/project-profile";
-import { CANONICAL_STAGES, type CanonicalStage, resolveCanonicalLabels } from "../domain/stages";
+import {
+  CANONICAL_STAGES,
+  type CanonicalStage,
+  resolveCanonicalLabels,
+  stageLabel,
+} from "../domain/stages";
 import type {
   GitHubAllowedMutation,
   GitHubMutationExecutionResult,
@@ -13,27 +18,8 @@ export interface StageTransitionResult {
   readonly observedLabels: readonly string[];
 }
 
-function stageLabel(profile: ProjectProfile, stage: CanonicalStage): string {
-  switch (stage) {
-    case "needs-triage":
-      return profile.labels.needsTriage;
-    case "needs-info":
-      return profile.labels.needsInfo;
-    case "ready-for-implementation-agent":
-      return profile.labels.implementationReady;
-    case "ready-for-human":
-      return profile.labels.operatorReady;
-    case "in-progress":
-      return profile.labels.inProgress;
-    case "ready-for-feedback-agent":
-      return profile.labels.feedbackReady;
-    case "ready-to-merge":
-      return profile.labels.readyToMerge;
-  }
-}
-
 function stageLabels(profile: ProjectProfile): readonly string[] {
-  return CANONICAL_STAGES.map((stage) => stageLabel(profile, stage));
+  return CANONICAL_STAGES.map((stage) => stageLabel(profile.labels, stage));
 }
 
 function operationKeyPart(label: string): string {
@@ -91,7 +77,7 @@ export class CanonicalStageManager {
       };
     }
 
-    const desiredLabel = stageLabel(this.#profile, input.desiredStage);
+    const desiredLabel = stageLabel(this.#profile.labels, input.desiredStage);
     const desiredInitiallyPresent = before.includes(desiredLabel);
     if (!desiredInitiallyPresent) {
       const addMutation: GitHubAllowedMutation = {
@@ -126,7 +112,7 @@ export class CanonicalStageManager {
       };
     }
     const expectedLabel =
-      input.expectedStage === null ? null : stageLabel(this.#profile, input.expectedStage);
+      input.expectedStage === null ? null : stageLabel(this.#profile.labels, input.expectedStage);
     const allowedDuringTransition = new Set(
       expectedLabel === null ? [desiredLabel] : [expectedLabel, desiredLabel],
     );

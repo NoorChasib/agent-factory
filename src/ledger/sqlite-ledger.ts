@@ -41,6 +41,7 @@ import {
 import {
   type AuditEvent,
   AuditEventSchema,
+  allowedMutationTransition,
   type ExecutionAttempt,
   ExecutionAttemptSchema,
   type ExecutionRecovery,
@@ -2084,19 +2085,6 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
       kind: parsedKind,
       payload: sanitized,
     });
-  }
-}
-
-function allowedMutationTransition(current: MutationState, next: MutationState): boolean {
-  switch (current) {
-    case "pending":
-      return next === "applied" || next === "ambiguous" || next === "reconciled";
-    case "applied":
-      return next === "ambiguous" || next === "reconciled";
-    case "ambiguous":
-      return next === "reconciled";
-    case "reconciled":
-      return false;
   }
 }
 
