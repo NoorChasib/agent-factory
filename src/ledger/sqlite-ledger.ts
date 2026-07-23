@@ -19,6 +19,12 @@ import {
   type LedgerSnapshot,
 } from "../controller/model";
 import {
+  DEFAULT_REDACTION_BOUNDARY,
+  type RedactedJson,
+  type RedactionBoundary,
+  sanitizeAuditJson,
+} from "../redaction";
+import {
   LedgerCorruptionError,
   LedgerError,
   LedgerOwnershipError,
@@ -72,9 +78,6 @@ import {
 } from "./types";
 
 export const LEDGER_FILENAME = "ledger.sqlite3";
-
-const FORBIDDEN_AUDIT_KEY = /(?:token|secret|password|private.?key|credential|prompt|pem)/iu;
-const ABSOLUTE_PATH = /(^|[^A-Za-z0-9:])\/(?!\/)(?:[^\s)"'`]|\\ )+/u;
 
 type JsonValue =
   | boolean
@@ -214,6 +217,7 @@ export interface OpenSqliteLedgerOptions {
   readonly initialState: ControllerLocalState;
   readonly migrations?: readonly LedgerMigration[];
   readonly ownerLeaseDurationMs?: number;
+  readonly redaction?: RedactionBoundary;
 }
 
 export interface RestoreSqliteLedgerOptions extends OpenSqliteLedgerOptions {
@@ -284,30 +288,6 @@ function decodeJson(input: string, description: string): unknown {
       cause: error,
     });
   }
-}
-
-function sanitizeAuditJson(input: unknown, key?: string): JsonValue {
-  if (key !== undefined && FORBIDDEN_AUDIT_KEY.test(key)) {
-    return "[REDACTED]";
-  }
-  const value = jsonValue(input);
-  const sanitize = (candidate: JsonValue): JsonValue => {
-    if (typeof candidate === "string") {
-      return ABSOLUTE_PATH.test(candidate) ? "[REDACTED_PATH]" : candidate;
-    }
-    if (Array.isArray(candidate)) {
-      return candidate.map(sanitize);
-    }
-    if (candidate !== null && typeof candidate === "object") {
-      const result: Record<string, JsonValue> = {};
-      for (const [childKey, childValue] of Object.entries(candidate)) {
-        result[childKey] = FORBIDDEN_AUDIT_KEY.test(childKey) ? "[REDACTED]" : sanitize(childValue);
-      }
-      return result;
-    }
-    return candidate;
-  };
-  return sanitize(value);
 }
 
 function parseExecution(row: ExecutionRow): ExecutionRecord {
@@ -495,6 +475,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
   readonly #clock: ClockAdapter;
   readonly #ids: LedgerIdSource;
   readonly #ownerLeaseDurationMs: number;
+  readonly #redaction: RedactionBoundary;
   #closed = false;
 
   private constructor(database: Database, databasePath: string, options: OpenSqliteLedgerOptions) {
@@ -504,6 +485,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     this.#clock = options.clock;
     this.#ids = options.ids;
     this.#ownerLeaseDurationMs = options.ownerLeaseDurationMs ?? 300_000;
+    this.#redaction = options.redaction ?? DEFAULT_REDACTION_BOUNDARY;
   }
 
   public static open(options: OpenSqliteLedgerOptions): SqliteLedger {
@@ -2054,7 +2036,7 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
 
   #insertAudit(kind: string, payload: unknown, at: string): AuditEvent {
     const parsedKind = AuditEventSchema.shape.kind.parse(kind);
-    const sanitized = sanitizeAuditJson(payload);
+    const sanitized: RedactedJson = sanitizeAuditJson(payload, this.#redaction);
     const inserted = this.#database
       .query(
         `

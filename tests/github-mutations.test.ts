@@ -88,6 +88,9 @@ function subjectKey(
 class MemoryLabelGateway implements GitHubLabelGateway {
   readonly #subjects = new Map<string, string[]>();
   readonly #repositoryLabels = new Map<string, RepositoryLabel[]>();
+  readonly #comments = new Map<number, string>();
+  readonly #subjectComments = new Map<string, number[]>();
+  #nextCommentId = 1;
   public readonly events: string[] = [];
   public readonly applyCalls: GitHubAllowedMutation[] = [];
   public ambiguousWrites = 0;
@@ -119,55 +122,87 @@ class MemoryLabelGateway implements GitHubLabelGateway {
       this.ambiguousWrites -= 1;
       throw new GitHubMutationAmbiguousError("transport");
     }
-    if (mutation.kind === "add-label" || mutation.kind === "remove-label") {
-      const key = subjectKey(mutation.projectId, mutation.subjectType, mutation.subjectNumber);
-      const labels = new Set(this.#subjects.get(key) ?? []);
-      if (mutation.kind === "add-label") {
-        labels.add(mutation.label);
-      } else {
-        labels.delete(mutation.label);
+    switch (mutation.kind) {
+      case "add-label":
+      case "remove-label": {
+        const key = subjectKey(mutation.projectId, mutation.subjectType, mutation.subjectNumber);
+        const labels = new Set(this.#subjects.get(key) ?? []);
+        if (mutation.kind === "add-label") {
+          labels.add(mutation.label);
+        } else {
+          labels.delete(mutation.label);
+        }
+        this.#subjects.set(key, [...labels]);
+        return;
       }
-      this.#subjects.set(key, [...labels]);
-      return;
-    }
-    const labels = this.#repositoryLabels.get(mutation.projectId) ?? [];
-    if (mutation.kind === "create-label") {
-      labels.push({
-        name: mutation.name,
-        color: mutation.color,
-        description: mutation.description,
-      });
-    } else {
-      const index = labels.findIndex((label) => label.name === mutation.currentName);
-      if (index >= 0) {
-        labels[index] = {
+      case "create-comment": {
+        const id = this.#nextCommentId;
+        this.#nextCommentId += 1;
+        this.#comments.set(id, mutation.body);
+        const key = subjectKey(mutation.projectId, mutation.subjectType, mutation.subjectNumber);
+        this.#subjectComments.set(key, [...(this.#subjectComments.get(key) ?? []), id]);
+        return;
+      }
+      case "create-label": {
+        const labels = this.#repositoryLabels.get(mutation.projectId) ?? [];
+        labels.push({
           name: mutation.name,
           color: mutation.color,
           description: mutation.description,
-        };
+        });
+        this.#repositoryLabels.set(mutation.projectId, labels);
+        return;
+      }
+      case "update-comment":
+        this.#comments.set(mutation.commentId, mutation.body);
+        return;
+      case "update-label": {
+        const labels = this.#repositoryLabels.get(mutation.projectId) ?? [];
+        const index = labels.findIndex((label) => label.name === mutation.currentName);
+        if (index >= 0) {
+          labels[index] = {
+            name: mutation.name,
+            color: mutation.color,
+            description: mutation.description,
+          };
+        }
+        this.#repositoryLabels.set(mutation.projectId, labels);
+        return;
       }
     }
-    this.#repositoryLabels.set(mutation.projectId, labels);
   }
 
   public async verify(input: GitHubAllowedMutation): Promise<boolean> {
     this.events.push(`verify:${input.kind}`);
-    if (input.kind === "add-label" || input.kind === "remove-label") {
-      const labels = await this.readSubjectLabels(
-        input.projectId,
-        input.subjectType,
-        input.subjectNumber,
-      );
-      return input.kind === "add-label"
-        ? labels.includes(input.label)
-        : !labels.includes(input.label);
+    switch (input.kind) {
+      case "add-label":
+      case "remove-label": {
+        const labels = await this.readSubjectLabels(
+          input.projectId,
+          input.subjectType,
+          input.subjectNumber,
+        );
+        return input.kind === "add-label"
+          ? labels.includes(input.label)
+          : !labels.includes(input.label);
+      }
+      case "create-comment": {
+        const key = subjectKey(input.projectId, input.subjectType, input.subjectNumber);
+        return (this.#subjectComments.get(key) ?? []).some(
+          (id) => this.#comments.get(id) === input.body,
+        );
+      }
+      case "create-label":
+      case "update-label":
+        return (await this.listRepositoryLabels(input.projectId)).some(
+          (label) =>
+            label.name === input.name &&
+            label.color === input.color &&
+            label.description === input.description,
+        );
+      case "update-comment":
+        return this.#comments.get(input.commentId) === input.body;
     }
-    return (await this.listRepositoryLabels(input.projectId)).some(
-      (label) =>
-        label.name === input.name &&
-        label.color === input.color &&
-        label.description === input.description,
-    );
   }
 
   public async readSubjectLabels(
@@ -389,6 +424,9 @@ describe("guarded mutations and sequential verified claims", () => {
     for (const kind of FORBIDDEN_GITHUB_MUTATION_KINDS) {
       expect(() => assertAllowedGitHubMutation({ kind })).toThrow(ForbiddenGitHubMutationError);
     }
+    expect(() => assertAllowedGitHubMutation({ kind: "submit-review" })).toThrow(
+      ForbiddenGitHubMutationError,
+    );
     expect(() =>
       assertAllowedGitHubMutation({
         kind: "add-label",
@@ -396,6 +434,35 @@ describe("guarded mutations and sequential verified claims", () => {
         subjectType: "issue",
         subjectNumber: 1,
         label: "ok",
+        merge: true,
+      }),
+    ).toThrow(ForbiddenGitHubMutationError);
+    expect(
+      assertAllowedGitHubMutation({
+        kind: "create-comment",
+        projectId: lumenProfile.id,
+        subjectType: "issue",
+        subjectNumber: 1,
+        body: "sanitized recovery",
+      }),
+    ).toMatchObject({ kind: "create-comment" });
+    expect(
+      assertAllowedGitHubMutation({
+        kind: "update-comment",
+        projectId: lumenProfile.id,
+        subjectType: "pull-request",
+        subjectNumber: 2,
+        commentId: 99,
+        body: "updated sanitized recovery",
+      }),
+    ).toMatchObject({ kind: "update-comment", commentId: 99 });
+    expect(() =>
+      assertAllowedGitHubMutation({
+        kind: "create-comment",
+        projectId: lumenProfile.id,
+        subjectType: "issue",
+        subjectNumber: 1,
+        body: "not strict",
         merge: true,
       }),
     ).toThrow(ForbiddenGitHubMutationError);
@@ -409,6 +476,120 @@ describe("guarded mutations and sequential verified claims", () => {
         description: "rename is not allowlisted",
       }),
     ).toThrow(ForbiddenGitHubMutationError);
+  });
+
+  test("routes comment writes through the guarded API and redacts bodies at the call site", async () => {
+    const transport = new ScriptedGitHubTransport([
+      {
+        kind: "response",
+        response: { status: 201, headers: {}, body: "{}" },
+      },
+      {
+        kind: "response",
+        response: {
+          status: 200,
+          headers: {},
+          body: JSON.stringify({
+            id: 99,
+            body: "old recovery",
+            issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/42`,
+          }),
+        },
+      },
+      {
+        kind: "response",
+        response: { status: 200, headers: {}, body: "{}" },
+      },
+    ]);
+    const gateway = new GuardedGitHubLabelApi({
+      profiles: [lumenProfile],
+      client: new GitHubApiClient({
+        transport,
+        delay: new RecordingDelayAdapter(),
+        apiUrl: "https://api.github.test",
+      }),
+      transport,
+      tokens: {
+        tokenForProject: async () => "fixture-token",
+      },
+      apiUrl: "https://api.github.test",
+    });
+
+    await gateway.apply({
+      kind: "create-comment",
+      projectId: lumenProfile.id,
+      subjectType: "issue",
+      subjectNumber: 42,
+      body: "recover /home/noor/private ghs_fixture_secret",
+    });
+    await gateway.apply({
+      kind: "update-comment",
+      projectId: lumenProfile.id,
+      subjectType: "issue",
+      subjectNumber: 42,
+      commentId: 99,
+      body: "updated Bearer fixture-bearer-secret",
+    });
+
+    expect(transport.requests.map((request) => request.method)).toEqual(["POST", "GET", "PATCH"]);
+    expect(transport.requests[0]?.url).toEndWith(
+      `/repos/${lumenProfile.repository}/issues/42/comments`,
+    );
+    expect(transport.requests[2]?.url).toEndWith(
+      `/repos/${lumenProfile.repository}/issues/comments/99`,
+    );
+    expect(transport.requests[0]?.body).toBe(
+      JSON.stringify({
+        body: "recover [REDACTED_PATH] [REDACTED_SECRET]",
+      }),
+    );
+    expect(transport.requests[2]?.body).toBe(
+      JSON.stringify({
+        body: "updated Bearer [REDACTED_SECRET]",
+      }),
+    );
+  });
+
+  test("refuses to update a comment associated with another subject", async () => {
+    const transport = new ScriptedGitHubTransport([
+      {
+        kind: "response",
+        response: {
+          status: 200,
+          headers: {},
+          body: JSON.stringify({
+            id: 99,
+            body: "other recovery",
+            issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/999`,
+          }),
+        },
+      },
+    ]);
+    const gateway = new GuardedGitHubLabelApi({
+      profiles: [lumenProfile],
+      client: new GitHubApiClient({
+        transport,
+        delay: new RecordingDelayAdapter(),
+        apiUrl: "https://api.github.test",
+      }),
+      transport,
+      tokens: {
+        tokenForProject: async () => "fixture-token",
+      },
+      apiUrl: "https://api.github.test",
+    });
+
+    await expect(
+      gateway.apply({
+        kind: "update-comment",
+        projectId: lumenProfile.id,
+        subjectType: "issue",
+        subjectNumber: 42,
+        commentId: 99,
+        body: "safe recovery",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenGitHubMutationError);
+    expect(transport.requests.map((request) => request.method)).toEqual(["GET"]);
   });
 
   test("keeps claims and ledger intents isolated by project", async () => {

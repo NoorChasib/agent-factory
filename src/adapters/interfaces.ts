@@ -96,6 +96,38 @@ export interface CommandAdapter {
   execute(request: CommandRequest): Promise<CommandExecutionResult>;
 }
 
+export interface ProcessIdentity {
+  readonly processId: number;
+  readonly parentProcessId: number | null;
+  readonly startedAt: string;
+}
+
+export interface ProcessTreeAdapter {
+  inspectTree(rootProcessId: number): Promise<readonly ProcessIdentity[]>;
+}
+
+export interface GitWorktreeObservation {
+  readonly path: string;
+  readonly branch: string;
+  readonly headSha: string;
+}
+
+export interface GitCustodyAdapter {
+  mirrorExists(projectId: string): Promise<boolean>;
+  cloneMirror(projectId: string, repository: string): Promise<void>;
+  fetchMirror(projectId: string): Promise<void>;
+  listWorktrees(projectId: string): Promise<readonly GitWorktreeObservation[]>;
+  addWorktree(input: {
+    readonly projectId: string;
+    readonly issueNumber: number;
+    readonly branch: string;
+    readonly startPoint: string;
+  }): Promise<void>;
+  removeWorktree(projectId: string, issueNumber: number): Promise<void>;
+  mirrorPath(projectId: string): string;
+  worktreePath(projectId: string, issueNumber: number): string;
+}
+
 export interface Notification {
   readonly topic: string;
   readonly title: string;

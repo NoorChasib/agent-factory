@@ -10,6 +10,7 @@ export {
   InMemoryWorkerProcessAdapter,
   SequenceRandomAdapter,
 } from "./in-memory-adapters";
+export { InMemoryGitCustodyAdapter } from "./in-memory-git-custody";
 export {
   InMemoryGitHubMutationLedger,
   type MutationIdAdapter,
@@ -20,3 +21,7 @@ export {
   type ScriptedGitHubStep,
   ScriptedGitHubTransport,
 } from "./scripted-github";
+export {
+  ScriptedProcessTreeAdapter,
+  type ScriptedProcessTreeStep,
+} from "./scripted-process-tree";

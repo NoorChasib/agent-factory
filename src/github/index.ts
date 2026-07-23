@@ -42,6 +42,7 @@ export {
   GuardedGitHubLabelApi,
   type GuardedGitHubLabelApiOptions,
   type RepositoryLabel,
+  sanitizeCommentMutation,
 } from "./mutations";
 export {
   GITHUB_OBSERVATION_QUERY,

@@ -133,5 +133,6 @@ return the same provider plus both `verified: true` and `recovered: true`; only 
 module return a close-circuit command. Failed, mismatched, unverified, or unhealthy probes leave
 the circuit open.
 
-Herdr ownership, recovery comments, notifications, CLI commands, and live recovery probes are
-owned by later phases and are intentionally absent here.
+Phase 5 layers Herdr ownership and sanitized recovery comments over these durable results.
+Notifications, CLI commands, and live recovery probes remain owned by Phase 6 and are
+intentionally absent here.

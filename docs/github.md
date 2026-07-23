@@ -93,7 +93,7 @@ A claim is sequential and guarded:
 If another actor removes the label or changes the stage, the claim is lost rather than assumed.
 Other repository labels and condition labels are retained.
 
-All stage changes use the same label-only mutation executor. There is no generic target write
+All stage changes use the same guarded mutation executor. There is no generic target write
 method.
 
 ## Late feedback and ready-to-merge revocation
@@ -154,9 +154,12 @@ Repository writes are structurally limited to:
 - add one label to an issue or PR;
 - remove one label from an issue or PR;
 - create one repository label; and
-- update one repository label's color/description without renaming it.
+- update one repository label's color/description without renaming it;
+- create one sanitized issue/PR recovery comment; and
+- update that recovery comment by comment ID.
 
 Merge, push, force-push, rebase, amend, review dismissal, branch-protection bypass, and any
 unknown mutation kind fail the allowlist before a transport-capable write path is reached. The
 token broker's installation-token POST is an authentication operation and cannot target a
-repository content endpoint.
+repository content endpoint. Phase 5 comment bodies pass through the shared redaction boundary
+before mutation intent is recorded and again at the guarded HTTP call site.

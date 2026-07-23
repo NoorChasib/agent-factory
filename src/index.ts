@@ -9,14 +9,18 @@ export type {
   DelayAdapter,
   FileMetadata,
   FileSystemAdapter,
+  GitCustodyAdapter,
   GitHubAdapter,
   GitHubHttpRequest,
   GitHubHttpResponse,
   GitHubHttpTransport,
   GitHubObserveOptions,
+  GitWorktreeObservation,
   LedgerAdapter,
   Notification,
   NotificationAdapter,
+  ProcessIdentity,
+  ProcessTreeAdapter,
   RandomAdapter,
   WorkerProcessAdapter,
 } from "./adapters/interfaces";
@@ -109,5 +113,9 @@ export {
   resolveCanonicalLabels,
 } from "./domain/stages";
 export * from "./github";
+export * from "./herdr";
 export * from "./ledger";
 export * from "./providers";
+export * from "./recovery";
+export * from "./redaction";
+export * from "./worktrees";

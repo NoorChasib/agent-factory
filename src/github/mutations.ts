@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { GitHubHttpResponse, GitHubHttpTransport } from "../adapters/interfaces";
 import type { ProjectProfile } from "../contracts/project-profile";
 import type { MutationRecord, MutationState, NewMutation } from "../ledger";
+import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
 import type { GitHubApiClient, GitHubFailureClassification } from "./client";
 
 const projectId = z
@@ -12,10 +13,14 @@ const projectId = z
   .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
 const labelName = z.string().min(1).max(50);
 const labelColor = z.string().regex(/^[0-9a-f]{6}$/u);
-const subjectMutation = {
+const commentBody = z.string().min(1).max(65_536);
+const subjectIdentity = {
   projectId,
   subjectType: z.enum(["issue", "pull-request"]),
   subjectNumber: z.number().int().positive(),
+} as const;
+const subjectMutation = {
+  ...subjectIdentity,
   label: labelName,
 } as const;
 
@@ -44,6 +49,17 @@ export const GitHubAllowedMutationSchema = z
       color: labelColor,
       description: z.string().max(100),
     }),
+    z.strictObject({
+      kind: z.literal("create-comment"),
+      ...subjectIdentity,
+      body: commentBody,
+    }),
+    z.strictObject({
+      kind: z.literal("update-comment"),
+      ...subjectIdentity,
+      commentId: z.number().int().positive(),
+      body: commentBody,
+    }),
   ])
   .superRefine((mutation, context) => {
     if (mutation.kind === "update-label" && mutation.currentName !== mutation.name) {
@@ -68,7 +84,7 @@ export const FORBIDDEN_GITHUB_MUTATION_KINDS = [
 
 export class ForbiddenGitHubMutationError extends Error {
   public constructor() {
-    super("GitHub mutation is not in the Agent Factory label-only allowlist");
+    super("GitHub mutation is not in the Agent Factory label/comment-only allowlist");
     this.name = "ForbiddenGitHubMutationError";
   }
 }
@@ -79,6 +95,19 @@ export function assertAllowedGitHubMutation(input: unknown): GitHubAllowedMutati
     throw new ForbiddenGitHubMutationError();
   }
   return parsed.data;
+}
+
+export function sanitizeCommentMutation(
+  mutation: GitHubAllowedMutation,
+  redaction: RedactionBoundary = DEFAULT_REDACTION_BOUNDARY,
+): GitHubAllowedMutation {
+  if (mutation.kind !== "create-comment" && mutation.kind !== "update-comment") {
+    return mutation;
+  }
+  return GitHubAllowedMutationSchema.parse({
+    ...mutation,
+    body: redaction.sanitizeText(mutation.body),
+  });
 }
 
 export interface GitHubProjectTokenProvider {
@@ -102,6 +131,18 @@ const repositoryLabelResponse = z.strictObject({
 });
 
 const repositoryLabelsResponse = z.array(repositoryLabelResponse);
+const repositoryCommentResponse = z
+  .looseObject({
+    id: z.number().int().positive(),
+    body: z.string().nullable(),
+    issue_url: z.url(),
+  })
+  .transform((comment) => ({
+    id: comment.id,
+    body: comment.body,
+    issueUrl: comment.issue_url,
+  }));
+const repositoryCommentsResponse = z.array(repositoryCommentResponse);
 
 function apiHeaders(token: string): Readonly<Record<string, string>> {
   return {
@@ -154,7 +195,7 @@ export class GitHubMutationRejectedError extends Error {
   public readonly status: number;
 
   public constructor(classification: GitHubFailureClassification, status: number) {
-    super(`GitHub rejected an allowlisted label mutation: ${classification} (${status})`);
+    super(`GitHub rejected an allowlisted label/comment mutation: ${classification} (${status})`);
     this.name = "GitHubMutationRejectedError";
     this.classification = classification;
     this.status = status;
@@ -181,6 +222,7 @@ export interface GuardedGitHubLabelApiOptions {
   readonly transport: GitHubHttpTransport;
   readonly tokens: GitHubProjectTokenProvider;
   readonly apiUrl?: string;
+  readonly redaction?: RedactionBoundary;
 }
 
 export class GuardedGitHubLabelApi implements GitHubLabelGateway {
@@ -189,6 +231,7 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
   readonly #transport: GitHubHttpTransport;
   readonly #tokens: GitHubProjectTokenProvider;
   readonly #apiUrl: string;
+  readonly #redaction: RedactionBoundary;
 
   public constructor(options: GuardedGitHubLabelApiOptions) {
     this.#profiles = new Map(options.profiles.map((profile) => [profile.id, profile]));
@@ -196,10 +239,11 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
     this.#transport = options.transport;
     this.#tokens = options.tokens;
     this.#apiUrl = (options.apiUrl ?? "https://api.github.com").replace(/\/$/u, "");
+    this.#redaction = options.redaction ?? DEFAULT_REDACTION_BOUNDARY;
   }
 
   public async apply(input: unknown): Promise<void> {
-    const mutation = assertAllowedGitHubMutation(input);
+    const mutation = sanitizeCommentMutation(assertAllowedGitHubMutation(input), this.#redaction);
     const profile = this.#profile(mutation.projectId);
     const token = await this.#tokens.tokenForProject(profile.id);
     const [owner, repository] = profile.repository.split("/");
@@ -207,37 +251,73 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
       throw new Error(`invalid repository '${profile.repository}'`);
     }
     const repositoryPath = `/repos/${encodePath(owner)}/${encodePath(repository)}`;
-    const request =
-      mutation.kind === "add-label"
-        ? {
-            method: "POST" as const,
-            path: `${repositoryPath}/issues/${mutation.subjectNumber}/labels`,
-            body: JSON.stringify({ labels: [mutation.label] }),
-          }
-        : mutation.kind === "remove-label"
-          ? {
-              method: "DELETE" as const,
-              path: `${repositoryPath}/issues/${mutation.subjectNumber}/labels/${encodePath(mutation.label)}`,
-            }
-          : mutation.kind === "create-label"
-            ? {
-                method: "POST" as const,
-                path: `${repositoryPath}/labels`,
-                body: JSON.stringify({
-                  name: mutation.name,
-                  color: mutation.color,
-                  description: mutation.description,
-                }),
-              }
-            : {
-                method: "PATCH" as const,
-                path: `${repositoryPath}/labels/${encodePath(mutation.currentName)}`,
-                body: JSON.stringify({
-                  new_name: mutation.name,
-                  color: mutation.color,
-                  description: mutation.description,
-                }),
-              };
+    if (mutation.kind === "update-comment") {
+      const existing = await this.#readComment(mutation.projectId, mutation.commentId);
+      if (!new URL(existing.issueUrl).pathname.endsWith(`/issues/${mutation.subjectNumber}`)) {
+        throw new ForbiddenGitHubMutationError();
+      }
+    }
+    let request:
+      | {
+          readonly method: "POST" | "PATCH";
+          readonly path: string;
+          readonly body: string;
+        }
+      | {
+          readonly method: "DELETE";
+          readonly path: string;
+        };
+    switch (mutation.kind) {
+      case "add-label":
+        request = {
+          method: "POST",
+          path: `${repositoryPath}/issues/${mutation.subjectNumber}/labels`,
+          body: JSON.stringify({ labels: [mutation.label] }),
+        };
+        break;
+      case "create-comment":
+        request = {
+          method: "POST",
+          path: `${repositoryPath}/issues/${mutation.subjectNumber}/comments`,
+          body: JSON.stringify({ body: mutation.body }),
+        };
+        break;
+      case "create-label":
+        request = {
+          method: "POST",
+          path: `${repositoryPath}/labels`,
+          body: JSON.stringify({
+            name: mutation.name,
+            color: mutation.color,
+            description: mutation.description,
+          }),
+        };
+        break;
+      case "remove-label":
+        request = {
+          method: "DELETE",
+          path: `${repositoryPath}/issues/${mutation.subjectNumber}/labels/${encodePath(mutation.label)}`,
+        };
+        break;
+      case "update-comment":
+        request = {
+          method: "PATCH",
+          path: `${repositoryPath}/issues/comments/${mutation.commentId}`,
+          body: JSON.stringify({ body: mutation.body }),
+        };
+        break;
+      case "update-label":
+        request = {
+          method: "PATCH",
+          path: `${repositoryPath}/labels/${encodePath(mutation.currentName)}`,
+          body: JSON.stringify({
+            new_name: mutation.name,
+            color: mutation.color,
+            description: mutation.description,
+          }),
+        };
+        break;
+    }
 
     let response: GitHubHttpResponse;
     try {
@@ -267,22 +347,40 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
   }
 
   public async verify(input: GitHubAllowedMutation): Promise<boolean> {
-    if (input.kind === "add-label" || input.kind === "remove-label") {
-      const labels = await this.readSubjectLabels(
-        input.projectId,
-        input.subjectType,
-        input.subjectNumber,
-      );
-      const present = labels.includes(input.label);
-      return input.kind === "add-label" ? present : !present;
+    const mutation = sanitizeCommentMutation(input, this.#redaction);
+    switch (mutation.kind) {
+      case "add-label":
+      case "remove-label": {
+        const labels = await this.readSubjectLabels(
+          mutation.projectId,
+          mutation.subjectType,
+          mutation.subjectNumber,
+        );
+        const present = labels.includes(mutation.label);
+        return mutation.kind === "add-label" ? present : !present;
+      }
+      case "create-comment":
+        return (await this.#readSubjectComments(mutation.projectId, mutation.subjectNumber)).some(
+          (comment) => comment.body === mutation.body,
+        );
+      case "create-label":
+      case "update-label": {
+        const labels = await this.listRepositoryLabels(mutation.projectId, false);
+        return labels.some(
+          (label) =>
+            label.name === mutation.name &&
+            label.color === mutation.color &&
+            label.description === mutation.description,
+        );
+      }
+      case "update-comment": {
+        const comment = await this.#readComment(mutation.projectId, mutation.commentId);
+        return (
+          new URL(comment.issueUrl).pathname.endsWith(`/issues/${mutation.subjectNumber}`) &&
+          comment.body === mutation.body
+        );
+      }
     }
-    const labels = await this.listRepositoryLabels(input.projectId, false);
-    return labels.some(
-      (label) =>
-        label.name === input.name &&
-        label.color === input.color &&
-        label.description === input.description,
-    );
   }
 
   public async readSubjectLabels(
@@ -336,9 +434,52 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
   #profile(projectIdValue: string): ProjectProfile {
     const profile = this.#profiles.get(projectIdValue);
     if (profile === undefined) {
-      throw new Error(`GitHub label mutation targeted unknown project '${projectIdValue}'`);
+      throw new Error(`GitHub mutation targeted unknown project '${projectIdValue}'`);
     }
     return profile;
+  }
+
+  async #readComment(
+    projectIdValue: string,
+    commentId: number,
+  ): Promise<z.output<typeof repositoryCommentResponse>> {
+    const profile = this.#profile(projectIdValue);
+    const token = await this.#tokens.tokenForProject(projectIdValue);
+    const result = await this.#client.readRest({
+      projectId: projectIdValue,
+      cacheKey: `${projectIdValue}:comment:${commentId}`,
+      token,
+      path: `/repos/${profile.repository}/issues/comments/${commentId}`,
+      schema: repositoryCommentResponse,
+      conditional: false,
+    });
+    return result.value;
+  }
+
+  async #readSubjectComments(
+    projectIdValue: string,
+    subjectNumber: number,
+  ): Promise<readonly z.output<typeof repositoryCommentResponse>[]> {
+    const profile = this.#profile(projectIdValue);
+    const token = await this.#tokens.tokenForProject(projectIdValue);
+    const comments: z.output<typeof repositoryCommentResponse>[] = [];
+    for (let page = 1; page <= 100; page += 1) {
+      const result = await this.#client.readRest({
+        projectId: projectIdValue,
+        cacheKey: `${projectIdValue}:subject-comments:${subjectNumber}:${page}`,
+        token,
+        path: `/repos/${profile.repository}/issues/${subjectNumber}/comments?per_page=100&page=${page}`,
+        schema: repositoryCommentsResponse,
+        conditional: false,
+      });
+      comments.push(...result.value);
+      if (result.value.length < 100) {
+        return comments;
+      }
+    }
+    throw new Error(
+      `issue comment listing for '${projectIdValue}/${subjectNumber}' exceeded 100 pages`,
+    );
   }
 }
 
@@ -388,10 +529,16 @@ function observedResult(record: MutationRecord): boolean | null {
 export class GitHubMutationExecutor {
   readonly #ledger: GitHubMutationLedger;
   readonly #gateway: GitHubLabelGateway;
+  readonly #redaction: RedactionBoundary;
 
-  public constructor(ledger: GitHubMutationLedger, gateway: GitHubLabelGateway) {
+  public constructor(
+    ledger: GitHubMutationLedger,
+    gateway: GitHubLabelGateway,
+    redaction: RedactionBoundary = DEFAULT_REDACTION_BOUNDARY,
+  ) {
     this.#ledger = ledger;
     this.#gateway = gateway;
+    this.#redaction = redaction;
   }
 
   public get gateway(): GitHubLabelGateway {
@@ -406,7 +553,10 @@ export class GitHubMutationExecutor {
     if (input.operationKey.length < 1 || input.operationKey.length > 400) {
       throw new Error("GitHub mutation operation key must contain 1 through 400 characters");
     }
-    const mutation = assertAllowedGitHubMutation(input.mutation);
+    const mutation = sanitizeCommentMutation(
+      assertAllowedGitHubMutation(input.mutation),
+      this.#redaction,
+    );
     const attempts = this.#attempts(mutation.projectId, input.operationKey);
     const latest = attempts.at(-1);
     let reconciledBeforeWrite = false;
@@ -448,11 +598,17 @@ export class GitHubMutationExecutor {
       executionId: input.executionId,
       kind: mutation.kind,
       subjectType:
-        mutation.kind === "add-label" || mutation.kind === "remove-label"
+        mutation.kind === "add-label" ||
+        mutation.kind === "remove-label" ||
+        mutation.kind === "create-comment" ||
+        mutation.kind === "update-comment"
           ? mutation.subjectType
           : "repository",
       subjectNumber:
-        mutation.kind === "add-label" || mutation.kind === "remove-label"
+        mutation.kind === "add-label" ||
+        mutation.kind === "remove-label" ||
+        mutation.kind === "create-comment" ||
+        mutation.kind === "update-comment"
           ? mutation.subjectNumber
           : null,
       intendedMutation,
