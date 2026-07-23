@@ -6,14 +6,14 @@ import type {
 	DoctorSystemAdapter,
 	FileMetadata,
 	RuntimeFileSystemAdapter,
-} from "../src/adapters/interfaces";
-import { CURRENT_LEDGER_SCHEMA_VERSION } from "../src/ledger";
-import { Doctor } from "../src/operations/doctor";
+} from "@/adapters/interfaces.ts";
+import { CURRENT_LEDGER_SCHEMA_VERSION } from "@/ledger/index.ts";
+import { Doctor } from "@/operations/doctor.ts";
 import {
 	loadFactoryConfiguration,
 	prepareXdgDirectories,
 	resolveXdgPaths,
-} from "../src/operations/runtime";
+} from "@/operations/runtime.ts";
 
 class RuntimeMemoryFileSystem implements RuntimeFileSystemAdapter {
 	public files = new Map<string, { content: string; metadata: FileMetadata }>();

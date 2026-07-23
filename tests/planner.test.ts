@@ -4,21 +4,21 @@ import {
 	type ProjectProfile,
 	parseProjectProfile,
 	parseProjectProfileYaml,
-} from "../src/contracts/project-profile";
-import { type ControllerConfig, parseGlobalLimitsFromEnvironment } from "../src/controller/config";
-import { createController } from "../src/controller/controller";
+} from "@/contracts/project-profile.ts";
+import { type ControllerConfig, parseGlobalLimitsFromEnvironment } from "@/controller/config.ts";
+import { createController } from "@/controller/controller.ts";
 import type {
 	ControllerLocalState,
 	ExecutionRecord,
 	GitHubIssueObservation,
 	GitHubProjectObservation,
 	GitHubPullRequestObservation,
-} from "../src/controller/model";
+} from "@/controller/model.ts";
 import {
 	createInitialControllerState,
 	createInMemoryAdapters,
 	SequenceRandomAdapter,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const sha = "1234567890abcdef1234567890abcdef12345678";
 const hhcProfile = parseProjectProfileYaml(

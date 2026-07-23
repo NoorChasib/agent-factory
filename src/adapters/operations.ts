@@ -2,28 +2,31 @@ import { existsSync, lstatSync, readdirSync, readFileSync, unlinkSync } from "no
 import { join } from "node:path";
 
 import { z } from "zod";
-import type { LabelOperator, WorkerOperator } from "../daemon/router";
+import type {
+	ClockAdapter,
+	ProcessIdentity,
+	ProcessTreeAdapter,
+	RandomAdapter,
+} from "@/adapters/interfaces.ts";
+import type { ReleaseIdSource } from "@/adapters/release-interfaces.ts";
+import type { LabelOperator, WorkerOperator } from "@/daemon/router.ts";
 import {
 	applyLabelMigration,
 	type GitHubMutationExecutor,
 	type LabelMigrationPlan,
 	planLabelMigration,
 	renderLabelMigrationPreview,
-} from "../github";
-import type { HerdrSessionManager } from "../herdr";
-import type { ExecutionRecovery, LedgerIdSource, SqliteLedger } from "../ledger";
-import type { DurableRecoveryVerifier, FactoryOwnedProcessStopper } from "../operations/lifecycle";
-import type { RetentionArtifacts, RetentionCandidate } from "../operations/retention";
-import type { ClaudeSessionIdSource } from "../providers";
-import type { ProviderExecutionRepository } from "../providers/persistence";
-import type { WorktreeCustody } from "../worktrees";
+} from "@/github/index.ts";
+import type { HerdrSessionManager } from "@/herdr/index.ts";
+import type { ExecutionRecovery, LedgerIdSource, SqliteLedger } from "@/ledger/index.ts";
 import type {
-	ClockAdapter,
-	ProcessIdentity,
-	ProcessTreeAdapter,
-	RandomAdapter,
-} from "./interfaces";
-import type { ReleaseIdSource } from "./release-interfaces";
+	DurableRecoveryVerifier,
+	FactoryOwnedProcessStopper,
+} from "@/operations/lifecycle.ts";
+import type { RetentionArtifacts, RetentionCandidate } from "@/operations/retention.ts";
+import type { ClaudeSessionIdSource } from "@/providers/index.ts";
+import type { ProviderExecutionRepository } from "@/providers/persistence.ts";
+import type { WorktreeCustody } from "@/worktrees/index.ts";
 
 export class SystemClockAdapter implements ClockAdapter {
 	public now(): Date {

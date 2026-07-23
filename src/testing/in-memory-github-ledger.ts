@@ -1,7 +1,11 @@
-import type { ClockAdapter } from "../adapters/interfaces";
-import type { GitHubMutationLedger } from "../github";
-import type { MutationRecord, MutationState, NewMutation } from "../ledger";
-import { allowedMutationTransition, MutationRecordSchema, NewMutationSchema } from "../ledger";
+import type { ClockAdapter } from "@/adapters/interfaces.ts";
+import type { GitHubMutationLedger } from "@/github/index.ts";
+import type { MutationRecord, MutationState, NewMutation } from "@/ledger/index.ts";
+import {
+	allowedMutationTransition,
+	MutationRecordSchema,
+	NewMutationSchema,
+} from "@/ledger/index.ts";
 
 export interface MutationIdAdapter {
 	nextMutationId(): string;

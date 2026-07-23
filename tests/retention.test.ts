@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import type { ControllerLocalState, LedgerSnapshot } from "../src/controller/model";
+import type { ControllerLocalState, LedgerSnapshot } from "@/controller/model.ts";
 import {
 	assessExecutionLogCleanup,
 	MERGED_EXECUTION_LOG_RETENTION_MS,
 	type RetentionCandidate,
 	RetentionCoordinator,
-} from "../src/operations/retention";
-import { createInitialControllerState, FixedClockAdapter } from "../src/testing";
-import { assessWorktreeCleanup, MERGED_WORKTREE_RETENTION_MS } from "../src/worktrees";
+} from "@/operations/retention.ts";
+import { createInitialControllerState, FixedClockAdapter } from "@/testing/index.ts";
+import { assessWorktreeCleanup, MERGED_WORKTREE_RETENTION_MS } from "@/worktrees/index.ts";
 
 const mergedAt = "2026-06-01T00:00:00.000Z";
 

@@ -1,4 +1,4 @@
-import type { Notification, NotificationAdapter } from "../adapters/interfaces";
+import type { Notification, NotificationAdapter } from "@/adapters/interfaces.ts";
 
 export type RedactedJson =
 	| boolean

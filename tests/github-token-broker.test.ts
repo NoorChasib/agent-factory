@@ -1,18 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { generateKeyPairSync, verify } from "node:crypto";
-import { parseProjectProfile, parseProjectProfileYaml } from "../src/contracts/project-profile";
+import { parseProjectProfile, parseProjectProfileYaml } from "@/contracts/project-profile.ts";
 import {
 	GITHUB_APP_ID_ENVIRONMENT,
 	GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT,
 	GitHubAppTokenBroker,
 	GitHubAppTokenBrokerError,
 	parseGitHubAppEnvironment,
-} from "../src/github";
+} from "@/github/index.ts";
 import {
 	FixedClockAdapter,
 	InMemoryFileSystemAdapter,
 	ScriptedGitHubTransport,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const profile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),

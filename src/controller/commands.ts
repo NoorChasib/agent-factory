@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { projectId, safeId } from "../contracts/primitives";
+import { projectId, safeId } from "@/contracts/primitives.ts";
 import {
 	CircuitStatusSchema,
 	ControllerModeSchema,
 	ProviderSchema,
 	RolloutStageSchema,
-} from "./model";
+} from "@/controller/model.ts";
 
 export const ControllerCommandSchema = z.discriminatedUnion("type", [
 	z.strictObject({

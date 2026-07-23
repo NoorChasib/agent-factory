@@ -1,14 +1,18 @@
-import type { ClockAdapter, CommandAdapter, CommandExecutionResult } from "../adapters/interfaces";
-import { parseCommandExecutionResult } from "../contracts/command-result";
+import type {
+	ClockAdapter,
+	CommandAdapter,
+	CommandExecutionResult,
+} from "@/adapters/interfaces.ts";
+import { parseCommandExecutionResult } from "@/contracts/command-result.ts";
 import {
 	type ProviderFailureEvent,
 	ProviderOutputError,
 	parseProviderStructuredOutput,
 	type WorkerResultEvent,
-} from "../contracts/provider-output";
-import type { WorkerResult } from "../contracts/worker-result";
-import { circuitSignalForFailure } from "./circuits";
-import { buildWorkerEnvironment } from "./environment";
+} from "@/contracts/provider-output.ts";
+import type { WorkerResult } from "@/contracts/worker-result.ts";
+import { circuitSignalForFailure } from "@/providers/circuits.ts";
+import { buildWorkerEnvironment } from "@/providers/environment.ts";
 import type {
 	CapturedProviderSession,
 	ProviderRunOutcome,
@@ -18,7 +22,7 @@ import type {
 	WorkerOutcomeVerification,
 	WorkerOutcomeVerifier,
 	WorkerTokenBroker,
-} from "./types";
+} from "@/providers/types.ts";
 
 export interface CommonProviderEvents {
 	readonly workerResult: WorkerResult | null;

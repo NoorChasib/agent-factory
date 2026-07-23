@@ -2,21 +2,21 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HerdrCommandExecutionAdapter } from "../src/adapters/herdr-command";
+import { HerdrCommandExecutionAdapter } from "@/adapters/herdr-command.ts";
 import type {
 	CommandExecutionResult,
 	CommandRequest,
 	DelayAdapter,
-} from "../src/adapters/interfaces";
-import type { ControllerLocalState, ExecutionRecord } from "../src/controller/model";
-import { GuardedHerdrCommandAdapter, HerdrSessionManager } from "../src/herdr";
-import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
+} from "@/adapters/interfaces.ts";
+import type { ControllerLocalState, ExecutionRecord } from "@/controller/model.ts";
+import { GuardedHerdrCommandAdapter, HerdrSessionManager } from "@/herdr/index.ts";
+import { type LedgerIdSource, openSqliteLedger } from "@/ledger/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
 	ScriptedCommandAdapter,
 	ScriptedProcessTreeAdapter,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const startedAt = "2026-07-23T00:00:00.000Z";
 const token = "ghs_worker-specification-token";

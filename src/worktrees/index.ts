@@ -2,7 +2,7 @@ export {
 	GitBranchSchema,
 	type ParsedGitWorktree,
 	parseGitWorktreePorcelain,
-} from "../contracts/git-worktree-output";
+} from "@/contracts/git-worktree-output.ts";
 export {
 	assessWorktreeCleanup,
 	type FactoryWorktree,
@@ -17,7 +17,7 @@ export {
 	WorktreeInvariantError,
 	type WorktreeRecoveryState,
 	WorktreeRecoveryStateSchema,
-} from "./custody";
+} from "@/worktrees/custody.ts";
 export {
 	assertAllowedGitOperation,
 	FactoryCustodyPaths,
@@ -29,4 +29,4 @@ export {
 	GitCustodyOperationSchema,
 	GuardedGitCommandAdapter,
 	type GuardedGitCommandAdapterOptions,
-} from "./git-guard";
+} from "@/worktrees/git-guard.ts";

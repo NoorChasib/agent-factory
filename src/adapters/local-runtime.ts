@@ -18,7 +18,7 @@ import type {
 	DoctorSystemAdapter,
 	FileMetadata,
 	RuntimeFileSystemAdapter,
-} from "./interfaces";
+} from "@/adapters/interfaces.ts";
 
 function fileKind(value: Stats): FileMetadata["kind"] {
 	if (value.isFile()) {

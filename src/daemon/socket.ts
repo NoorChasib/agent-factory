@@ -7,10 +7,10 @@ import {
 	DaemonRequestSchema,
 	type DaemonResponse,
 	DaemonResponseSchema,
-} from "../contracts/daemon-protocol";
-import { MAX_UNIX_SOCKET_PATH_BYTES } from "../operations/runtime";
-import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
-import type { DaemonCommandRouter } from "./router";
+} from "@/contracts/daemon-protocol.ts";
+import type { DaemonCommandRouter } from "@/daemon/router.ts";
+import { MAX_UNIX_SOCKET_PATH_BYTES } from "@/operations/runtime.ts";
+import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "@/redaction/index.ts";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
 export const AGENT_FACTORY_SOCKET_MODE = 0o600;

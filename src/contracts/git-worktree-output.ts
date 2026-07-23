@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { gitBranch as GitBranchSchema, gitObjectId } from "./primitives";
+import { gitBranch as GitBranchSchema, gitObjectId } from "@/contracts/primitives.ts";
 
 export { GitBranchSchema };
 

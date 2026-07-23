@@ -3,11 +3,11 @@
 import { chmodSync, lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { isAbsolute } from "node:path";
 
-import type { CommandExecutionResult } from "../adapters/interfaces";
+import type { CommandExecutionResult } from "@/adapters/interfaces.ts";
 import {
 	parseWorkerCommandSpecification,
 	type WorkerCommandSpecification,
-} from "../contracts/worker-command";
+} from "@/contracts/worker-command.ts";
 
 export interface WorkerCommandSpawnInput {
 	readonly executable: string;

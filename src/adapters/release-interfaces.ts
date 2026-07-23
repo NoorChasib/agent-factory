@@ -1,10 +1,10 @@
-import type { ReleaseInventoryEntry, ReleaseManifest } from "../contracts/release-manifest";
-import type { LedgerMigration, NewReleaseRecord, ReleaseRecord } from "../ledger";
+import type { ReleaseInventoryEntry, ReleaseManifest } from "@/contracts/release-manifest.ts";
+import type { LedgerMigration, NewReleaseRecord, ReleaseRecord } from "@/ledger/index.ts";
 import type {
 	ReleasePolicySnapshot,
 	ReleaseReconcileSignal,
 	ReleaseUpdateResult,
-} from "../releases/types";
+} from "@/releases/types.ts";
 
 export interface ReleaseIdSource {
 	nextReleaseId(): string;

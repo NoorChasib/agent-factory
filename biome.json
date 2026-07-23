@@ -24,7 +24,8 @@
 				"useMaxParams": "info"
 			},
 			"correctness": {
-				"noUnusedImports": "error"
+				"noUnusedImports": "error",
+				"useImportExtensions": "error"
 			},
 			"performance": {
 				"noAccumulatingSpread": "error"
@@ -33,6 +34,17 @@
 				"noNonNullAssertion": "error",
 				"noParameterAssign": "error",
 				"noProcessEnv": "error",
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"patterns": [
+							{
+								"group": ["./**", "../**"],
+								"message": "Use the @ alias instead of relative imports."
+							}
+						]
+					}
+				},
 				"noNestedTernary": "error",
 				"noUselessElse": "error"
 			},

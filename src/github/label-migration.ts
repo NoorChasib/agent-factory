@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { looseLabelName } from "../contracts/primitives";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { CANONICAL_CONDITION_SEMANTICS, CANONICAL_STAGE_SEMANTICS } from "../domain/stages";
-import type { GitHubMutationExecutor, RepositoryLabel } from "./mutations";
+import { looseLabelName } from "@/contracts/primitives.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { CANONICAL_CONDITION_SEMANTICS, CANONICAL_STAGE_SEMANTICS } from "@/domain/stages.ts";
+import type { GitHubMutationExecutor, RepositoryLabel } from "@/github/mutations.ts";
 
 const hashSchema = z.string().regex(/^[0-9a-f]{64}$/u);
 const repositoryLabelSchema = z.strictObject({

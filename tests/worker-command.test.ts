@@ -7,7 +7,7 @@ import {
 	type WorkerCommandSpawner,
 	type WorkerCommandSpawnInput,
 	workerCommandMain,
-} from "../src/daemon/worker-command";
+} from "@/daemon/worker-command.ts";
 
 class RecordingSpawner implements WorkerCommandSpawner {
 	public input: WorkerCommandSpawnInput | null = null;

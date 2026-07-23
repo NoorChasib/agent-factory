@@ -1,6 +1,6 @@
-import type { FactoryReleaseBuildAdapter } from "../adapters/release-interfaces";
-import { GitCommitShaSchema, type ReleaseManifest } from "../contracts/release-manifest";
-import type { ReleaseStore } from "./store";
+import type { FactoryReleaseBuildAdapter } from "@/adapters/release-interfaces.ts";
+import { GitCommitShaSchema, type ReleaseManifest } from "@/contracts/release-manifest.ts";
+import type { ReleaseStore } from "@/releases/store.ts";
 
 export class ReleaseCandidateBuildError extends Error {
 	public readonly commitSha: string;

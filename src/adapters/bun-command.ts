@@ -1,4 +1,8 @@
-import type { CommandAdapter, CommandExecutionResult, CommandRequest } from "./interfaces";
+import type {
+	CommandAdapter,
+	CommandExecutionResult,
+	CommandRequest,
+} from "@/adapters/interfaces.ts";
 
 export class BunCommandAdapter implements CommandAdapter {
 	public async execute(request: CommandRequest): Promise<CommandExecutionResult> {

@@ -5,7 +5,7 @@ import type {
 	GitHubHttpRequest,
 	GitHubHttpResponse,
 	GitHubHttpTransport,
-} from "../adapters/interfaces";
+} from "@/adapters/interfaces.ts";
 
 const DEFAULT_API_URL = "https://api.github.com";
 const DEFAULT_MAX_READ_ATTEMPTS = 3;

@@ -4,9 +4,9 @@ import type {
 	DiskUsageAdapter,
 	DoctorSystemAdapter,
 	FileSystemAdapter,
-} from "../adapters/interfaces";
-import { CURRENT_LEDGER_SCHEMA_VERSION, LEDGER_FILENAME } from "../ledger";
-import type { LoadedFactoryConfiguration, XdgPaths } from "./runtime";
+} from "@/adapters/interfaces.ts";
+import { CURRENT_LEDGER_SCHEMA_VERSION, LEDGER_FILENAME } from "@/ledger/index.ts";
+import type { LoadedFactoryConfiguration, XdgPaths } from "@/operations/runtime.ts";
 
 export type DoctorCheckStatus = "fail" | "pass" | "warn";
 

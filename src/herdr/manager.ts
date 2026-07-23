@@ -5,12 +5,12 @@ import type {
 	CommandRequest,
 	ProcessIdentity,
 	ProcessTreeAdapter,
-} from "../adapters/interfaces";
-import type { HerdrPane } from "../contracts/herdr-output";
-import { safeId } from "../contracts/primitives";
-import type { ExecutionRecord } from "../controller/model";
-import type { ExecutionRecovery, ProcessMetadata, ProcessMetadataInput } from "../ledger";
-import { FACTORY_HERDR_SESSION, type GuardedHerdrCommandAdapter } from "./guard";
+} from "@/adapters/interfaces.ts";
+import type { HerdrPane } from "@/contracts/herdr-output.ts";
+import { safeId } from "@/contracts/primitives.ts";
+import type { ExecutionRecord } from "@/controller/model.ts";
+import { FACTORY_HERDR_SESSION, type GuardedHerdrCommandAdapter } from "@/herdr/guard.ts";
+import type { ExecutionRecovery, ProcessMetadata, ProcessMetadataInput } from "@/ledger/index.ts";
 
 const processIdentity = z.strictObject({
 	processId: z.number().int().positive(),

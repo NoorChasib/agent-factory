@@ -1,7 +1,6 @@
 import { parse } from "yaml";
 import { z } from "zod";
-import type { FileSystemAdapter } from "../adapters/interfaces";
-import { ProjectLabelMappingSchema } from "../domain/stages";
+import type { FileSystemAdapter } from "@/adapters/interfaces.ts";
 import {
 	githubCheckName,
 	githubLogin,
@@ -10,7 +9,8 @@ import {
 	projectProfileLabelName,
 	projectProfileRepository,
 	workflowEntryPoint,
-} from "./primitives";
+} from "@/contracts/primitives.ts";
+import { ProjectLabelMappingSchema } from "@/domain/stages.ts";
 
 const reviewCompletionSignal = z.discriminatedUnion("kind", [
 	z.strictObject({

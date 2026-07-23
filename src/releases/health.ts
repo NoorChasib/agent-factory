@@ -2,10 +2,10 @@ import type {
 	ReleaseLedgerAdapter,
 	ReleaseReconciliationAdapter,
 	ReleaseServiceAdapter,
-} from "../adapters/release-interfaces";
-import type { ReleaseManifest } from "../contracts/release-manifest";
-import type { ReleaseStore } from "./store";
-import type { ReleasePolicySnapshot } from "./types";
+} from "@/adapters/release-interfaces.ts";
+import type { ReleaseManifest } from "@/contracts/release-manifest.ts";
+import type { ReleaseStore } from "@/releases/store.ts";
+import type { ReleasePolicySnapshot } from "@/releases/types.ts";
 
 export interface ReleaseHealthCheck {
 	readonly name:

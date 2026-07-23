@@ -1,5 +1,5 @@
-import type { GlobalLimits } from "../controller/config";
-import type { RolloutStage } from "../controller/model";
+import type { GlobalLimits } from "@/controller/config.ts";
+import type { RolloutStage } from "@/controller/model.ts";
 
 export const ROLLOUT_STAGES = ["observation", "stage1", "stage2", "stage3"] as const;
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ProjectProfilesSchema } from "../contracts/project-profile";
+import { ProjectProfilesSchema } from "@/contracts/project-profile.ts";
 
 export const V1_MAXIMUM_LIMIT = 3;
 export const CLAUDE_MODEL_ENVIRONMENT = "AGENT_FACTORY_CLAUDE_MODEL";

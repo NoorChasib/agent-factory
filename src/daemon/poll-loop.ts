@@ -1,10 +1,10 @@
-import type { DelayAdapter } from "../adapters/interfaces";
-import type { ReleaseUpdateOperator } from "../adapters/release-interfaces";
-import type { Controller, ReconcileResult } from "../controller/controller";
-import type { DiskGuard, MaintenanceCoordinator } from "../operations/lifecycle";
-import type { FactoryNotifications, StructuredLogger } from "../operations/observability";
-import type { RetentionCoordinator } from "../operations/retention";
-import type { ReleaseUpdateResult } from "../releases";
+import type { DelayAdapter } from "@/adapters/interfaces.ts";
+import type { ReleaseUpdateOperator } from "@/adapters/release-interfaces.ts";
+import type { Controller, ReconcileResult } from "@/controller/controller.ts";
+import type { DiskGuard, MaintenanceCoordinator } from "@/operations/lifecycle.ts";
+import type { FactoryNotifications, StructuredLogger } from "@/operations/observability.ts";
+import type { RetentionCoordinator } from "@/operations/retention.ts";
+import type { ReleaseUpdateResult } from "@/releases/index.ts";
 
 export interface PollTickResult {
 	readonly reconcile: ReconcileResult | null;

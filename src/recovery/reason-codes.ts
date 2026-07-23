@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { WorkerTerminalStatus } from "../contracts/worker-result";
-import type { CanonicalCondition } from "../domain/stages";
+import type { WorkerTerminalStatus } from "@/contracts/worker-result.ts";
+import type { CanonicalCondition } from "@/domain/stages.ts";
 
 export const RecoveryReasonCodeSchema = z.enum([
 	"blocked-external",

@@ -1,16 +1,16 @@
 import { join, resolve } from "node:path";
-import type { ClockAdapter } from "../adapters/interfaces";
+import type { ClockAdapter } from "@/adapters/interfaces.ts";
 import type {
 	ReleaseArtifactFileSystemAdapter,
 	ReleaseIdSource,
-} from "../adapters/release-interfaces";
-import { GitCommitShaSchema, type ReleaseManifest } from "../contracts/release-manifest";
-import { within } from "../path-guard";
+} from "@/adapters/release-interfaces.ts";
+import { GitCommitShaSchema, type ReleaseManifest } from "@/contracts/release-manifest.ts";
+import { within } from "@/path-guard.ts";
 import {
 	generateReleaseManifestAtClock,
 	RELEASE_MANIFEST_FILENAME,
 	validateReleaseManifest,
-} from "./manifest";
+} from "@/releases/manifest.ts";
 
 export class ReleaseStore {
 	readonly #root: string;

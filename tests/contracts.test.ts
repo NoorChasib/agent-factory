@@ -7,14 +7,14 @@ import {
 	ProjectProfilesSchema,
 	parseProjectProfile,
 	parseProjectProfileYaml,
-} from "../src/contracts/project-profile";
-import { parseWorkerResult, WorkerTerminalStatusSchema } from "../src/contracts/worker-result";
+} from "@/contracts/project-profile.ts";
+import { parseWorkerResult, WorkerTerminalStatusSchema } from "@/contracts/worker-result.ts";
 import {
 	CANONICAL_CONDITION_SEMANTICS,
 	CANONICAL_STAGE_SEMANTICS,
 	resolveCanonicalLabels,
-} from "../src/domain/stages";
-import { InMemoryFileSystemAdapter } from "../src/testing";
+} from "@/domain/stages.ts";
+import { InMemoryFileSystemAdapter } from "@/testing/index.ts";
 
 const hhcProfileYaml = await Bun.file(
 	new URL("fixtures/profiles/hhc-aep.yaml", import.meta.url),

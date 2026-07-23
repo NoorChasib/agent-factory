@@ -2,7 +2,7 @@ import type {
 	CommandAdapter,
 	CommandExecutionResult,
 	CommandRequest,
-} from "../adapters/interfaces";
+} from "@/adapters/interfaces.ts";
 
 export class ScriptedCommandAdapter implements CommandAdapter {
 	readonly #steps: CommandExecutionResult[];

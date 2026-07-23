@@ -1,9 +1,12 @@
-import type { LedgerAdapter } from "../adapters/interfaces";
-import { type WorkerTerminalStatus, WorkerTerminalStatusSchema } from "../contracts/worker-result";
-import type { GitHubMutationExecutionResult } from "../github";
-import type { RecoveryCommentPublisher } from "./comments";
-import { recoveryReasonForWorkerStatus } from "./reason-codes";
-import { RecoveryRecordSchema, type StallIncidentRecorder } from "./records";
+import type { LedgerAdapter } from "@/adapters/interfaces.ts";
+import {
+	type WorkerTerminalStatus,
+	WorkerTerminalStatusSchema,
+} from "@/contracts/worker-result.ts";
+import type { GitHubMutationExecutionResult } from "@/github/index.ts";
+import type { RecoveryCommentPublisher } from "@/recovery/comments.ts";
+import { recoveryReasonForWorkerStatus } from "@/recovery/reason-codes.ts";
+import { RecoveryRecordSchema, type StallIncidentRecorder } from "@/recovery/records.ts";
 
 export interface RecoveryHandoffResult {
 	readonly executionId: string;

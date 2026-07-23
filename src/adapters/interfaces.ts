@@ -4,7 +4,7 @@ import type {
 	LaunchRequest,
 	LedgerSnapshot,
 	StopRequest,
-} from "../controller/model";
+} from "@/controller/model.ts";
 
 export interface GitHubAdapter {
 	observe(projectIds: readonly string[], options?: GitHubObserveOptions): Promise<unknown>;

@@ -10,20 +10,20 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ReleaseIdSource } from "../src/adapters/release-interfaces";
+import type { ReleaseIdSource } from "@/adapters/release-interfaces.ts";
 import {
 	LocalFactoryReleaseBuildAdapter,
 	LocalReleaseFileSystemAdapter,
 	SqliteReleaseLedgerAdapter,
-} from "../src/adapters/releases";
-import { parseReleaseBuildMetadata } from "../src/contracts/release-manifest";
+} from "@/adapters/releases.ts";
+import { parseReleaseBuildMetadata } from "@/contracts/release-manifest.ts";
 import {
 	CURRENT_LEDGER_SCHEMA_VERSION,
 	LEDGER_MIGRATIONS,
 	type LedgerIdSource,
 	openSqliteLedger,
 	type SqliteLedger,
-} from "../src/ledger";
+} from "@/ledger/index.ts";
 import {
 	RELEASE_UPDATE_CAPABILITIES,
 	ReleaseBootstrapper,
@@ -33,7 +33,7 @@ import {
 	ReleaseUpdater,
 	releaseInventoryHash,
 	validateReleaseManifest,
-} from "../src/releases";
+} from "@/releases/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
@@ -46,7 +46,7 @@ import {
 	ScriptedReleaseReconciliationAdapter,
 	ScriptedReleaseServiceAdapter,
 	SequenceReleaseIdSource,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const oldSha = "1".repeat(40);
 const candidateSha = "2".repeat(40);

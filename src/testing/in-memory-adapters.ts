@@ -9,8 +9,8 @@ import type {
 	NotificationAdapter,
 	RandomAdapter,
 	WorkerProcessAdapter,
-} from "../adapters/interfaces";
-import type { ProjectProfile } from "../contracts/project-profile";
+} from "@/adapters/interfaces.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import {
 	type ControllerLocalState,
 	ControllerLocalStateSchema,
@@ -21,7 +21,7 @@ import {
 	type LaunchRequest,
 	type LedgerSnapshot,
 	type StopRequest,
-} from "../controller/model";
+} from "@/controller/model.ts";
 
 function clone<T>(value: T): T {
 	return structuredClone(value);

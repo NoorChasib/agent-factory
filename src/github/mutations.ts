@@ -1,11 +1,15 @@
 import { z } from "zod";
 
-import type { GitHubHttpResponse, GitHubHttpTransport } from "../adapters/interfaces";
-import { looseLabelName, projectId } from "../contracts/primitives";
-import type { ProjectProfile } from "../contracts/project-profile";
-import type { MutationRecord, MutationState, NewMutation } from "../ledger";
-import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
-import { type GitHubApiClient, type GitHubFailureClassification, githubApiHeaders } from "./client";
+import type { GitHubHttpResponse, GitHubHttpTransport } from "@/adapters/interfaces.ts";
+import { looseLabelName, projectId } from "@/contracts/primitives.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import {
+	type GitHubApiClient,
+	type GitHubFailureClassification,
+	githubApiHeaders,
+} from "@/github/client.ts";
+import type { MutationRecord, MutationState, NewMutation } from "@/ledger/index.ts";
+import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "@/redaction/index.ts";
 
 const labelColor = z.string().regex(/^[0-9a-f]{6}$/u);
 const commentBody = z.string().min(1).max(65_536);

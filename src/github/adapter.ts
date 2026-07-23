@@ -1,15 +1,15 @@
-import type { GitHubAdapter, GitHubObserveOptions } from "../adapters/interfaces";
-import type { ProjectProfile } from "../contracts/project-profile";
-import type { GitHubProjectObservation } from "../controller/model";
-import type { GitHubApiClient } from "./client";
-import type { GitHubMutationExecutor, GitHubProjectTokenProvider } from "./mutations";
+import type { GitHubAdapter, GitHubObserveOptions } from "@/adapters/interfaces.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import type { GitHubProjectObservation } from "@/controller/model.ts";
+import type { GitHubApiClient } from "@/github/client.ts";
+import type { GitHubMutationExecutor, GitHubProjectTokenProvider } from "@/github/mutations.ts";
 import {
 	type GitHubObservationAssociations,
 	type GitHubProjectSnapshot,
 	readGitHubObservation,
 	toControllerObservation,
-} from "./observation";
-import { type GitHubLifecycleReconciler, shouldFullyReconcile } from "./reconciliation";
+} from "@/github/observation.ts";
+import { type GitHubLifecycleReconciler, shouldFullyReconcile } from "@/github/reconciliation.ts";
 
 export interface ProductionGitHubAdapterOptions {
 	readonly profiles: readonly ProjectProfile[];

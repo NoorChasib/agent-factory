@@ -4,21 +4,21 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { WorkerProcessAdapter } from "../src/adapters/interfaces";
+import type { WorkerProcessAdapter } from "@/adapters/interfaces.ts";
 import {
 	type ProjectProfile,
 	parseProjectProfile,
 	parseProjectProfileYaml,
-} from "../src/contracts/project-profile";
-import { createController } from "../src/controller/controller";
+} from "@/contracts/project-profile.ts";
+import { createController } from "@/controller/controller.ts";
 import type {
 	ExecutionRecord,
 	GitHubProjectObservation,
 	GitHubPullRequestObservation,
 	LaunchRequest,
 	StopRequest,
-} from "../src/controller/model";
-import { ReviewConvergenceEngine } from "../src/convergence";
+} from "@/controller/model.ts";
+import { ReviewConvergenceEngine } from "@/convergence/index.ts";
 import {
 	assertAllowedGitHubMutation,
 	CanonicalStageManager,
@@ -28,8 +28,8 @@ import {
 	GitHubMutationExecutor,
 	type GitHubProjectSnapshot,
 	type RepositoryLabel,
-} from "../src/github";
-import { type LedgerIdSource, openSqliteLedger, type SqliteLedger } from "../src/ledger";
+} from "@/github/index.ts";
+import { type LedgerIdSource, openSqliteLedger, type SqliteLedger } from "@/ledger/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
@@ -39,8 +39,8 @@ import {
 	InMemoryNotificationAdapter,
 	ScriptedGitHubTransport,
 	SequenceRandomAdapter,
-} from "../src/testing";
-import { FactoryCustodyPaths, WorktreeCustody } from "../src/worktrees";
+} from "@/testing/index.ts";
+import { FactoryCustodyPaths, WorktreeCustody } from "@/worktrees/index.ts";
 
 const repositoryRoot = join(import.meta.dir, "..");
 const profileRoot = join(repositoryRoot, "config", "examples", "multi-project", "profiles");

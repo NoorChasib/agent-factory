@@ -7,7 +7,7 @@ import {
 	projectId,
 	safeId,
 	workflowEntryPoint,
-} from "../contracts/primitives";
+} from "@/contracts/primitives.ts";
 
 const issueNumber = z.number().int().positive();
 

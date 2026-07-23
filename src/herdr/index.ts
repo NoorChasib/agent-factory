@@ -5,7 +5,7 @@ export {
 	parseHerdrPaneListOutput,
 	parseHerdrPaneOutput,
 	parseHerdrPaneProcessOutput,
-} from "../contracts/herdr-output";
+} from "@/contracts/herdr-output.ts";
 export {
 	assertFactoryHerdrOperation,
 	FACTORY_HERDR_SESSION,
@@ -16,11 +16,11 @@ export {
 	type HerdrOperationResult,
 	HerdrOperationSchema,
 	HerdrScopeError,
-} from "./guard";
+} from "@/herdr/guard.ts";
 export {
 	type HerdrProcessRepository,
 	HerdrSessionManager,
 	type HerdrSessionManagerOptions,
 	type RecoveredExecution,
 	type RecoveredExecutionClassification,
-} from "./manager";
+} from "@/herdr/manager.ts";

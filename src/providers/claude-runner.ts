@@ -1,10 +1,10 @@
-import type { ClockAdapter, CommandAdapter } from "../adapters/interfaces";
+import type { ClockAdapter, CommandAdapter } from "@/adapters/interfaces.ts";
 import {
 	type ClaudeInitializationEvent,
 	ClaudeInitializationEventSchema,
 	ProviderOutputError,
-} from "../contracts/provider-output";
-import type { ClaudeRuntimeConfig } from "../controller/config";
+} from "@/contracts/provider-output.ts";
+import type { ClaudeRuntimeConfig } from "@/controller/config.ts";
 import {
 	completeProviderOutcome,
 	executeProviderCommand,
@@ -12,7 +12,7 @@ import {
 	parseCommonProviderEvents,
 	resumeContextMatches,
 	sessionMetadata,
-} from "./runner-support";
+} from "@/providers/runner-support.ts";
 import {
 	type CapturedProviderSession,
 	type ClaudeSessionIdSource,
@@ -22,7 +22,7 @@ import {
 	type ResumeProviderSession,
 	type WorkerOutcomeVerifier,
 	type WorkerTokenBroker,
-} from "./types";
+} from "@/providers/types.ts";
 
 export interface ClaudeRunnerOptions {
 	readonly commands: CommandAdapter;

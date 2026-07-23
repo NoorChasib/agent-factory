@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ControllerLocalState, ExecutionRecord } from "../src/controller/model";
+import type { ControllerLocalState, ExecutionRecord } from "@/controller/model.ts";
 import {
 	applyLedgerMigrations,
 	CURRENT_LEDGER_SCHEMA_VERSION,
@@ -26,8 +26,8 @@ import {
 	openSqliteLedger,
 	restoreSqliteLedger,
 	type SqliteLedger,
-} from "../src/ledger";
-import { createInitialControllerState, FixedClockAdapter } from "../src/testing";
+} from "@/ledger/index.ts";
+import { createInitialControllerState, FixedClockAdapter } from "@/testing/index.ts";
 
 const headSha = "1234567890abcdef1234567890abcdef12345678";
 const releaseSha = "abcdef1234567890abcdef1234567890abcdef12";

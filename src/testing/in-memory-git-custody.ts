@@ -1,5 +1,5 @@
-import type { GitCustodyAdapter, GitWorktreeObservation } from "../adapters/interfaces";
-import type { FactoryCustodyPaths } from "../worktrees";
+import type { GitCustodyAdapter, GitWorktreeObservation } from "@/adapters/interfaces.ts";
+import type { FactoryCustodyPaths } from "@/worktrees/index.ts";
 
 export class InMemoryGitCustodyAdapter implements GitCustodyAdapter {
 	readonly #paths: FactoryCustodyPaths;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { gitBranch, gitObjectId, projectId, repository, safeId } from "./primitives";
+import { gitBranch, gitObjectId, projectId, repository, safeId } from "@/contracts/primitives.ts";
 
 export const WorkerTerminalStatusSchema = z.enum([
 	"completed",

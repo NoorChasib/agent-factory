@@ -8,12 +8,12 @@ import type {
 	FileMetadata,
 	GitHubObserveOptions,
 	RuntimeFileSystemAdapter,
-} from "../src/adapters/interfaces";
-import { composeDaemon } from "../src/daemon/composition";
-import { CURRENT_LEDGER_SCHEMA_VERSION, type LedgerIdSource } from "../src/ledger";
-import { Doctor } from "../src/operations/doctor";
-import { loadFactoryConfiguration, resolveXdgPaths } from "../src/operations/runtime";
-import type { ReleaseBuilder, ReleaseStore } from "../src/releases";
+} from "@/adapters/interfaces.ts";
+import { composeDaemon } from "@/daemon/composition.ts";
+import { CURRENT_LEDGER_SCHEMA_VERSION, type LedgerIdSource } from "@/ledger/index.ts";
+import { Doctor } from "@/operations/doctor.ts";
+import { loadFactoryConfiguration, resolveXdgPaths } from "@/operations/runtime.ts";
+import type { ReleaseBuilder, ReleaseStore } from "@/releases/index.ts";
 import {
 	FixedClockAdapter,
 	InMemoryGitHubAdapter,
@@ -23,7 +23,7 @@ import {
 	ScriptedReleaseMigrationSourceAdapter,
 	ScriptedReleaseServiceAdapter,
 	SequenceRandomAdapter,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 class RuntimeFiles implements RuntimeFileSystemAdapter {
 	readonly #files = new Map<string, { content: string; metadata: FileMetadata }>();

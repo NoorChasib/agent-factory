@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { absolutePath } from "./primitives";
+import { absolutePath } from "@/contracts/primitives.ts";
 
 const commandText = z
 	.string()

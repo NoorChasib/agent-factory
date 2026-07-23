@@ -6,12 +6,12 @@ import type {
 	ProcessMetadata,
 	ProcessMetadataInput,
 	ProviderSession,
-} from "../ledger";
+} from "@/ledger/index.ts";
 import {
 	type ProviderRunOutcome,
 	ProviderSessionContextSchema,
 	type ResumeProviderSession,
-} from "./types";
+} from "@/providers/types.ts";
 
 export interface ProviderExecutionRepository {
 	readExecutionRecovery(executionId: string): ExecutionRecovery;

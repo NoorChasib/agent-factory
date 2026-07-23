@@ -4,12 +4,14 @@ import {
 	assertExecutionMatchesLaunch,
 	type ControllerAdapters,
 	type GitHubObserveOptions,
-} from "../adapters/interfaces";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { clampLimitsToRollout } from "../domain/rollout";
-import { resolveCanonicalLabels } from "../domain/stages";
-import { ControllerCommandSchema, ReconcileRequestSchema } from "./commands";
-import { type ControllerConfig, type GlobalLimits, parseControllerConfig } from "./config";
+} from "@/adapters/interfaces.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { ControllerCommandSchema, ReconcileRequestSchema } from "@/controller/commands.ts";
+import {
+	type ControllerConfig,
+	type GlobalLimits,
+	parseControllerConfig,
+} from "@/controller/config.ts";
 import {
 	type ControllerLocalState,
 	ControllerLocalStateSchema,
@@ -20,8 +22,10 @@ import {
 	type LedgerSnapshot,
 	type PlannedTransition,
 	type PlannerPlan,
-} from "./model";
-import { buildPlannerPlan } from "./planner";
+} from "@/controller/model.ts";
+import { buildPlannerPlan } from "@/controller/planner.ts";
+import { clampLimitsToRollout } from "@/domain/rollout.ts";
+import { resolveCanonicalLabels } from "@/domain/stages.ts";
 
 export interface ProjectStatus {
 	readonly id: string;

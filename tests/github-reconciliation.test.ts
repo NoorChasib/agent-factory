@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { ProjectProfile } from "../src/contracts/project-profile";
-import { parseProjectProfileYaml } from "../src/contracts/project-profile";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { parseProjectProfileYaml } from "@/contracts/project-profile.ts";
 import {
 	assertAllowedGitHubMutation,
 	assessReadyToMerge,
@@ -17,9 +17,9 @@ import {
 	type ReadyToMergeRevocationReason,
 	type RepositoryLabel,
 	shouldFullyReconcile,
-} from "../src/github";
-import type { ReviewBaseline, ReviewBaselineInput } from "../src/ledger";
-import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "../src/testing";
+} from "@/github/index.ts";
+import type { ReviewBaseline, ReviewBaselineInput } from "@/ledger/index.ts";
+import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "@/testing/index.ts";
 
 const profile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),

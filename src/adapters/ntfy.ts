@@ -1,4 +1,8 @@
-import type { Notification, NotificationAdapter, NtfyHttpTransport } from "./interfaces";
+import type {
+	Notification,
+	NotificationAdapter,
+	NtfyHttpTransport,
+} from "@/adapters/interfaces.ts";
 
 export class FetchNtfyTransport implements NtfyHttpTransport {
 	readonly #fetch: typeof fetch;

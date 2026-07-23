@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { safeId } from "./primitives";
-import { WorkerResultSchema } from "./worker-result";
+import { safeId } from "@/contracts/primitives.ts";
+import { WorkerResultSchema } from "@/contracts/worker-result.ts";
 
 export const ProviderFailureClassificationSchema = z.enum([
 	"account-limit",

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import type { Controller } from "../src/controller/controller";
-import { DaemonPollLoop } from "../src/daemon/poll-loop";
-import type { DiskGuard, MaintenanceCoordinator } from "../src/operations/lifecycle";
-import type { FactoryNotifications, StructuredLogger } from "../src/operations/observability";
-import type { RetentionCoordinator } from "../src/operations/retention";
+import type { Controller } from "@/controller/controller.ts";
+import { DaemonPollLoop } from "@/daemon/poll-loop.ts";
+import type { DiskGuard, MaintenanceCoordinator } from "@/operations/lifecycle.ts";
+import type { FactoryNotifications, StructuredLogger } from "@/operations/observability.ts";
+import type { RetentionCoordinator } from "@/operations/retention.ts";
 
 describe("deterministic daemon poll loop", () => {
 	test("drives startup reconcile, disk, retention, logging, and injected delay", async () => {

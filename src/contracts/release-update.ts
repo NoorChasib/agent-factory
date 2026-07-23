@@ -1,8 +1,7 @@
 import { z } from "zod";
-
-import { GlobalLimitsSchema } from "../controller/config";
-import { ControllerModeSchema, RolloutStageSchema } from "../controller/model";
-import { GitCommitShaSchema, ReleaseManifestSchema } from "./release-manifest";
+import { GitCommitShaSchema, ReleaseManifestSchema } from "@/contracts/release-manifest.ts";
+import { GlobalLimitsSchema } from "@/controller/config.ts";
+import { ControllerModeSchema, RolloutStageSchema } from "@/controller/model.ts";
 
 export const ReleasePolicySnapshotSchema = z.strictObject({
 	mode: ControllerModeSchema,

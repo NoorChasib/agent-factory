@@ -8,7 +8,7 @@ import {
 	unlinkSync,
 } from "node:fs";
 
-import type { StructuredLogSink } from "./interfaces";
+import type { StructuredLogSink } from "@/adapters/interfaces.ts";
 
 export interface RotatingJsonLinesSinkOptions {
 	readonly path: string;

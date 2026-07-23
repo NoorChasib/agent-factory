@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CommandExecutionResult } from "../adapters/interfaces";
+import type { CommandExecutionResult } from "@/adapters/interfaces.ts";
 
 const commandOutput = {
 	stdout: z.string().max(10 * 1024 * 1024),

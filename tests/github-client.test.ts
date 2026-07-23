@@ -3,18 +3,18 @@ import {
 	type ProjectProfile,
 	parseProjectProfile,
 	parseProjectProfileYaml,
-} from "../src/contracts/project-profile";
+} from "@/contracts/project-profile.ts";
 import {
 	GitHubApiClient,
 	GitHubObservationResponseSchema,
 	GitHubReadError,
 	ProductionGitHubAdapter,
-} from "../src/github";
+} from "@/github/index.ts";
 import {
 	RecordingDelayAdapter,
 	type ScriptedGitHubStep,
 	ScriptedGitHubTransport,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const lumenProfile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),

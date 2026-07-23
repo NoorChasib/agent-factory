@@ -1,16 +1,16 @@
 import { z } from "zod";
 
-import type { DelayAdapter, DiskUsageAdapter, LedgerAdapter } from "../adapters/interfaces";
-import type { Controller, ControllerStatus } from "../controller/controller";
-import type { ExecutionRecord, RolloutStage } from "../controller/model";
-import { nextRolloutStage, ROLLOUT_STAGE_CAPS } from "../domain/rollout";
+import type { DelayAdapter, DiskUsageAdapter, LedgerAdapter } from "@/adapters/interfaces.ts";
+import type { Controller, ControllerStatus } from "@/controller/controller.ts";
+import type { ExecutionRecord, RolloutStage } from "@/controller/model.ts";
+import { nextRolloutStage, ROLLOUT_STAGE_CAPS } from "@/domain/rollout.ts";
 import type {
 	AuditEvent,
 	ExecutionRecovery,
 	MaintenanceRequest,
 	NewMaintenanceRequest,
-} from "../ledger";
-import type { FactoryNotifications } from "./observability";
+} from "@/ledger/index.ts";
+import type { FactoryNotifications } from "@/operations/observability.ts";
 
 export interface OperationsLedger extends LedgerAdapter {
 	createMaintenanceRequest(input: NewMaintenanceRequest): MaintenanceRequest;

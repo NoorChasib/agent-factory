@@ -1,11 +1,11 @@
-export { BunCommandAdapter } from "./adapters/bun-command";
-export { HerdrCommandExecutionAdapter } from "./adapters/herdr-command";
+export { BunCommandAdapter } from "@/adapters/bun-command.ts";
+export { HerdrCommandExecutionAdapter } from "@/adapters/herdr-command.ts";
 export {
 	LocalDiskUsageAdapter,
 	LocalDoctorSystemAdapter,
 	LocalRuntimeFileSystemAdapter,
-} from "./adapters/local-runtime";
-export { FetchNtfyTransport, NtfyNotificationAdapter } from "./adapters/ntfy";
+} from "@/adapters/local-runtime.ts";
+export { FetchNtfyTransport, NtfyNotificationAdapter } from "@/adapters/ntfy.ts";
 export {
 	CryptoIdSource,
 	GitHubLabelOperator,
@@ -17,29 +17,30 @@ export {
 	LinuxProcessTreeAdapter,
 	SystemClockAdapter,
 	SystemRandomAdapter,
-} from "./adapters/operations";
+} from "@/adapters/operations.ts";
 export {
 	LocalFactoryReleaseBuildAdapter,
 	LocalReleaseFileSystemAdapter,
 	LocalReleaseMigrationSourceAdapter,
 	SqliteReleaseLedgerAdapter,
 	SystemdReleaseServiceAdapter,
-} from "./adapters/releases";
+} from "@/adapters/releases.ts";
 export {
 	ProviderWorkerSupervisor,
 	SelectionCheckoutCustody,
-} from "./adapters/worker-supervisor";
-export { parseClaudeRuntimeFromEnvironment } from "./controller/config";
+} from "@/adapters/worker-supervisor.ts";
+export { parseClaudeRuntimeFromEnvironment } from "@/controller/config.ts";
 export {
 	ReadyToMergeEmitter,
 	ReviewConvergenceCoordinator,
 	ReviewConvergenceEngine,
-} from "./convergence";
+} from "@/convergence/index.ts";
 export {
 	commandEnvironment,
 	composeDaemon,
 	initialObservationState,
-} from "./daemon/composition";
+} from "@/daemon/composition.ts";
+export { BunDelayAdapter } from "@/github/client.ts";
 export {
 	CanonicalStageManager,
 	FetchGitHubTransport,
@@ -49,30 +50,29 @@ export {
 	GitHubMutationExecutor,
 	GuardedGitHubLabelApi,
 	ProductionGitHubAdapter,
-} from "./github";
-export { BunDelayAdapter } from "./github/client";
-export { GuardedHerdrCommandAdapter, HerdrSessionManager } from "./herdr";
-export { openSqliteLedger } from "./ledger";
-export { FactoryNotifications } from "./operations/observability";
+} from "@/github/index.ts";
+export { GuardedHerdrCommandAdapter, HerdrSessionManager } from "@/herdr/index.ts";
+export { openSqliteLedger } from "@/ledger/index.ts";
+export { FactoryNotifications } from "@/operations/observability.ts";
 export {
 	loadFactoryConfiguration,
 	prepareXdgDirectories,
 	resolveXdgPaths,
-} from "./operations/runtime";
+} from "@/operations/runtime.ts";
 export {
 	ClaudeCodeRunner,
 	CodexFeedbackRunner,
 	ObservedWorkerOutcomeVerifier,
 	ProviderExecutionRecorder,
-} from "./providers";
+} from "@/providers/index.ts";
 export {
 	RecoveryCommentPublisher,
 	RecoveryHandoffCoordinator,
 	StallIncidentRecorder,
-} from "./recovery";
+} from "@/recovery/index.ts";
 export {
 	RedactingNotificationAdapter,
 	StructuredRedactionBoundary,
-} from "./redaction";
-export { ReleaseBuilder, ReleaseStore } from "./releases";
-export { GuardedGitCommandAdapter, WorktreeCustody } from "./worktrees";
+} from "@/redaction/index.ts";
+export { ReleaseBuilder, ReleaseStore } from "@/releases/index.ts";
+export { GuardedGitCommandAdapter, WorktreeCustody } from "@/worktrees/index.ts";

@@ -1,10 +1,10 @@
-import type { AgentFactoryOperation } from "../contracts/daemon-protocol";
+import type { AgentFactoryOperation } from "@/contracts/daemon-protocol.ts";
 import {
 	DAEMON_PROTOCOL_VERSION,
 	type DaemonRequest,
 	DaemonRequestSchema,
 	parseDaemonResponse,
-} from "../contracts/daemon-protocol";
+} from "@/contracts/daemon-protocol.ts";
 
 export interface DaemonTransport {
 	exchange(socketPath: string, requestBody: string): Promise<string>;

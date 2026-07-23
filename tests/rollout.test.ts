@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { parseProjectProfile, parseProjectProfileYaml } from "../src/contracts/project-profile";
-import { createController } from "../src/controller/controller";
-import { createInitialControllerState, createInMemoryAdapters } from "../src/testing";
+import { parseProjectProfile, parseProjectProfileYaml } from "@/contracts/project-profile.ts";
+import { createController } from "@/controller/controller.ts";
+import { createInitialControllerState, createInMemoryAdapters } from "@/testing/index.ts";
 
 describe("rollout stage limit enforcement", () => {
 	test("clamps to the minimum of stage, environment, and profile ceilings", async () => {

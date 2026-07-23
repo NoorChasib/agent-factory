@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import type { GitCustodyAdapter, GitWorktreeObservation } from "../adapters/interfaces";
-import { GitBranchSchema } from "../contracts/git-worktree-output";
-import { projectId, repository } from "../contracts/primitives";
+import type { GitCustodyAdapter, GitWorktreeObservation } from "@/adapters/interfaces.ts";
+import { GitBranchSchema } from "@/contracts/git-worktree-output.ts";
+import { projectId, repository } from "@/contracts/primitives.ts";
 
 const issueNumber = z.number().int().positive();
 const timestamp = z.iso.datetime({ offset: true });

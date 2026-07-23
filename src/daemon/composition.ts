@@ -9,26 +9,34 @@ import type {
 	NotificationAdapter,
 	RandomAdapter,
 	RuntimeFileSystemAdapter,
-} from "../adapters/interfaces";
+} from "@/adapters/interfaces.ts";
 import type {
 	ReleaseLedgerAdapter,
 	ReleaseMigrationSourceAdapter,
 	ReleaseServiceAdapter,
-} from "../adapters/release-interfaces";
+} from "@/adapters/release-interfaces.ts";
 import {
 	ControllerReleaseMaintenanceAdapter,
 	ControllerReleaseReconciliationAdapter,
 	FactoryReleaseAlertAdapter,
-} from "../adapters/releases";
-import { RotatingJsonLinesSink } from "../adapters/structured-log";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { parseGlobalLimitsFromEnvironment } from "../controller/config";
-import { type Controller, createController } from "../controller/controller";
-import { type ControllerLocalState, ControllerLocalStateSchema } from "../controller/model";
-import type { ReviewConvergenceCoordinator } from "../convergence";
-import type { HerdrSessionManager } from "../herdr";
-import { type LedgerIdSource, openSqliteLedger, type SqliteLedger } from "../ledger";
-import { Doctor } from "../operations/doctor";
+} from "@/adapters/releases.ts";
+import { RotatingJsonLinesSink } from "@/adapters/structured-log.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { parseGlobalLimitsFromEnvironment } from "@/controller/config.ts";
+import { type Controller, createController } from "@/controller/controller.ts";
+import { type ControllerLocalState, ControllerLocalStateSchema } from "@/controller/model.ts";
+import type { ReviewConvergenceCoordinator } from "@/convergence/index.ts";
+import { DaemonPollLoop } from "@/daemon/poll-loop.ts";
+import {
+	AgentFactoryRouter,
+	type LabelOperator,
+	type OperationalRegistry,
+	type WorkerOperator,
+} from "@/daemon/router.ts";
+import { startUnixSocketServer, type UnixSocketServer } from "@/daemon/socket.ts";
+import type { HerdrSessionManager } from "@/herdr/index.ts";
+import { type LedgerIdSource, openSqliteLedger, type SqliteLedger } from "@/ledger/index.ts";
+import { Doctor } from "@/operations/doctor.ts";
 import {
 	DiskGuard,
 	type DurableRecoveryVerifier,
@@ -38,36 +46,28 @@ import {
 	type RecoveryScanner,
 	RolloutCoordinator,
 	ShutdownCoordinator,
-} from "../operations/lifecycle";
-import { FactoryNotifications, StructuredLogger } from "../operations/observability";
-import { type RetentionArtifacts, RetentionCoordinator } from "../operations/retention";
+} from "@/operations/lifecycle.ts";
+import { FactoryNotifications, StructuredLogger } from "@/operations/observability.ts";
+import { type RetentionArtifacts, RetentionCoordinator } from "@/operations/retention.ts";
 import {
 	type LoadedFactoryConfiguration,
 	loadFactoryConfiguration,
 	type XdgPaths,
-} from "../operations/runtime";
-import type { ClaudeCodeRunner, CodexFeedbackRunner } from "../providers";
-import type { RecoveryHandoffCoordinator } from "../recovery";
+} from "@/operations/runtime.ts";
+import type { ClaudeCodeRunner, CodexFeedbackRunner } from "@/providers/index.ts";
+import type { RecoveryHandoffCoordinator } from "@/recovery/index.ts";
 import {
 	DEFAULT_REDACTION_BOUNDARY,
 	RedactingNotificationAdapter,
 	type RedactionBoundary,
-} from "../redaction";
+} from "@/redaction/index.ts";
 import {
 	type ReleaseBuilder,
 	ReleaseHealthChecker,
 	type ReleaseStore,
 	ReleaseUpdater,
-} from "../releases";
-import type { WorktreeCustody } from "../worktrees";
-import { DaemonPollLoop } from "./poll-loop";
-import {
-	AgentFactoryRouter,
-	type LabelOperator,
-	type OperationalRegistry,
-	type WorkerOperator,
-} from "./router";
-import { startUnixSocketServer, type UnixSocketServer } from "./socket";
+} from "@/releases/index.ts";
+import type { WorktreeCustody } from "@/worktrees/index.ts";
 
 export interface PriorPhaseRuntime {
 	readonly controllerAdapters: Omit<ControllerAdapters, "ledger">;

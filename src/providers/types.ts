@@ -5,10 +5,10 @@ import {
 	repository,
 	safeId,
 	workflowEntryPoint,
-} from "../contracts/primitives";
-import type { ProviderFailureClassification } from "../contracts/provider-output";
-import type { WorkerResult, WorkerTerminalStatus } from "../contracts/worker-result";
-import type { Provider } from "../controller/model";
+} from "@/contracts/primitives.ts";
+import type { ProviderFailureClassification } from "@/contracts/provider-output.ts";
+import type { WorkerResult, WorkerTerminalStatus } from "@/contracts/worker-result.ts";
+import type { Provider } from "@/controller/model.ts";
 
 export const ProviderRuntimeSchema = z.strictObject({
 	model: safeId,

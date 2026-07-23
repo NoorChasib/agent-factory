@@ -3,12 +3,12 @@ import { isAbsolute, join, resolve } from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
 
-import type { FileSystemAdapter, RuntimeFileSystemAdapter } from "../adapters/interfaces";
+import type { FileSystemAdapter, RuntimeFileSystemAdapter } from "@/adapters/interfaces.ts";
 import {
 	loadProjectProfileFile,
 	type ProjectProfile,
 	ProjectProfilesSchema,
-} from "../contracts/project-profile";
+} from "@/contracts/project-profile.ts";
 
 const relativeProfilePath = z
 	.string()

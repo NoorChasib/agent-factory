@@ -4,7 +4,7 @@ import type {
 	CommandAdapter,
 	CommandExecutionResult,
 	CommandRequest,
-} from "../adapters/interfaces";
+} from "@/adapters/interfaces.ts";
 import type {
 	FactoryReleaseBuildAdapter,
 	ReleaseAlertAdapter,
@@ -14,15 +14,15 @@ import type {
 	ReleaseMigrationSourceAdapter,
 	ReleaseReconciliationAdapter,
 	ReleaseServiceAdapter,
-} from "../adapters/release-interfaces";
+} from "@/adapters/release-interfaces.ts";
 import {
 	type LedgerMigration,
 	type NewReleaseRecord,
 	NewReleaseRecordSchema,
 	type ReleaseRecord,
 	ReleaseRecordSchema,
-} from "../ledger";
-import type { ReleasePolicySnapshot } from "../releases";
+} from "@/ledger/index.ts";
+import type { ReleasePolicySnapshot } from "@/releases/index.ts";
 
 function clone<T>(value: T): T {
 	return structuredClone(value);

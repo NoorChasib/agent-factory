@@ -1,4 +1,4 @@
-import type { ProcessIdentity, ProcessTreeAdapter } from "../adapters/interfaces";
+import type { ProcessIdentity, ProcessTreeAdapter } from "@/adapters/interfaces.ts";
 
 export interface ScriptedProcessTreeStep {
 	readonly rootProcessId: number;

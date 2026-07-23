@@ -1,15 +1,15 @@
-import type { ProjectProfile } from "../contracts/project-profile";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import {
 	CANONICAL_STAGES,
 	type CanonicalStage,
 	resolveCanonicalLabels,
 	stageLabel,
-} from "../domain/stages";
+} from "@/domain/stages.ts";
 import type {
 	GitHubAllowedMutation,
 	GitHubMutationExecutionResult,
 	GitHubMutationExecutor,
-} from "./mutations";
+} from "@/github/mutations.ts";
 
 export interface StageTransitionResult {
 	readonly verified: boolean;

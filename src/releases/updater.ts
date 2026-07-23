@@ -4,18 +4,26 @@ import type {
 	ReleaseMaintenanceAdapter,
 	ReleaseMigrationSourceAdapter,
 	ReleaseServiceAdapter,
-} from "../adapters/release-interfaces";
-import { GitCommitShaSchema, type ReleaseManifest } from "../contracts/release-manifest";
+} from "@/adapters/release-interfaces.ts";
+import { GitCommitShaSchema, type ReleaseManifest } from "@/contracts/release-manifest.ts";
 import {
 	type CandidateReleaseMetadata,
 	CandidateReleaseMetadataSchema,
 	FailedReleaseMetadataSchema,
-} from "../contracts/release-update";
-import { type LedgerMigration, type ReleaseRecord, validateLedgerMigrations } from "../ledger";
-import type { ReleaseBuilder } from "./builder";
-import type { ReleaseHealthChecker } from "./health";
-import type { ReleaseStore } from "./store";
-import type { ReleasePolicySnapshot, ReleaseUpdatePhase, ReleaseUpdateResult } from "./types";
+} from "@/contracts/release-update.ts";
+import {
+	type LedgerMigration,
+	type ReleaseRecord,
+	validateLedgerMigrations,
+} from "@/ledger/index.ts";
+import type { ReleaseBuilder } from "@/releases/builder.ts";
+import type { ReleaseHealthChecker } from "@/releases/health.ts";
+import type { ReleaseStore } from "@/releases/store.ts";
+import type {
+	ReleasePolicySnapshot,
+	ReleaseUpdatePhase,
+	ReleaseUpdateResult,
+} from "@/releases/types.ts";
 
 export const RELEASE_UPDATE_CAPABILITIES = [
 	"factory-release-build",

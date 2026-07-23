@@ -1,26 +1,26 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { safeId } from "../contracts/primitives";
-import type { ProjectProfile } from "../contracts/project-profile";
+import type { HerdrCommandExecutionAdapter } from "@/adapters/herdr-command.ts";
+import type { GitCustodyAdapter, WorkerProcessAdapter } from "@/adapters/interfaces.ts";
+import { safeId } from "@/contracts/primitives.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import {
 	type ExecutionRecord,
 	ExecutionRecordSchema,
 	type LaunchRequest,
 	type StopRequest,
-} from "../controller/model";
-import { LedgerRevisionConflictError, type SqliteLedger } from "../ledger";
-import { within } from "../path-guard";
+} from "@/controller/model.ts";
+import { LedgerRevisionConflictError, type SqliteLedger } from "@/ledger/index.ts";
+import { within } from "@/path-guard.ts";
 import {
 	type ClaudeCodeRunner,
 	type CodexFeedbackRunner,
 	type ProviderExecutionRecorder,
 	type ProviderRuntime,
 	resumeProviderSessionFromLedger,
-} from "../providers";
-import type { RecoveryHandoffCoordinator } from "../recovery";
-import type { WorktreeCustody } from "../worktrees";
-import type { HerdrCommandExecutionAdapter } from "./herdr-command";
-import type { GitCustodyAdapter, WorkerProcessAdapter } from "./interfaces";
+} from "@/providers/index.ts";
+import type { RecoveryHandoffCoordinator } from "@/recovery/index.ts";
+import type { WorktreeCustody } from "@/worktrees/index.ts";
 
 export class SelectionCheckoutCustody {
 	readonly #git: GitCustodyAdapter;

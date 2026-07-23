@@ -5,10 +5,13 @@ import {
 	looseBranch,
 	looseGithubLogin,
 	looseLabelName,
-} from "../contracts/primitives";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { type GitHubProjectObservation, GitHubProjectObservationSchema } from "../controller/model";
-import type { GitHubApiClient, GitHubReadResult } from "./client";
+} from "@/contracts/primitives.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import {
+	type GitHubProjectObservation,
+	GitHubProjectObservationSchema,
+} from "@/controller/model.ts";
+import type { GitHubApiClient, GitHubReadResult } from "@/github/client.ts";
 
 const labelConnection = z.strictObject({
 	totalCount: z.number().int().nonnegative(),

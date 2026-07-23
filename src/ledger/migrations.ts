@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 
-import type { ClockAdapter } from "../adapters/interfaces";
-import { LedgerMigrationError } from "./errors";
+import type { ClockAdapter } from "@/adapters/interfaces.ts";
+import { LedgerMigrationError } from "@/ledger/errors.ts";
 
 export interface LedgerMigration {
 	readonly version: number;

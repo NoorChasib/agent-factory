@@ -1,7 +1,5 @@
-import type { ProjectProfile } from "../contracts/project-profile";
-import { clampLimitsToRollout } from "../domain/rollout";
-import { resolveCanonicalLabels } from "../domain/stages";
-import type { ControllerConfig } from "./config";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import type { ControllerConfig } from "@/controller/config.ts";
 import type {
 	ControllerLocalState,
 	ExecutionRecord,
@@ -11,7 +9,9 @@ import type {
 	PlannedTransition,
 	PlannerBlock,
 	PlannerPlan,
-} from "./model";
+} from "@/controller/model.ts";
+import { clampLimitsToRollout } from "@/domain/rollout.ts";
+import { resolveCanonicalLabels } from "@/domain/stages.ts";
 
 interface PlannerInput {
 	readonly config: ControllerConfig;

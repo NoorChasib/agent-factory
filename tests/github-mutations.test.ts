@@ -6,7 +6,7 @@ import {
 	type ProjectProfile,
 	parseProjectProfile,
 	parseProjectProfileYaml,
-} from "../src/contracts/project-profile";
+} from "@/contracts/project-profile.ts";
 import {
 	assertAllowedGitHubMutation,
 	CanonicalStageManager,
@@ -19,8 +19,8 @@ import {
 	GitHubMutationExecutor,
 	GuardedGitHubLabelApi,
 	type RepositoryLabel,
-} from "../src/github";
-import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
+} from "@/github/index.ts";
+import { type LedgerIdSource, openSqliteLedger } from "@/ledger/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
@@ -28,7 +28,7 @@ import {
 	RecordingDelayAdapter,
 	type ScriptedGitHubStep,
 	ScriptedGitHubTransport,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const lumenProfile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),

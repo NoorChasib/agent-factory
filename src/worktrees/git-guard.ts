@@ -7,11 +7,11 @@ import type {
 	CommandRequest,
 	GitCustodyAdapter,
 	GitWorktreeObservation,
-} from "../adapters/interfaces";
-import { GitBranchSchema, parseGitWorktreePorcelain } from "../contracts/git-worktree-output";
-import { absolutePath, projectId, repository } from "../contracts/primitives";
-import type { GitHubProjectTokenProvider } from "../github/mutations";
-import { normalizedAbsolutePath, within } from "../path-guard";
+} from "@/adapters/interfaces.ts";
+import { GitBranchSchema, parseGitWorktreePorcelain } from "@/contracts/git-worktree-output.ts";
+import { absolutePath, projectId, repository } from "@/contracts/primitives.ts";
+import type { GitHubProjectTokenProvider } from "@/github/mutations.ts";
+import { normalizedAbsolutePath, within } from "@/path-guard.ts";
 
 const issueNumber = z.number().int().positive();
 export const GitCustodyOperationSchema = z.discriminatedUnion("kind", [

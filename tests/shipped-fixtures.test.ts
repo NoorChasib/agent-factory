@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseWorkerResult, WorkerTerminalStatusSchema } from "../src/contracts/worker-result";
-import { loadFactoryConfiguration, resolveXdgPaths } from "../src/operations/runtime";
-import { InMemoryFileSystemAdapter } from "../src/testing";
+import { parseWorkerResult, WorkerTerminalStatusSchema } from "@/contracts/worker-result.ts";
+import { loadFactoryConfiguration, resolveXdgPaths } from "@/operations/runtime.ts";
+import { InMemoryFileSystemAdapter } from "@/testing/index.ts";
 
 const repositoryRoot = join(import.meta.dir, "..");
 const exampleRoot = join(repositoryRoot, "config", "examples", "multi-project");

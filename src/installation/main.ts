@@ -2,24 +2,24 @@
 
 import { resolve } from "node:path";
 
-import { BunCommandAdapter } from "../adapters/bun-command";
-import { LocalRuntimeFileSystemAdapter } from "../adapters/local-runtime";
-import { CryptoIdSource, SystemClockAdapter } from "../adapters/operations";
+import { BunCommandAdapter } from "@/adapters/bun-command.ts";
+import { LocalRuntimeFileSystemAdapter } from "@/adapters/local-runtime.ts";
+import { CryptoIdSource, SystemClockAdapter } from "@/adapters/operations.ts";
 import {
 	LocalFactoryReleaseBuildAdapter,
 	LocalReleaseFileSystemAdapter,
 	SqliteReleaseLedgerAdapter,
-} from "../adapters/releases";
-import { commandEnvironment, initialObservationState } from "../daemon/composition";
-import { openSqliteLedger } from "../ledger";
+} from "@/adapters/releases.ts";
+import { commandEnvironment, initialObservationState } from "@/daemon/composition.ts";
+import { openSqliteLedger } from "@/ledger/index.ts";
 import {
 	loadFactoryConfiguration,
 	prepareXdgDirectories,
 	resolveXdgPaths,
-} from "../operations/runtime";
-import { ReleaseBootstrapper } from "../releases/bootstrap";
-import { ReleaseBuilder } from "../releases/builder";
-import { ReleaseStore } from "../releases/store";
+} from "@/operations/runtime.ts";
+import { ReleaseBootstrapper } from "@/releases/bootstrap.ts";
+import { ReleaseBuilder } from "@/releases/builder.ts";
+import { ReleaseStore } from "@/releases/store.ts";
 
 export async function bootstrapReleaseMain(
 	argv: readonly string[],

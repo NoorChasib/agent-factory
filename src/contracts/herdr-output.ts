@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { safeId } from "./primitives";
+import { safeId } from "@/contracts/primitives.ts";
 
 const optionalText = z.string().nullable().optional();
 const uint = z.number().int().nonnegative();

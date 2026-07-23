@@ -1,18 +1,18 @@
-import type { ReleaseUpdateOperator } from "../adapters/release-interfaces";
-import type { AgentFactoryOperation } from "../contracts/daemon-protocol";
-import type { ProjectProfile } from "../contracts/project-profile";
-import type { Controller } from "../controller/controller";
-import type { ProviderCircuitRecord, ReleaseRecord } from "../ledger";
-import type { Doctor } from "../operations/doctor";
+import type { ReleaseUpdateOperator } from "@/adapters/release-interfaces.ts";
+import type { AgentFactoryOperation } from "@/contracts/daemon-protocol.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import type { Controller } from "@/controller/controller.ts";
+import type { ProviderCircuitRecord, ReleaseRecord } from "@/ledger/index.ts";
+import type { Doctor } from "@/operations/doctor.ts";
 import type {
 	MaintenanceCoordinator,
 	OperationsLedger,
 	RolloutCoordinator,
 	ShutdownCoordinator,
-} from "../operations/lifecycle";
-import type { FactoryNotifications, StructuredLogger } from "../operations/observability";
-import type { RetentionCoordinator } from "../operations/retention";
-import type { LoadedFactoryConfiguration } from "../operations/runtime";
+} from "@/operations/lifecycle.ts";
+import type { FactoryNotifications, StructuredLogger } from "@/operations/observability.ts";
+import type { RetentionCoordinator } from "@/operations/retention.ts";
+import type { LoadedFactoryConfiguration } from "@/operations/runtime.ts";
 
 export interface OperationalRegistry extends OperationsLedger {
 	listProviderCircuits(): readonly ProviderCircuitRecord[];

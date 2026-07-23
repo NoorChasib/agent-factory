@@ -11,20 +11,20 @@ import {
 import { join } from "node:path";
 
 import { z } from "zod";
-import { parseCommandExecutionResult } from "../contracts/command-result";
-import { safeId } from "../contracts/primitives";
-import {
-	parseWorkerCommandSpecification,
-	type WorkerCommandSpecification,
-} from "../contracts/worker-command";
-import type { SqliteLedger } from "../ledger";
 import type {
 	ClockAdapter,
 	CommandAdapter,
 	CommandExecutionResult,
 	CommandRequest,
 	DelayAdapter,
-} from "./interfaces";
+} from "@/adapters/interfaces.ts";
+import { parseCommandExecutionResult } from "@/contracts/command-result.ts";
+import { safeId } from "@/contracts/primitives.ts";
+import {
+	parseWorkerCommandSpecification,
+	type WorkerCommandSpecification,
+} from "@/contracts/worker-command.ts";
+import type { SqliteLedger } from "@/ledger/index.ts";
 
 export const DEFAULT_HERDR_COMMAND_RESULT_DEADLINE_MS = 6 * 60 * 60 * 1_000;
 const RESULT_POLL_INTERVAL_MS = 1_000;

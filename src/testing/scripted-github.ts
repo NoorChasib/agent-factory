@@ -3,7 +3,7 @@ import type {
 	GitHubHttpRequest,
 	GitHubHttpResponse,
 	GitHubHttpTransport,
-} from "../adapters/interfaces";
+} from "@/adapters/interfaces.ts";
 
 export type ScriptedGitHubStep =
 	| {

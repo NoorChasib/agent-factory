@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import type { ClockAdapter, LedgerAdapter } from "../adapters/interfaces";
-import type { AuditEvent } from "../ledger";
-import { assessWorktreeCleanup, type WorktreeRecoveryState } from "../worktrees";
+import type { ClockAdapter, LedgerAdapter } from "@/adapters/interfaces.ts";
+import type { AuditEvent } from "@/ledger/index.ts";
+import { assessWorktreeCleanup, type WorktreeRecoveryState } from "@/worktrees/index.ts";
 
 export const MERGED_EXECUTION_LOG_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 

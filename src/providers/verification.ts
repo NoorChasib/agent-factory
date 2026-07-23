@@ -1,6 +1,13 @@
-import type { WorkerResult } from "../contracts/worker-result";
-import { type GitHubProjectObservation, GitHubProjectObservationSchema } from "../controller/model";
-import type { ProviderRunRequest, WorkerOutcomeVerification, WorkerOutcomeVerifier } from "./types";
+import type { WorkerResult } from "@/contracts/worker-result.ts";
+import {
+	type GitHubProjectObservation,
+	GitHubProjectObservationSchema,
+} from "@/controller/model.ts";
+import type {
+	ProviderRunRequest,
+	WorkerOutcomeVerification,
+	WorkerOutcomeVerifier,
+} from "@/providers/types.ts";
 
 export interface WorkerOutcomeObservationReader {
 	observeProject(projectId: string): Promise<unknown>;

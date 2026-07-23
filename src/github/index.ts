@@ -1,7 +1,7 @@
 export {
 	ProductionGitHubAdapter,
 	type ProductionGitHubAdapterOptions,
-} from "./adapter";
+} from "@/github/adapter.ts";
 export {
 	BunDelayAdapter,
 	FetchGitHubTransport,
@@ -11,7 +11,7 @@ export {
 	type GitHubFailureClassification,
 	GitHubReadError,
 	type GitHubReadResult,
-} from "./client";
+} from "@/github/client.ts";
 export {
 	applyLabelMigration,
 	approveLabelMigration,
@@ -24,7 +24,7 @@ export {
 	LabelMigrationPlanSchema,
 	planLabelMigration,
 	renderLabelMigrationPreview,
-} from "./label-migration";
+} from "@/github/label-migration.ts";
 export {
 	assertAllowedGitHubMutation,
 	FORBIDDEN_GITHUB_MUTATION_KINDS,
@@ -43,7 +43,7 @@ export {
 	type GuardedGitHubLabelApiOptions,
 	type RepositoryLabel,
 	sanitizeCommentMutation,
-} from "./mutations";
+} from "@/github/mutations.ts";
 export {
 	GITHUB_OBSERVATION_QUERY,
 	type GitHubCheckConclusion,
@@ -58,7 +58,7 @@ export {
 	mapGitHubObservation,
 	readGitHubObservation,
 	toControllerObservation,
-} from "./observation";
+} from "@/github/observation.ts";
 export {
 	assessReadyToMerge,
 	buildCheckObservationMarker,
@@ -79,11 +79,11 @@ export {
 	type ReviewObservationMarker,
 	repairableCheck,
 	shouldFullyReconcile,
-} from "./reconciliation";
+} from "@/github/reconciliation.ts";
 export {
 	CanonicalStageManager,
 	type StageTransitionResult,
-} from "./stages";
+} from "@/github/stages.ts";
 export {
 	GITHUB_APP_ID_ENVIRONMENT,
 	GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT,
@@ -92,4 +92,4 @@ export {
 	GitHubAppTokenBrokerError,
 	type GitHubAppTokenBrokerOptions,
 	parseGitHubAppEnvironment,
-} from "./token-broker";
+} from "@/github/token-broker.ts";

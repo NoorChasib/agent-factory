@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NtfyNotificationAdapter } from "../src/adapters/ntfy";
-import { RotatingJsonLinesSink } from "../src/adapters/structured-log";
-import { FactoryNotifications, StructuredLogger } from "../src/operations/observability";
-import { StructuredRedactionBoundary } from "../src/redaction";
-import { FixedClockAdapter, InMemoryNotificationAdapter } from "../src/testing";
+import { NtfyNotificationAdapter } from "@/adapters/ntfy.ts";
+import { RotatingJsonLinesSink } from "@/adapters/structured-log.ts";
+import { FactoryNotifications, StructuredLogger } from "@/operations/observability.ts";
+import { StructuredRedactionBoundary } from "@/redaction/index.ts";
+import { FixedClockAdapter, InMemoryNotificationAdapter } from "@/testing/index.ts";
 
 describe("structured logging", () => {
 	test("redacts sentinels before writing and rotates by size", async () => {

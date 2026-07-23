@@ -10,8 +10,8 @@ import {
 	type GitHubLabelGateway,
 	GitHubMutationExecutor,
 	type RepositoryLabel,
-} from "../src/github";
-import { type LedgerIdSource, openSqliteLedger } from "../src/ledger";
+} from "@/github/index.ts";
+import { type LedgerIdSource, openSqliteLedger } from "@/ledger/index.ts";
 import {
 	conditionForRecoveryReason,
 	RecoveryCommentPublisher,
@@ -20,14 +20,14 @@ import {
 	renderRecoveryComment,
 	renderStallIncident,
 	StallIncidentRecorder,
-} from "../src/recovery";
-import { RedactingNotificationAdapter, StructuredRedactionBoundary } from "../src/redaction";
+} from "@/recovery/index.ts";
+import { RedactingNotificationAdapter, StructuredRedactionBoundary } from "@/redaction/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
 	InMemoryGitHubMutationLedger,
 	InMemoryNotificationAdapter,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const pem = [
 	"-----BEGIN PRIVATE KEY-----",

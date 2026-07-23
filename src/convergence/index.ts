@@ -1,7 +1,7 @@
 export {
 	type ProjectConvergenceResult,
 	ReviewConvergenceCoordinator,
-} from "./coordinator";
+} from "@/convergence/coordinator.ts";
 export {
 	assessFeedbackInvocation,
 	type ConvergenceAction,
@@ -19,4 +19,4 @@ export {
 	ReviewConvergenceEngine,
 	type ReviewerFailure,
 	type SafeRerunClassification,
-} from "./engine";
+} from "@/convergence/engine.ts";

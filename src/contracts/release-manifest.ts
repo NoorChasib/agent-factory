@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { gitObjectId as GitCommitShaSchema } from "./primitives";
+import { gitObjectId as GitCommitShaSchema } from "@/contracts/primitives.ts";
 
 export { GitCommitShaSchema };
 

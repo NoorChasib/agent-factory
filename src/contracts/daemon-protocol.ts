@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { gitObjectId, projectId, safeId } from "./primitives";
+import { gitObjectId, projectId, safeId } from "@/contracts/primitives.ts";
 
 const hash = z.string().regex(/^[0-9a-f]{64}$/u);
 

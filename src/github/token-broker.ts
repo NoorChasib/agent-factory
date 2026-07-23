@@ -6,10 +6,10 @@ import type {
 	FileSystemAdapter,
 	GitHubHttpResponse,
 	GitHubHttpTransport,
-} from "../adapters/interfaces";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { githubApiHeaders } from "./client";
-import type { GitHubProjectTokenProvider } from "./mutations";
+} from "@/adapters/interfaces.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { githubApiHeaders } from "@/github/client.ts";
+import type { GitHubProjectTokenProvider } from "@/github/mutations.ts";
 
 export const GITHUB_APP_ID_ENVIRONMENT = "AGENT_FACTORY_GITHUB_APP_ID";
 export const GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT = "AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE";

@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CommandExecutionResult } from "../src/adapters/interfaces";
-import { SelectionCheckoutCustody } from "../src/adapters/worker-supervisor";
-import { parseProjectProfileYaml } from "../src/contracts/project-profile";
-import type { GitHubProjectTokenProvider } from "../src/github";
-import { InMemoryGitCustodyAdapter, ScriptedCommandAdapter } from "../src/testing";
+import type { CommandExecutionResult } from "@/adapters/interfaces.ts";
+import { SelectionCheckoutCustody } from "@/adapters/worker-supervisor.ts";
+import { parseProjectProfileYaml } from "@/contracts/project-profile.ts";
+import type { GitHubProjectTokenProvider } from "@/github/index.ts";
+import { InMemoryGitCustodyAdapter, ScriptedCommandAdapter } from "@/testing/index.ts";
 import {
 	assertAllowedGitOperation,
 	assessWorktreeCleanup,
@@ -19,7 +19,7 @@ import {
 	WorktreeCleanupNotEligibleError,
 	WorktreeCustody,
 	WorktreeInvariantError,
-} from "../src/worktrees";
+} from "@/worktrees/index.ts";
 
 const profile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),

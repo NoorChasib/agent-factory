@@ -2,17 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseProjectProfileYaml } from "../src/contracts/project-profile";
-import type { WorkerResult } from "../src/contracts/worker-result";
+import { parseProjectProfileYaml } from "@/contracts/project-profile.ts";
+import type { WorkerResult } from "@/contracts/worker-result.ts";
 import {
 	DEFAULT_CLAUDE_EFFORT,
 	DEFAULT_CLAUDE_MODEL,
 	parseClaudeRuntimeFromEnvironment,
-} from "../src/controller/config";
-import type { ControllerLocalState } from "../src/controller/model";
-import { mapGitHubObservation, toControllerObservation } from "../src/github";
-import type { LedgerIdSource } from "../src/ledger";
-import { openSqliteLedger } from "../src/ledger";
+} from "@/controller/config.ts";
+import type { ControllerLocalState } from "@/controller/model.ts";
+import { mapGitHubObservation, toControllerObservation } from "@/github/index.ts";
+import type { LedgerIdSource } from "@/ledger/index.ts";
+import { openSqliteLedger } from "@/ledger/index.ts";
 import {
 	type CapturedProviderSession,
 	ClaudeCodeRunner,
@@ -30,12 +30,12 @@ import {
 	verifyWorkerResultAgainstObservation,
 	type WorkerOutcomeVerification,
 	type WorkerOutcomeVerifier,
-} from "../src/providers";
+} from "@/providers/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
 	ScriptedCommandAdapter,
-} from "../src/testing";
+} from "@/testing/index.ts";
 
 const claudeSessionId = "550e8400-e29b-41d4-a716-446655440000";
 const codexThreadId = "thread-101";

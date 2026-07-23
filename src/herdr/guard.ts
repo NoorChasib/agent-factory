@@ -4,15 +4,15 @@ import type {
 	CommandAdapter,
 	CommandExecutionResult,
 	CommandRequest,
-} from "../adapters/interfaces";
+} from "@/adapters/interfaces.ts";
 import {
 	type HerdrPane,
 	type HerdrPaneReference,
 	parseHerdrPaneListOutput,
 	parseHerdrPaneOutput,
 	parseHerdrPaneProcessOutput,
-} from "../contracts/herdr-output";
-import { absolutePath, safeId } from "../contracts/primitives";
+} from "@/contracts/herdr-output.ts";
+import { absolutePath, safeId } from "@/contracts/primitives.ts";
 
 export const FACTORY_HERDR_SESSION = "agent-factory" as const;
 

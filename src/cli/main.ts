@@ -7,12 +7,12 @@ import {
 	LocalDiskUsageAdapter,
 	LocalDoctorSystemAdapter,
 	LocalRuntimeFileSystemAdapter,
-} from "../adapters/local-runtime";
-import { parseReleaseBuildMetadata } from "../contracts/release-manifest";
-import { Doctor } from "../operations/doctor";
-import { loadFactoryConfiguration, resolveXdgPaths } from "../operations/runtime";
-import { AgentFactoryDaemonClient, BunUnixDaemonTransport } from "./client";
-import { CLI_HELP, CliUsageError, parseCliArguments } from "./parser";
+} from "@/adapters/local-runtime.ts";
+import { AgentFactoryDaemonClient, BunUnixDaemonTransport } from "@/cli/client.ts";
+import { CLI_HELP, CliUsageError, parseCliArguments } from "@/cli/parser.ts";
+import { parseReleaseBuildMetadata } from "@/contracts/release-manifest.ts";
+import { Doctor } from "@/operations/doctor.ts";
+import { loadFactoryConfiguration, resolveXdgPaths } from "@/operations/runtime.ts";
 
 export interface CliIo {
 	out(text: string): void;

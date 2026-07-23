@@ -18,20 +18,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { z } from "zod";
-
-import {
-	GitCommitShaSchema,
-	parseReleaseBuildMetadata,
-	type ReleaseInventoryEntry,
-} from "../contracts/release-manifest";
-import type { Controller } from "../controller/controller";
-import type { LedgerMigration, NewReleaseRecord, ReleaseRecord, SqliteLedger } from "../ledger";
-import { validateLedgerMigrations } from "../ledger";
-import type { MaintenanceCoordinator } from "../operations/lifecycle";
-import type { FactoryNotifications } from "../operations/observability";
-import { normalizedAbsolutePath, within } from "../path-guard";
-import type { ReleasePolicySnapshot } from "../releases";
-import type { CommandAdapter, CommandExecutionResult, CommandRequest } from "./interfaces";
+import type {
+	CommandAdapter,
+	CommandExecutionResult,
+	CommandRequest,
+} from "@/adapters/interfaces.ts";
 import type {
 	FactoryReleaseBuildAdapter,
 	ReleaseAlertAdapter,
@@ -41,7 +32,24 @@ import type {
 	ReleaseMigrationSourceAdapter,
 	ReleaseReconciliationAdapter,
 	ReleaseServiceAdapter,
-} from "./release-interfaces";
+} from "@/adapters/release-interfaces.ts";
+import {
+	GitCommitShaSchema,
+	parseReleaseBuildMetadata,
+	type ReleaseInventoryEntry,
+} from "@/contracts/release-manifest.ts";
+import type { Controller } from "@/controller/controller.ts";
+import type {
+	LedgerMigration,
+	NewReleaseRecord,
+	ReleaseRecord,
+	SqliteLedger,
+} from "@/ledger/index.ts";
+import { validateLedgerMigrations } from "@/ledger/index.ts";
+import type { MaintenanceCoordinator } from "@/operations/lifecycle.ts";
+import type { FactoryNotifications } from "@/operations/observability.ts";
+import { normalizedAbsolutePath, within } from "@/path-guard.ts";
+import type { ReleasePolicySnapshot } from "@/releases/index.ts";
 
 function sha256(value: Uint8Array | string): string {
 	return createHash("sha256").update(value).digest("hex");

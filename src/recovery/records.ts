@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { gitObjectId, projectId, recoveryGitBranch, safeId } from "../contracts/primitives";
-import type { AuditEvent } from "../ledger";
-import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
-import { RecoveryReasonCodeSchema } from "./reason-codes";
+import { gitObjectId, projectId, recoveryGitBranch, safeId } from "@/contracts/primitives.ts";
+import type { AuditEvent } from "@/ledger/index.ts";
+import { RecoveryReasonCodeSchema } from "@/recovery/reason-codes.ts";
+import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "@/redaction/index.ts";
 
 const recoverableText = z.string().max(16_384).nullable();
 

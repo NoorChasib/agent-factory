@@ -1,7 +1,7 @@
-import type { ProviderFailureClassification } from "../contracts/provider-output";
-import type { ControllerLocalState, Provider } from "../controller/model";
-import type { GitHubCircuitFailureSignal } from "../github";
-import type { ProviderCircuitSignal } from "./types";
+import type { ProviderFailureClassification } from "@/contracts/provider-output.ts";
+import type { ControllerLocalState, Provider } from "@/controller/model.ts";
+import type { GitHubCircuitFailureSignal } from "@/github/index.ts";
+import type { ProviderCircuitSignal } from "@/providers/types.ts";
 
 const CIRCUIT_OPENING_FAILURES: ReadonlySet<ProviderFailureClassification> = new Set([
 	"account-limit",

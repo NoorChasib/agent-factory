@@ -1,17 +1,17 @@
 import { z } from "zod";
 
-import type { GitHubObserveOptions } from "../adapters/interfaces";
-import { githubCheckName, looseGithubLogin } from "../contracts/primitives";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { resolveCanonicalLabels } from "../domain/stages";
-import type { ReviewBaseline, ReviewBaselineInput } from "../ledger";
+import type { GitHubObserveOptions } from "@/adapters/interfaces.ts";
+import { githubCheckName, looseGithubLogin } from "@/contracts/primitives.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import { resolveCanonicalLabels } from "@/domain/stages.ts";
 import type {
 	GitHubCheckSnapshot,
 	GitHubProjectSnapshot,
 	GitHubPullRequestSnapshot,
 	GitHubReviewSnapshot,
-} from "./observation";
-import type { CanonicalStageManager, StageTransitionResult } from "./stages";
+} from "@/github/observation.ts";
+import type { CanonicalStageManager, StageTransitionResult } from "@/github/stages.ts";
+import type { ReviewBaseline, ReviewBaselineInput } from "@/ledger/index.ts";
 
 const reviewMarkerSchema = z.strictObject({
 	commentCount: z.number().int().nonnegative(),

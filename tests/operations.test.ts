@@ -4,28 +4,24 @@ import type {
 	Controller,
 	ControllerStatus,
 	ReconcileResult,
-} from "../src/controller/controller";
-import type {
-	ControllerLocalState,
-	ExecutionRecord,
-	LedgerSnapshot,
-} from "../src/controller/model";
+} from "@/controller/controller.ts";
+import type { ControllerLocalState, ExecutionRecord, LedgerSnapshot } from "@/controller/model.ts";
 import type {
 	AuditEvent,
 	ExecutionRecovery,
 	MaintenanceRequest,
 	NewMaintenanceRequest,
-} from "../src/ledger";
-import type { OperationsLedger } from "../src/operations/lifecycle";
+} from "@/ledger/index.ts";
+import type { OperationsLedger } from "@/operations/lifecycle.ts";
 import {
 	DiskGuard,
 	MaintenanceCoordinator,
 	RebootRecoveryCoordinator,
 	RolloutCoordinator,
 	ShutdownCoordinator,
-} from "../src/operations/lifecycle";
-import { FactoryNotifications } from "../src/operations/observability";
-import { createInitialControllerState, InMemoryNotificationAdapter } from "../src/testing";
+} from "@/operations/lifecycle.ts";
+import { FactoryNotifications } from "@/operations/observability.ts";
+import { createInitialControllerState, InMemoryNotificationAdapter } from "@/testing/index.ts";
 
 function execution(id = "execution-1"): ExecutionRecord {
 	return {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { stageLabelName } from "../contracts/primitives";
+import { stageLabelName } from "@/contracts/primitives.ts";
 
 export const CANONICAL_STAGES = [
 	"needs-triage",

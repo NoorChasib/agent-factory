@@ -1,8 +1,12 @@
-import type { ClockAdapter } from "../adapters/interfaces";
-import type { ProjectProfile } from "../contracts/project-profile";
-import { resolveCanonicalLabels } from "../domain/stages";
-import type { GitHubProjectSnapshot } from "../github";
-import type { ReadyEmissionResult, ReadyToMergeEmitter, ReviewConvergenceEngine } from "./engine";
+import type { ClockAdapter } from "@/adapters/interfaces.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import type {
+	ReadyEmissionResult,
+	ReadyToMergeEmitter,
+	ReviewConvergenceEngine,
+} from "@/convergence/engine.ts";
+import { resolveCanonicalLabels } from "@/domain/stages.ts";
+import type { GitHubProjectSnapshot } from "@/github/index.ts";
 
 export interface ProjectConvergenceResult {
 	readonly projectId: string;

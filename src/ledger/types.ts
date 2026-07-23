@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { gitObjectId, projectId, safeId } from "../contracts/primitives";
-import { CircuitStatusSchema, ExecutionRecordSchema, ProviderSchema } from "../controller/model";
+import { gitObjectId, projectId, safeId } from "@/contracts/primitives.ts";
+import { CircuitStatusSchema, ExecutionRecordSchema, ProviderSchema } from "@/controller/model.ts";
 
 const timestamp = z.iso.datetime({ offset: true });
 const issueNumber = z.number().int().positive();

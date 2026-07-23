@@ -9,12 +9,12 @@ export {
 	InMemoryNotificationAdapter,
 	InMemoryWorkerProcessAdapter,
 	SequenceRandomAdapter,
-} from "./in-memory-adapters";
-export { InMemoryGitCustodyAdapter } from "./in-memory-git-custody";
+} from "@/testing/in-memory-adapters.ts";
+export { InMemoryGitCustodyAdapter } from "@/testing/in-memory-git-custody.ts";
 export {
 	InMemoryGitHubMutationLedger,
 	type MutationIdAdapter,
-} from "./in-memory-github-ledger";
+} from "@/testing/in-memory-github-ledger.ts";
 export {
 	InMemoryReleaseAlertAdapter,
 	InMemoryReleaseLedgerAdapter,
@@ -25,14 +25,14 @@ export {
 	ScriptedReleaseReconciliationAdapter,
 	ScriptedReleaseServiceAdapter,
 	SequenceReleaseIdSource,
-} from "./releases";
-export { ScriptedCommandAdapter } from "./scripted-command";
+} from "@/testing/releases.ts";
+export { ScriptedCommandAdapter } from "@/testing/scripted-command.ts";
 export {
 	RecordingDelayAdapter,
 	type ScriptedGitHubStep,
 	ScriptedGitHubTransport,
-} from "./scripted-github";
+} from "@/testing/scripted-github.ts";
 export {
 	ScriptedProcessTreeAdapter,
 	type ScriptedProcessTreeStep,
-} from "./scripted-process-tree";
+} from "@/testing/scripted-process-tree.ts";

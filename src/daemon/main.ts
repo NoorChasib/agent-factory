@@ -62,7 +62,7 @@ import {
 	SystemdReleaseServiceAdapter,
 	SystemRandomAdapter,
 	WorktreeCustody,
-} from "../index";
+} from "@/index.ts";
 
 function secretEnvironmentValues(
 	environment: Readonly<Record<string, string | undefined>>,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseProjectProfile, parseProjectProfileYaml } from "../src/contracts/project-profile";
+import { parseProjectProfile, parseProjectProfileYaml } from "@/contracts/project-profile.ts";
 import {
 	applyLabelMigration,
 	approveLabelMigration,
@@ -11,8 +11,8 @@ import {
 	planLabelMigration,
 	type RepositoryLabel,
 	renderLabelMigrationPreview,
-} from "../src/github";
-import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "../src/testing";
+} from "@/github/index.ts";
+import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "@/testing/index.ts";
 
 const profile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),

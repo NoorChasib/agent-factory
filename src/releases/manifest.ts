@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 
-import type { ClockAdapter } from "../adapters/interfaces";
+import type { ClockAdapter } from "@/adapters/interfaces.ts";
 import {
 	GitCommitShaSchema,
 	type ReleaseInventoryEntry,
 	ReleaseInventoryEntrySchema,
 	type ReleaseManifest,
 	ReleaseManifestSchema,
-} from "../contracts/release-manifest";
+} from "@/contracts/release-manifest.ts";
 
 export const RELEASE_MANIFEST_FILENAME = "release-manifest.json";
 

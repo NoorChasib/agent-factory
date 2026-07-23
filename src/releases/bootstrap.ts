@@ -1,8 +1,8 @@
-import type { ReleaseLedgerAdapter } from "../adapters/release-interfaces";
-import { GitCommitShaSchema, type ReleaseManifest } from "../contracts/release-manifest";
-import { CandidateReleaseMetadataSchema } from "../contracts/release-update";
-import type { ReleaseBuilder } from "./builder";
-import type { ReleaseStore } from "./store";
+import type { ReleaseLedgerAdapter } from "@/adapters/release-interfaces.ts";
+import { GitCommitShaSchema, type ReleaseManifest } from "@/contracts/release-manifest.ts";
+import { CandidateReleaseMetadataSchema } from "@/contracts/release-update.ts";
+import type { ReleaseBuilder } from "@/releases/builder.ts";
+import type { ReleaseStore } from "@/releases/store.ts";
 
 export interface ReleaseBootstrapResult {
 	readonly releaseId: string;

@@ -1,5 +1,5 @@
-import type { GlobalLimits } from "../controller/config";
-import type { ControllerMode, RolloutStage } from "../controller/model";
+import type { GlobalLimits } from "@/controller/config.ts";
+import type { ControllerMode, RolloutStage } from "@/controller/model.ts";
 
 export interface ReleasePolicySnapshot {
 	readonly mode: ControllerMode;

@@ -1,7 +1,7 @@
-import type { ClockAdapter } from "../adapters/interfaces";
-import type { ProjectProfile } from "../contracts/project-profile";
-import type { ProviderFailureClassification } from "../contracts/provider-output";
-import { resolveCanonicalLabels } from "../domain/stages";
+import type { ClockAdapter } from "@/adapters/interfaces.ts";
+import type { ProjectProfile } from "@/contracts/project-profile.ts";
+import type { ProviderFailureClassification } from "@/contracts/provider-output.ts";
+import { resolveCanonicalLabels } from "@/domain/stages.ts";
 import {
 	assessReadyToMerge,
 	buildCheckObservationMarker,
@@ -15,10 +15,10 @@ import {
 	inspectCurrentHeadRequirements,
 	repairableCheck,
 	type StageTransitionResult,
-} from "../github";
-import type { ReviewBaseline } from "../ledger";
-import { circuitSignalForFailure } from "../providers/circuits";
-import type { ProviderCircuitSignal } from "../providers/types";
+} from "@/github/index.ts";
+import type { ReviewBaseline } from "@/ledger/index.ts";
+import { circuitSignalForFailure } from "@/providers/circuits.ts";
+import type { ProviderCircuitSignal } from "@/providers/types.ts";
 
 export const QUIESCENCE_POLL_INTERVAL_MS = 60_000;
 export const MAX_CODE_CHANGING_FEEDBACK_ROUNDS = 3;

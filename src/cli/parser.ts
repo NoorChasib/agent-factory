@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { AgentFactoryOperation } from "../contracts/daemon-protocol";
-import { AgentFactoryOperationSchema } from "../contracts/daemon-protocol";
+import type { AgentFactoryOperation } from "@/contracts/daemon-protocol.ts";
+import { AgentFactoryOperationSchema } from "@/contracts/daemon-protocol.ts";
 
 export type CliInvocation =
 	| { readonly kind: "help" }

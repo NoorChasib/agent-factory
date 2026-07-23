@@ -5,14 +5,14 @@ import type {
 	Notification,
 	NotificationAdapter,
 	StructuredLogSink,
-} from "../adapters/interfaces";
-import type { ControllerStatus } from "../controller/controller";
-import type { MaintenanceRequest, ProviderCircuitRecord, ReleaseRecord } from "../ledger";
+} from "@/adapters/interfaces.ts";
+import type { ControllerStatus } from "@/controller/controller.ts";
+import type { MaintenanceRequest, ProviderCircuitRecord, ReleaseRecord } from "@/ledger/index.ts";
 import {
 	DEFAULT_REDACTION_BOUNDARY,
 	type RedactedJson,
 	type RedactionBoundary,
-} from "../redaction";
+} from "@/redaction/index.ts";
 
 const logLevel = z.enum(["debug", "info", "warn", "error"]);
 const logEvent = z

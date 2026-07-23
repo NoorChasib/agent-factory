@@ -1,6 +1,10 @@
-import type { GitHubMutationExecutionResult, GitHubMutationExecutor } from "../github";
-import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
-import { type RecoveryRecord, RecoveryRecordSchema, renderRecoveryComment } from "./records";
+import type { GitHubMutationExecutionResult, GitHubMutationExecutor } from "@/github/index.ts";
+import {
+	type RecoveryRecord,
+	RecoveryRecordSchema,
+	renderRecoveryComment,
+} from "@/recovery/records.ts";
+import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "@/redaction/index.ts";
 
 export interface RecoveryCommentPublication {
 	readonly body: string;

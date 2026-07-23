@@ -11,33 +11,26 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 
-import type { ClockAdapter, LedgerAdapter } from "../adapters/interfaces";
+import type { ClockAdapter, LedgerAdapter } from "@/adapters/interfaces.ts";
 import {
 	type ControllerLocalState,
 	ControllerLocalStateSchema,
 	type ExecutionRecord,
 	ExecutionRecordSchema,
 	type LedgerSnapshot,
-} from "../controller/model";
-import {
-	DEFAULT_REDACTION_BOUNDARY,
-	plainJsonValue,
-	type RedactedJson,
-	type RedactionBoundary,
-	sanitizeAuditJson,
-} from "../redaction";
+} from "@/controller/model.ts";
 import {
 	LedgerCorruptionError,
 	LedgerError,
 	LedgerOwnershipError,
 	LedgerRevisionConflictError,
-} from "./errors";
+} from "@/ledger/errors.ts";
 import {
 	applyLedgerMigrations,
 	LEDGER_MIGRATIONS,
 	type LedgerMigration,
 	readSchemaVersion,
-} from "./migrations";
+} from "@/ledger/migrations.ts";
 import {
 	type AuditEvent,
 	AuditEventSchema,
@@ -77,7 +70,14 @@ import {
 	type ReviewBaselineInput,
 	ReviewBaselineInputSchema,
 	ReviewBaselineSchema,
-} from "./types";
+} from "@/ledger/types.ts";
+import {
+	DEFAULT_REDACTION_BOUNDARY,
+	plainJsonValue,
+	type RedactedJson,
+	type RedactionBoundary,
+	sanitizeAuditJson,
+} from "@/redaction/index.ts";
 
 export const LEDGER_FILENAME = "ledger.sqlite3";
 

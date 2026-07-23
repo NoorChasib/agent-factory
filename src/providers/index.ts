@@ -7,25 +7,25 @@ export {
 	ProviderCircuitRecovery,
 	type ProviderRecoveryProbe,
 	type ProviderRecoveryProbeResult,
-} from "./circuits";
+} from "@/providers/circuits.ts";
 export {
 	ClaudeCodeRunner,
 	type ClaudeResumeRequest,
 	type ClaudeRunnerOptions,
-} from "./claude-runner";
+} from "@/providers/claude-runner.ts";
 export {
 	CodexFeedbackRunner,
 	type CodexLaunchRequest,
 	type CodexResumeRequest,
 	type CodexRunnerOptions,
-} from "./codex-runner";
-export { buildWorkerEnvironment } from "./environment";
+} from "@/providers/codex-runner.ts";
+export { buildWorkerEnvironment } from "@/providers/environment.ts";
 export {
 	type PersistedProviderRun,
 	ProviderExecutionRecorder,
 	type ProviderExecutionRepository,
 	resumeProviderSessionFromLedger,
-} from "./persistence";
+} from "@/providers/persistence.ts";
 export {
 	type CapturedProviderSession,
 	type ClaudeSessionIdSource,
@@ -43,9 +43,9 @@ export {
 	type WorkerOutcomeVerification,
 	type WorkerOutcomeVerifier,
 	type WorkerTokenBroker,
-} from "./types";
+} from "@/providers/types.ts";
 export {
 	ObservedWorkerOutcomeVerifier,
 	verifyWorkerResultAgainstObservation,
 	type WorkerOutcomeObservationReader,
-} from "./verification";
+} from "@/providers/verification.ts";
