@@ -1,0 +1,18 @@
+# Documentation index
+
+Documentation grows with the implementation instead of describing unavailable behavior as
+finished.
+
+| Topic | Owning phase | Current state |
+| --- | ---: | --- |
+| Architecture, contracts, development, testing | 1 | Foundation in `README.md` and source docs |
+| SQLite ledger and recovery model | 2 | Planned |
+| GitHub App/API, profiles, label migration, reconciliation | 3 | Planned |
+| Provider runners, review convergence, circuits | 4 | Planned |
+| Herdr, recovery records, redaction | 5 | Planned |
+| CLI, systemd, XDG config, ntfy, disk guards, shutdown, doctor | 6 | Planned |
+| Immutable releases, updates, rollback | 7 | Planned |
+| Installation, rollout, security, operations, troubleshooting | 8 | Planned verification |
+
+Post-v1 agent-assisted rebase/conflict repair, automatic rollout promotion, and automatic external
+CLI upgrades are documentation-only future work and are not authorized v1 behavior.
