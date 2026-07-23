@@ -1,9 +1,9 @@
 # Review and check convergence
 
-Phase 4 adds a deterministic convergence engine over the richer Phase 3 GitHub snapshot and the
-Phase 2 review-baseline repository. It does not add a second observation model. Current-head
-requirements, review/check markers, late-feedback detection, and ready-to-merge revocation all
-reuse the Phase 3 reconciliation functions.
+The deterministic convergence engine uses the richer GitHub snapshot and review-baseline
+repository without adding a second observation model. Current-head requirements, review/check
+markers, late-feedback detection, and ready-to-merge revocation all reuse the GitHub
+reconciliation functions.
 
 ## Inputs and authority
 
@@ -45,7 +45,7 @@ silently running the timeout to approval.
 ## Quiescence and ready emission
 
 After current-head reviewers and checks succeed and the PR is non-draft and mergeable, the
-engine compares the Phase 3 review/check markers with the saved baseline:
+engine compares the current review/check markers with the saved baseline:
 
 1. A missing, stale-head, or changed baseline is replaced at poll count zero.
 2. An unchanged observation increments only when at least 60 seconds elapsed since the prior
@@ -56,14 +56,14 @@ engine compares the Phase 3 review/check markers with the saved baseline:
 Thus the default requires a baseline plus two unchanged polls at least 60 seconds apart. Polls
 that arrive early do not advance or rewrite the baseline.
 
-Once quiescent, the engine calls the same Phase 3 ready assessment used for revocation.
+Once quiescent, the engine calls the same ready assessment used for revocation.
 `emit-ready-to-merge` can be applied only through `ReadyToMergeEmitter`, which delegates to the
 existing guarded, reconcile-before-retry `CanonicalStageManager`. The decision is head-bound and
 is refused if applied to a later head.
 
 If a PR already carries ready-to-merge, the engine calls
 `detectReadyToMergeRevocation`. Head, feedback, required-review, checks, draft, or mergeability
-loss returns `revoke-ready-to-merge`; Phase 3 lifecycle reconciliation performs the guarded
+loss returns `revoke-ready-to-merge`; lifecycle reconciliation performs the guarded
 revocation or feedback requeue. This keeps emission and revocation on one evidence model.
 
 ## Bounded feedback
@@ -94,8 +94,9 @@ Rerun permission is classification-based, not inferred from a generic failure:
 
 GitHub `CANCELLED`, `STARTUP_FAILURE`, and `TIMED_OUT` conclusions map to the three allowlisted
 classes. `FAILURE`, `ERROR`, and `ACTION_REQUIRED` fail closed as genuine failures unless a
-trusted GitHub adapter supplies a narrower classification. The engine emits only a
-`rerun-check` decision; later authorized GitHub wiring owns the actual rerun mutation.
+trusted GitHub adapter supplies a narrower classification. The engine emits a bounded
+`rerun-check` orchestration decision and preserves the outer Codex state; it exposes no generic
+check or workflow mutation.
 
-No genuine failing check is automatically rerun, and this phase adds no merge or
+No genuine failing check is automatically rerun, and convergence has no merge or
 branch-protection mutation.

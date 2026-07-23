@@ -19,6 +19,7 @@ import {
   openSqliteLedger,
   parseReleaseBuildMetadata,
   RELEASE_UPDATE_CAPABILITIES,
+  ReleaseBootstrapper,
   ReleaseBuilder,
   ReleaseHealthChecker,
   ReleaseStore,
@@ -163,6 +164,10 @@ describe("release manifest and immutable store", () => {
     const metadata = parseReleaseBuildMetadata(
       JSON.parse(readFileSync(join(import.meta.dir, "..", "release.json"), "utf8")) as unknown,
     );
+    const packageMetadata = JSON.parse(
+      readFileSync(join(import.meta.dir, "..", "package.json"), "utf8"),
+    ) as { readonly version?: unknown };
+    expect(packageMetadata.version).toBe(metadata.version);
     expect(metadata.requiredLedgerSchemaVersion).toBe(CURRENT_LEDGER_SCHEMA_VERSION);
     expect(LEDGER_MIGRATIONS).toHaveLength(CURRENT_LEDGER_SCHEMA_VERSION);
   });
@@ -268,6 +273,75 @@ describe("release manifest and immutable store", () => {
       expect(readdirSync(harness.store.root).some((name) => name.startsWith(".current-"))).toBe(
         false,
       );
+    });
+  });
+});
+
+describe("initial immutable release bootstrap", () => {
+  test("builds, activates, records, and idempotently verifies the first observation-mode release", async () => {
+    await inTemporaryDirectory(async (directory) => {
+      const store = new ReleaseStore({
+        root: join(directory, "releases"),
+        fileSystem: new LocalReleaseFileSystemAdapter(),
+        clock: new FixedClockAdapter(),
+        ids: new SequenceReleaseIdSource(),
+      });
+      await store.prepare();
+      const builds = new ScriptedFactoryReleaseBuildAdapter({
+        requiredLedgerSchemaVersion: CURRENT_LEDGER_SCHEMA_VERSION,
+      });
+      const ledger = new InMemoryReleaseLedgerAdapter(CURRENT_LEDGER_SCHEMA_VERSION);
+      const bootstrap = new ReleaseBootstrapper({
+        builder: new ReleaseBuilder({ builds, store }),
+        store,
+        ledger,
+      });
+
+      expect(await bootstrap.bootstrap(oldSha)).toMatchObject({
+        releaseId: oldSha,
+        currentReleaseId: oldSha,
+        alreadyInstalled: false,
+      });
+      expect(await store.currentReleaseId()).toBe(oldSha);
+      expect(ledger.listReleases()).toMatchObject([
+        {
+          releaseId: oldSha,
+          status: "installed",
+          metadata: {
+            schemaVersion: 1,
+            update: { phase: "installed", priorPolicy: null },
+          },
+        },
+      ]);
+
+      expect(await bootstrap.bootstrap(oldSha)).toMatchObject({
+        releaseId: oldSha,
+        currentReleaseId: oldSha,
+        alreadyInstalled: true,
+      });
+      expect(builds.builds).toHaveLength(1);
+      await expect(bootstrap.bootstrap(candidateSha)).rejects.toThrow(
+        "cannot replace an installed release",
+      );
+      expect(await store.currentReleaseId()).toBe(oldSha);
+
+      const nonInstalledLedger = new InMemoryReleaseLedgerAdapter(CURRENT_LEDGER_SCHEMA_VERSION, [
+        {
+          releaseId: candidateSha,
+          commitSha: candidateSha,
+          status: "failed",
+          artifactPath: null,
+          requiredSchemaVersion: CURRENT_LEDGER_SCHEMA_VERSION,
+          metadata: { reason: "fixture" },
+        },
+      ]);
+      await expect(
+        new ReleaseBootstrapper({
+          builder: new ReleaseBuilder({ builds, store }),
+          store,
+          ledger: nonInstalledLedger,
+        }).bootstrap(candidateSha),
+      ).rejects.toThrow("empty or matching installed release ledger");
     });
   });
 });

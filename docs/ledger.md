@@ -1,7 +1,7 @@
 # SQLite execution ledger
 
-Phase 2 adds the controller's durable local execution ledger. It is deliberately narrower than
-the GitHub model: GitHub remains authoritative for issue and pull-request lifecycle, claims,
+The controller's durable local execution ledger is deliberately narrower than the GitHub model:
+GitHub remains authoritative for issue and pull-request lifecycle, claims,
 labels, heads, reviews, checks, and merge state. If a local record disagrees with a current GitHub
 observation, reconciliation must accept GitHub and repair the local execution plan. The ledger is
 authoritative only for controller ownership, local executions and attempts, provider resume
@@ -10,8 +10,8 @@ and audit history.
 
 ## On-disk layout and connection policy
 
-The production adapter receives a state-directory path. It does not select or create an XDG
-directory; Phase 6 owns that wiring. The directory must already exist and be writable.
+The production adapter receives a state-directory path prepared by runtime composition. The
+directory must already exist and be writable.
 
 ```text
 <injected-state-directory>/
@@ -61,7 +61,7 @@ strict application schemas when read.
 | `executions` | Durable execution identity, target-neutral lane/workflow ownership, claim, subject, branch/worktree/head, and status. Historical rows are not deleted when snapshots are synchronized. |
 | `execution_attempts` | Monotonic attempt history per execution with start/finish, status, checkpoint, outcome, and reason. |
 | `provider_sessions` | Claude/Codex session or thread ID plus exact model, reasoning effort, and validated JSON runtime metadata for resume. |
-| `process_metadata` | Current pane/process/start-time/host identity and runtime metadata. Phase 5 populates the Herdr custody and inspected process-tree values without a migration. |
+| `process_metadata` | Current pane/process/start-time/host identity, Herdr custody, and inspected process-tree runtime metadata. |
 | `github_mutations` | Intended mutation, unique idempotency key, result, and `pending`/`applied`/`ambiguous`/`reconciled` state. Terminal reconciliation cannot move backward. |
 | `review_baselines` | Per-project/per-PR current head plus review/check observation and quiescent-poll count. |
 | `provider_circuits` | Claude, Codex, GitHub, and reviewer circuit state, reason, open time, and update time. Controller snapshot commits keep these rows synchronized. |
@@ -75,7 +75,7 @@ record only when the full intent matches; reuse for different intent fails.
 
 Audit has append-only insert/list methods. Database triggers reject `UPDATE` and `DELETE` even if
 accidental SQL bypasses the repository API. Audit input is normalized to finite, acyclic JSON and
-passes through the shared Phase 5 structured redaction boundary. Secret-like keys, GitHub/bearer
+passes through the shared structured redaction boundary. Secret-like keys, GitHub/bearer
 tokens, PEM blocks, configured environment echoes, absolute filesystem paths, and over-limit
 text fields are replaced before storage. Callers must still avoid collecting confidential
 project content.
@@ -96,7 +96,7 @@ The ledger currently has four schema versions:
 3. release state; and
 4. unique commit identity for immutable releases.
 
-Future versions must be additive. The Phase 7 updater loads the already-validated candidate's
+Future versions must be additive. The updater loads the already-validated candidate's
 migration set, verifies that its length equals the manifest requirement, backs up first, and then
 uses this same migration engine. A candidate requiring a version older than the current database
 is rejected as a forbidden downgrade before backup or pointer switch.
@@ -116,8 +116,8 @@ owner lease, checkpoints it into a standalone main database, and atomically inst
 open then enables WAL and acquires a fresh owner lease. Corrupt backups and unknown/newer schema
 histories fail before installation.
 
-Phase 7 adds a drilled replacement path around that API for automatic rollback. It closes the
-owned live connection, renames the candidate-schema database to a unique
+Automatic rollback uses a drilled replacement path around that API. It closes the owned live
+connection, renames the candidate-schema database to a unique
 `ledger.sqlite3.pre-rollback-*` quarantine file, restores the serialized update backup with the
 prior migration prefix, and adopts the reopened connection in the same ledger object. If restore
 fails, it moves the quarantined database back and reopens it. The updater retains both the backup
@@ -131,9 +131,9 @@ This phase supplies durable records and no purge API. In particular:
 - attempt and session history remains available for restart and incident reconstruction;
 - stalled or operator-required recovery state must remain until explicit release;
 - mutation intent remains until reconciliation can prove the GitHub outcome; and
-- release rows remain available to Phase 7 update/rollback machinery.
+- release rows remain available to update/rollback machinery.
 
-Phase 5 computes merged-worktree cleanup eligibility at the exact 24-hour boundary and retains
-stalled/operator state until explicit release. Phase 6 owns scheduling that cleanup, and later
-retention work may remove detailed merged execution logs after 30 days. Retention must not delete
-unreconciled mutations, active ownership, audit history, or preserved handoff state.
+Retention computes merged-worktree cleanup eligibility at the exact 24-hour boundary, removes
+detailed merged execution logs after 30 days, and retains stalled/operator state until explicit
+release. It must not delete unreconciled mutations, active ownership, audit history, or preserved
+handoff state.

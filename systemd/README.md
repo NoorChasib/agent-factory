@@ -1,6 +1,8 @@
 # systemd user service
 
-Install the checked-in unit without editing it:
+Bootstrap the first immutable release as documented in
+[`../docs/installation.md`](../docs/installation.md), then install the checked-in unit without
+editing it:
 
 ```sh
 install -D -m 0644 systemd/agent-factory.service \
@@ -10,10 +12,10 @@ systemctl --user enable --now agent-factory.service
 ```
 
 The unit starts the daemon through the immutable-release `current` pointer at
-`$HOME/.local/share/agent-factory/releases/current`. The Phase 7 updater creates a new relative
-symlink and atomically renames it over that pointer. Do not change `ExecStart` to a mutable source
-checkout. Phase 8 owns the initial installed-release bootstrap and final enablement drill; do not
-enable the unit before `current/bin/agent-factory-daemon` exists.
+`$HOME/.local/share/agent-factory/releases/current`. Initial bootstrap creates that pointer; the
+updater creates a new relative symlink and atomically renames it over the pointer. Do not change
+`ExecStart` to a mutable source checkout, and do not enable the unit before
+`current/bin/agent-factory-daemon` exists.
 
 After bootstrap, queue an update with a factory commit SHA:
 
@@ -43,6 +45,12 @@ ephemeral credential path. Configure the non-secret App ID and lane limits in
 The installed service also needs `AGENT_FACTORY_SOURCE_REPOSITORY` pointing to the
 operator-maintained local factory checkout or bare repository from which commit-addressed
 releases are built. The updater does not fetch source or provision repository credentials.
+
+Service enablement does not enable a profile or promote rollout. The installed release starts in
+observation mode at rollout `observation`, and the shipped examples are disabled. GitHub App
+creation/installation, credential provisioning, live label migration, profile enablement, and
+rollout promotion are explicit operator actions. See
+[`../docs/github-app.md`](../docs/github-app.md).
 
 Use `agent-factory shutdown --when-idle` before a planned VPS reboot. A normal systemd stop is
 not a substitute for the durable drain and recovery verification performed by that command.

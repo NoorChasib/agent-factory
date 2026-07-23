@@ -69,6 +69,7 @@ export class ScriptedLocalReleaseCommandAdapter implements CommandAdapter {
         join(checkout, "release.json"),
         JSON.stringify({
           schemaVersion: 1,
+          version: "0.1.0",
           requiredLedgerSchemaVersion: this.#requiredLedgerSchemaVersion,
         }),
       );
@@ -131,6 +132,7 @@ export class ScriptedFactoryReleaseBuildAdapter implements FactoryReleaseBuildAd
       "bin/agent-factory-daemon": "#!/bin/sh\nexit 0\n",
       "release.json": JSON.stringify({
         schemaVersion: 1,
+        version: "0.1.0",
         requiredLedgerSchemaVersion: input.requiredLedgerSchemaVersion,
       }),
       "src/index.ts": "export const releaseFixture = true;\n",

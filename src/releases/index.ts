@@ -1,3 +1,4 @@
+export * from "./bootstrap";
 export * from "./builder";
 export * from "./health";
 export * from "./manifest";

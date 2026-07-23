@@ -86,7 +86,7 @@ Cleanup is periodic and identity-checked:
 - stalled and operator-required state is retained indefinitely;
 - `worker release <execution>` is the only early/retained-state release authorization.
 
-Worktree deletion rechecks project, issue path, and branch through phase-5 custody. Missing
+Worktree deletion rechecks project, issue path, and branch through the custody layer. Missing
 artifacts are idempotent. Retention never deletes a live execution, unknown path, non-file log, or
 unrelated Git checkout.
 
@@ -151,8 +151,9 @@ status command, startup check, or routine doctor performs those probes.
 ## Updates
 
 The ledger and CLI expose `installed`, `queued`, `candidate`, `failed`, and `rolled-back` release
-states. Phase 7 builds commit-addressed read-only artifacts from detached factory checkouts,
-drains active work, backs up SQLite, applies validated additive migrations, atomically switches
-`current`, restarts through the injected service seam, and runs health plus recovery
-reconciliation. Failed health restores both the previous pointer and pre-migration ledger,
-alerts, and restarts the prior release. See [`updates.md`](updates.md).
+states. Initial bootstrap and queued update build commit-addressed read-only artifacts from
+detached factory checkouts. Update drains active work, backs up SQLite, applies validated
+additive migrations, atomically switches `current`, restarts through the injected service seam,
+and runs health plus recovery reconciliation. Failed health restores both the previous pointer
+and pre-migration ledger, alerts, and restarts the prior release. See
+[`updates.md`](updates.md).

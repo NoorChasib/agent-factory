@@ -1,0 +1,10 @@
+schemaVersion: 1
+profiles:
+  - profiles/hhc-aep.yaml
+  - profiles/lumen-notes.yaml
+ntfy:
+  baseUrl: https://ntfy.example.invalid
+  topic: replace-with-private-topic
+logging:
+  rotateBytes: 10485760
+  retainedFiles: 5

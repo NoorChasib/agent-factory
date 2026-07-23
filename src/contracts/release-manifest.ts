@@ -51,6 +51,11 @@ export type ReleaseManifest = z.infer<typeof ReleaseManifestSchema>;
 
 export const ReleaseBuildMetadataSchema = z.strictObject({
   schemaVersion: z.literal(1),
+  version: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u),
   requiredLedgerSchemaVersion: z.number().int().positive(),
 });
 export type ReleaseBuildMetadata = z.infer<typeof ReleaseBuildMetadataSchema>;

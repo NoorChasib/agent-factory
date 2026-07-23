@@ -16,9 +16,12 @@ export const GITHUB_APP_PRIVATE_KEY_FILE_ENVIRONMENT = "AGENT_FACTORY_GITHUB_APP
 const DEFAULT_API_URL = "https://api.github.com";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
 const INSTALLATION_TOKEN_PERMISSIONS = {
+  administration: "read",
+  checks: "read",
   issues: "write",
   metadata: "read",
   pull_requests: "read",
+  statuses: "read",
 } as const;
 
 const accountSchema = z.strictObject({
@@ -264,9 +267,12 @@ export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
     if (
       Object.keys(parsed.permissions).length !==
         Object.keys(INSTALLATION_TOKEN_PERMISSIONS).length ||
+      parsed.permissions.administration !== INSTALLATION_TOKEN_PERMISSIONS.administration ||
+      parsed.permissions.checks !== INSTALLATION_TOKEN_PERMISSIONS.checks ||
       parsed.permissions.issues !== INSTALLATION_TOKEN_PERMISSIONS.issues ||
       parsed.permissions.metadata !== INSTALLATION_TOKEN_PERMISSIONS.metadata ||
-      parsed.permissions.pull_requests !== INSTALLATION_TOKEN_PERMISSIONS.pull_requests
+      parsed.permissions.pull_requests !== INSTALLATION_TOKEN_PERMISSIONS.pull_requests ||
+      parsed.permissions.statuses !== INSTALLATION_TOKEN_PERMISSIONS.statuses
     ) {
       throw new GitHubAppTokenBrokerError(
         "GitHub App token response exceeded the requested permission set",

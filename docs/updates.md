@@ -17,6 +17,10 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/agent-factory/releases/
 └── current -> <factory-commit-sha>
 ```
 
+`release.json` contains the strict semantic CLI version and required ledger schema version.
+`agent-factory version` reads that file from the running artifact. The semantic version is human
+facing; the immutable build/update identity is always the factory commit SHA.
+
 The artifact tree is changed to read-only files and directories before its staging directory is
 renamed to the commit path. The updater never modifies an installed commit directory. Activation
 creates a new relative symlink and renames it over `current`; a failed rename leaves the old
@@ -35,6 +39,18 @@ The manifest and every inventory entry are revalidated before backup, before act
 and when an already-built candidate is reused.
 
 ## Candidate construction
+
+The first installation uses:
+
+```sh
+bun run bootstrap -- <factory-commit-sha>
+```
+
+Bootstrap uses the same release builder/store validation as update, creates an
+observation/observation ledger, activates `current`, and records the installed row. It refuses a
+non-empty foreign release ledger or a different current/installed release and is idempotent for
+the same commit. It has no GitHub, provider, target, credential, service, or rollout adapter.
+After the first installation, use the queued update command.
 
 `agent-factory update queue <factory-commit-sha>` builds a missing candidate before queueing it.
 Production reads commits from the operator-maintained absolute
@@ -98,10 +114,10 @@ Compatibility is checked before backup or pointer switch:
 - `candidate required version < current database version` is a forbidden downgrade;
 - the validated candidate must export a contiguous, non-destructive migration set whose length
   equals its manifest requirement; and
-- the phase-2 migration engine must recognize the existing history.
+- the migration engine must recognize the existing history.
 
 If the candidate requires a newer schema, its already-validated migration definitions are loaded
-from the immutable factory artifact and applied by the phase-2 engine. Each version remains its
+from the immutable factory artifact and applied by the migration engine. Each version remains its
 own immediate transaction. A migration failure restores the pre-update backup and marks the
 candidate `failed` without switching `current`.
 
@@ -156,8 +172,8 @@ agent-factory update queue <40-or-64-lowercase-hex-factory-commit>
 ```
 
 `status` reports the current pointer, running release, and ledger release rows. Queueing requires
-an already installed release whose ledger row matches `current`; Phase 8 owns initial production
-bootstrap and rollout verification.
+an already installed release whose ledger row matches `current`; initial installation uses the
+local bootstrap command above.
 
 Self-update has no adapter for target mirrors, target worktrees, label mutation, providers,
 Herdr, or CLI upgrades. Post-switch controller reconciliation is exposed only as a narrow health

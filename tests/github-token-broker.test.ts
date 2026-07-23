@@ -84,9 +84,12 @@ describe("GitHub App token broker", () => {
     expect(JSON.parse(transport.requests[1]?.body ?? "{}")).toEqual({
       repositories: ["lumen-notes"],
       permissions: {
+        administration: "read",
+        checks: "read",
         issues: "write",
         metadata: "read",
         pull_requests: "read",
+        statuses: "read",
       },
     });
 

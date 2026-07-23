@@ -73,13 +73,7 @@ systemd/          agent-factory.service user unit
 The controller does not require Docker, Redis, a queue, a dashboard, or a target application's
 runtime database.
 
-## Installation status
-
-Phase 7 supplies commit-addressed immutable release construction, queued self-update, atomic
-`current` activation, health reconciliation, and automatic pointer/SQLite rollback. Phase 8
-still owns initial production bootstrap and final rollout verification. Until that phase lands,
-do not present source-tree execution as an installed immutable release or enable the user unit
-without a valid `current/bin/agent-factory-daemon`.
+## Installation
 
 Install dependencies for development:
 
@@ -88,9 +82,20 @@ bun install --frozen-lockfile
 bun run validate
 ```
 
-The systemd unit installation and credential override are documented in
-[`systemd/README.md`](systemd/README.md). Do not enable it until the `current` release pointer
-contains the Phase 7 daemon binary.
+Copy and edit the disabled checked-in profile examples, then bootstrap the first immutable
+release from an exact local factory commit:
+
+```sh
+export AGENT_FACTORY_SOURCE_REPOSITORY=/absolute/path/to/agent-factory
+bun run bootstrap -- "$(git rev-parse HEAD)"
+```
+
+Bootstrap performs frozen installation and complete validation in a detached checkout, installs
+the read-only artifact, initializes the observation-mode ledger, and creates the `current`
+pointer. It does not contact GitHub/providers or require credentials. Follow
+[`docs/installation.md`](docs/installation.md) for prerequisites, mode-`0600` configuration,
+CLI installation, and the explicit service-enablement sequence. The systemd unit and credential
+override are documented in [`systemd/README.md`](systemd/README.md).
 
 ## XDG configuration
 
@@ -128,11 +133,14 @@ logging:
   retainedFiles: 5
 ```
 
-See [`config/README.md`](config/README.md) for the complete runtime and environment contract.
+See [`config/README.md`](config/README.md) for the complete environment table and
+[`docs/profiles.md`](docs/profiles.md) for the profile and worker-result contracts.
 
 ## GitHub App and credentials
 
-Follow [`docs/github.md`](docs/github.md) for App permissions and installation-token behavior.
+Follow [`docs/github-app.md`](docs/github-app.md) for App creation, exact permissions,
+target-only installation, and systemd credential provisioning. See
+[`docs/github.md`](docs/github.md) for observation, retry, mutation, and token behavior.
 The non-secret App ID is `AGENT_FACTORY_GITHUB_APP_ID`. The PEM must be supplied as a systemd
 credential and referenced by the absolute
 `AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE` credential path. Never store PEM contents in an
@@ -272,6 +280,9 @@ unauthorized [`docs/post-v1.md`](docs/post-v1.md).
 - The socket and configuration are owner-only; XDG directories are mode `0700`.
 - `doctor --live` is the only diagnostic mode allowed to make provider-consuming probes.
 
+See [`docs/security.md`](docs/security.md) for trust boundaries, credential handling, process
+custody, redaction, and the safe deployment state.
+
 ## Development and testing
 
 ```sh
@@ -289,6 +300,7 @@ suite covers contracts, planning, SQLite recovery, GitHub mutation safety, provi
 Herdr/worktree custody, CLI/socket protocol, maintenance/rollout, exact disk and retention
 thresholds, shutdown/reboot, immutable manifests, atomic pointer faults, additive update
 migration/restore drills, redaction/rotation, ntfy, doctor gating, XDG modes, and the unit text.
+See [`docs/testing.md`](docs/testing.md) for the complete verification map.
 
 ## Troubleshooting
 
@@ -308,6 +320,9 @@ migration/restore drills, redaction/rotation, ntfy, doctor gating, XDG modes, an
   pointer cannot switch until active work reaches zero.
 - **Update rolled back:** inspect `update status`, the ntfy reason, retained release backup, and
   quarantined pre-rollback ledger before deciding whether to queue a different commit.
+
+See [`docs/troubleshooting.md`](docs/troubleshooting.md) for credential, convergence, migration,
+worker recovery, and reboot-specific diagnosis.
 
 The v1 exclusions remain automatic merge, webhooks, dashboards, automatic rollout promotion,
 automatic external CLI upgrades, project-runtime coupling, history rewriting, review dismissal,

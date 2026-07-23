@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "executionId": "execution-provider-limit-104",
+  "target": {
+    "projectId": "lumen-notes",
+    "repository": "ExampleOrg/lumen-notes"
+  },
+  "issue": {
+    "number": 104
+  },
+  "pullRequest": null,
+  "branch": {
+    "name": "factory/issue-104",
+    "base": "trunk",
+    "headSha": null,
+    "pushed": false
+  },
+  "providerSession": {
+    "provider": "claude",
+    "id": "session-provider-limit-104"
+  },
+  "checkpoint": {
+    "phase": "selection",
+    "sequence": 0,
+    "code": "provider-capacity-unavailable"
+  },
+  "terminalStatus": "provider_limit"
+}

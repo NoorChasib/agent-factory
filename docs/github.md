@@ -1,8 +1,7 @@
 # GitHub integration
 
-Phase 3 supplies the production GitHub API, observation, reconciliation, mutation, and
-credential components. The service/CLI composition that creates these components remains owned
-by Phase 6.
+The production GitHub layer supplies API observation, reconciliation, guarded mutation, and
+credential components. Daemon composition wires these components to the controller.
 
 ## Observation and polling
 
@@ -34,7 +33,7 @@ malformed or newly unknown fields fail closed.
 
 ## Observation mapping
 
-The adapter returns the Phase 1 `GitHubProjectObservation` shape without adding target policy to
+The adapter returns the canonical `GitHubProjectObservation` shape without adding target policy to
 the controller:
 
 - issue state and labels come from the issue connection;
@@ -79,7 +78,7 @@ mutation finishes before the next stage or migration mutation begins.
 
 ## Claims and canonical stages
 
-`CanonicalStageManager` resolves configured labels through the canonical mapping from Phase 1.
+`CanonicalStageManager` resolves configured labels through the canonical profile mapping.
 A claim is sequential and guarded:
 
 1. Freshly read the issue and require the configured implementation-ready stage.
@@ -98,7 +97,7 @@ method.
 
 ## Late feedback and ready-to-merge revocation
 
-`captureFeedbackBaseline` records a typed snapshot in the Phase 2 review-baseline repository when
+`captureFeedbackBaseline` records a typed snapshot in the review-baseline repository when
 a feedback worker exits. Later reconciliation compares current GitHub state with that baseline.
 When no feedback worker owns the PR, later comments, reviews, head changes, or changed repairable
 checks re-add the configured feedback-ready stage.
@@ -133,9 +132,12 @@ is created. It then requests a repository-restricted installation token with exa
 
 ```json
 {
+  "administration": "read",
+  "checks": "read",
   "issues": "write",
   "metadata": "read",
-  "pull_requests": "read"
+  "pull_requests": "read",
+  "statuses": "read"
 }
 ```
 
@@ -161,5 +163,5 @@ Repository writes are structurally limited to:
 Merge, push, force-push, rebase, amend, review dismissal, branch-protection bypass, and any
 unknown mutation kind fail the allowlist before a transport-capable write path is reached. The
 token broker's installation-token POST is an authentication operation and cannot target a
-repository content endpoint. Phase 5 comment bodies pass through the shared redaction boundary
+repository content endpoint. Recovery comment bodies pass through the shared redaction boundary
 before mutation intent is recorded and again at the guarded HTTP call site.

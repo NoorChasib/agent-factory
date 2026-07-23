@@ -8,6 +8,7 @@ import {
   LocalDoctorSystemAdapter,
   LocalRuntimeFileSystemAdapter,
 } from "../adapters/local-runtime";
+import { parseReleaseBuildMetadata } from "../contracts/release-manifest";
 import { Doctor } from "../operations/doctor";
 import { loadFactoryConfiguration, resolveXdgPaths } from "../operations/runtime";
 import { AgentFactoryDaemonClient, BunUnixDaemonTransport } from "./client";
@@ -61,10 +62,9 @@ export async function runCli(
 
 async function productionMain(): Promise<number> {
   const argv = Bun.argv.slice(2);
-  const packageJson = JSON.parse(
-    readFileSync(join(import.meta.dir, "..", "..", "package.json"), "utf8"),
-  ) as { readonly version?: unknown };
-  const version = typeof packageJson.version === "string" ? packageJson.version : "unknown";
+  const version = parseReleaseBuildMetadata(
+    JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "release.json"), "utf8")) as unknown,
+  ).version;
   const io = {
     out: (text: string) => process.stdout.write(text),
     error: (text: string) => process.stderr.write(text),

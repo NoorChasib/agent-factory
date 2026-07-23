@@ -9,6 +9,7 @@
     "agent-factory-daemon": "bin/agent-factory-daemon"
   },
   "scripts": {
+    "bootstrap": "bun src/installation/main.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

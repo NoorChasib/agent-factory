@@ -1,10 +1,10 @@
 # Provider runners and circuits
 
-Phase 4 supplies direct Claude Code and Codex runners without taking ownership of mirror,
-worktree, or Herdr creation. The orchestration caller supplies a strictly validated prepared
-checkout containing the absolute checkout path, target identity, default branch, and configured
-workflow entry point. Later process wiring may prepare that checkout, but it must not broaden the
-runner interface or move target policy into the factory.
+Direct Claude Code and Codex runners do not take ownership of mirror, worktree, or Herdr
+creation. The orchestration caller supplies a strictly validated prepared checkout containing
+the absolute checkout path, target identity, default branch, and configured workflow entry
+point. Process composition prepares that checkout without broadening the runner interface or
+moving target policy into the factory.
 
 ## Command adapter seam
 
@@ -26,7 +26,7 @@ the controller. The runner adds noninteractive Git/GitHub controls plus the shor
 repository installation token as `GH_TOKEN` and `GITHUB_TOKEN`. It never copies arbitrary
 controller variables, GitHub App IDs, private-key paths, PEM contents, or unrelated secrets.
 
-The token comes from the Phase 3 `tokenForProject` broker interface immediately before each
+The token comes from the `tokenForProject` broker interface immediately before each
 launch or resume. Workers never receive the App JWT or credential used to mint it.
 
 ## Claude implementation sessions
@@ -77,7 +77,7 @@ Provider output is untrusted JSON Lines. Known records are parsed with bounded Z
 - Claude initialization;
 - Codex thread start;
 - a classified provider failure; and
-- `agent_factory.worker_result`, whose `result` is the strict Phase 1 `WorkerResult`.
+- `agent_factory.worker_result`, whose `result` is the strict version-1 `WorkerResult`.
 
 Malformed known records, non-JSON lines, duplicate results, or missing results fail closed. The
 captured session and prepared checkout remain available.
@@ -91,7 +91,7 @@ observation is not accepted.
 ## Durable attempts and recovery
 
 `ProviderExecutionRecorder` is the controller-side persistence wrapper. It depends on only seven
-existing Phase 2 repository operations:
+narrow ledger repository operations:
 
 1. read existing execution recovery;
 2. find the existing Codex session for a project/PR;
@@ -123,8 +123,8 @@ transport, and invalid-response failures produce a `ProviderCircuitSignal` for e
 `claude`, `codex`, `github`, or `reviewer`. Target-specific not-found and validation failures do
 not open a global circuit.
 
-The signal converts to the existing controller `set-provider-circuit` command. Controller
-commit persists it in Phase 2 `provider_circuits`, and the planner blocks only the affected lane:
+The signal converts to the controller `set-provider-circuit` command. Controller commit persists
+it in `provider_circuits`, and the planner blocks only the affected lane:
 Claude blocks implementation, while Codex or reviewer blocks feedback. GitHub blocks both lanes.
 Existing active executions and their worktrees/sessions are not released by a circuit signal.
 
@@ -133,6 +133,5 @@ return the same provider plus both `verified: true` and `recovered: true`; only 
 module return a close-circuit command. Failed, mismatched, unverified, or unhealthy probes leave
 the circuit open.
 
-Phase 5 layers Herdr ownership and sanitized recovery comments over these durable results.
-Notifications, CLI commands, and live recovery probes remain owned by Phase 6 and are
-intentionally absent here.
+Herdr ownership and sanitized recovery comments layer over these durable results. Operations
+composition owns notifications, CLI commands, and explicitly requested live recovery probes.

@@ -1,9 +1,9 @@
 # Herdr worker custody
 
-Phase 5 supplies worker-process custody through one dedicated Herdr session named
-`agent-factory`. Phase 6 will compose the installed executable, runtime directories, and CLI;
-this phase owns the scoped command builder, durable pane/process identity, restart
-re-association, and deterministic recovery classifications.
+Worker-process custody uses one dedicated Herdr session named `agent-factory`. The subsystem
+owns the scoped command builder, durable pane/process identity, restart re-association, and
+deterministic recovery classifications; operations composition supplies installed paths and CLI
+routing.
 
 ## Session boundary
 
@@ -73,9 +73,9 @@ uses the separately guarded takeover operation, changes custody to `operator`, a
 `takenOverAt`. Neither flow deletes provider or process identity, so an attended operator can
 inspect the exact preserved session.
 
-The recovery renderer emits copyable future CLI command contracts for show, attach, takeover,
-resume, and release. Phase 6 owns their CLI parsing and service composition; it must call these
-scoped APIs rather than constructing unguarded Herdr commands.
+The recovery renderer emits copyable CLI commands for show, attach, takeover, resume, and
+release. Service routing calls these scoped APIs rather than constructing unguarded Herdr
+commands.
 
 ## Deterministic verification
 

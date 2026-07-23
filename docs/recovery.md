@@ -1,7 +1,7 @@
 # Recovery records, redaction, and retained work
 
-Phase 5 makes a non-successful worker outcome recoverable without keeping its scheduler slot
-occupied. Work, provider session, pane, process identity, branch, and issue worktree remain
+The recovery subsystem makes a non-successful worker outcome recoverable without keeping its
+scheduler slot occupied. Work, provider session, pane, process identity, branch, and issue worktree remain
 durable; the execution changes from `active` to `completed` only after a sanitized incident and
 recovery-comment mutation have been recorded. This is not an explicit worktree release.
 
@@ -45,8 +45,7 @@ agent-factory worker resume <execution-id>
 agent-factory worker release <execution-id>
 ```
 
-Phase 6 implements those CLI entries. Paths are never needed because commands resolve custody
-from the ledger.
+Paths are never needed because these CLI commands resolve custody from the ledger.
 
 Recovery publication uses the existing reconcile-before-retry mutation executor. The only new
 GitHub mutation kinds are:
@@ -63,15 +62,15 @@ bypass remain rejected by the strict allowlist.
 ## Append-only stall incidents
 
 `StallIncidentRecorder` renders the same permitted field set without the editable-comment marker
-and appends it as `stall-incident` to Phase 2 `audit_events`. SQLite sequence ordering and the
+and appends it as `stall-incident` to `audit_events`. SQLite sequence ordering and the
 existing no-update/no-delete triggers make the incident history append-only. Updating the
 canonical comment never edits an earlier incident.
 
 ## One redaction boundary
 
 `StructuredRedactionBoundary` is the shared boundary for structured logs, audit payloads,
-notification wrappers, and comment/incident bodies. The Phase 2 audit implementation imports
-this boundary; it no longer has a separate path-only sanitizer. Callers may inject known
+notification wrappers, and comment/incident bodies. The audit implementation imports this
+boundary and has no separate path-only sanitizer. Callers may inject known
 environment values without reading ambient process state.
 
 The boundary:
@@ -117,5 +116,5 @@ Cleanup eligibility is pure and uses an injected time:
 - stalled or operator-required recovery remains ineligible regardless of merge age; and
 - an explicit operator release makes the retained worktree eligible immediately.
 
-Phase 6 owns retention scheduling and real base-directory composition. Phase 5 only computes
-eligibility and exposes the exact safe removal operation.
+Operations schedules retention using these eligibility rules and the exact safe removal
+operation.
