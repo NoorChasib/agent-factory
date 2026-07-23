@@ -95,8 +95,8 @@ bun run bootstrap -- "$(git rev-parse HEAD)"
 
 Bootstrap performs frozen installation and complete validation in a detached checkout, installs
 the read-only artifact, initializes the observation-mode ledger, and creates the `current`
-pointer. It does not contact GitHub/providers or require credentials. The authenticated quick
-installer and the equivalent manual flow are in
+pointer. It does not contact GitHub/providers or require credentials. The quick installer and the
+equivalent manual flow are in
 [`docs/installation.md`](docs/installation.md), including prerequisites, mode-`0600`
 configuration, CLI installation, and the explicit service-enablement sequence. The systemd unit
 and credential override are documented in [`systemd/README.md`](systemd/README.md).

@@ -6,22 +6,17 @@ pull request.
 
 ## Quick install
 
-The repository is private, so download and run the installer through an authenticated GitHub CLI
-session:
+Download and run the installer directly from the public repository:
 
 ```sh
-gh api -H "Accept: application/vnd.github.raw" /repos/NoorChasib/agent-factory/contents/install.sh?ref=main | bash
+curl -fsSL https://raw.githubusercontent.com/NoorChasib/agent-factory/main/install.sh | bash
 ```
 
-Or provide a GitHub token to the API request:
-
-```sh
-curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/NoorChasib/agent-factory/contents/install.sh?ref=main" | bash
-```
+A pinned ref can be substituted for `main` in the URL.
 
 The script automates the manual installation steps below and deliberately stops short of
 credential provisioning, service enablement, profile enablement, or rollout promotion. GitHub CLI
-must still be installed and authenticated because it clones the private repository.
+(`gh`) with authentication is required for operation/workers, not for installation.
 
 The following environment variables customize a run:
 
@@ -39,7 +34,9 @@ For a prerequisite-only check that does not clone or install anything, set
 
 - Linux with `systemd --user` and Unix-domain sockets
 - Bun 1.3 or newer for source development, release building, and worker-wrapper execution
-- Git, GitHub CLI (`gh`), Claude Code, Codex, and Herdr on the service `PATH`
+- Git and `systemctl` for installation
+- GitHub CLI (`gh`) with authentication, Claude Code, Codex, and Herdr on the service `PATH` for
+  operation/workers
 - a local clone or bare repository containing each factory commit that may be installed
 - an HTTPS ntfy endpoint and private topic
 - before service enablement, an operator-created GitHub App installed only on enabled targets

@@ -40,4 +40,25 @@ describe("operator install script", () => {
 		expect(installer).toContain('AGENT_FACTORY_INSTALL_CHECK_ONLY:-0}" == "1"');
 		expect(installer).toContain("Prerequisite check complete");
 	});
+
+	test("installs from the public repository without requiring GitHub CLI", () => {
+		expect(installer).toContain(
+			"curl -fsSL https://raw.githubusercontent.com/NoorChasib/agent-factory/main/install.sh | bash",
+		);
+		expect(installer).toContain(
+			'git clone "https://github.com/NoorChasib/agent-factory.git" "$requested_checkout"',
+		);
+		expect(installer).not.toContain("gh api");
+		expect(installer).not.toContain("Authorization: Bearer");
+		expect(installer).not.toContain("gh repo clone");
+		expect(installer).not.toContain('require_command "gh"');
+		expect(installer).toContain('require_command "git"');
+		expect(installer).toContain('require_command "bun"');
+		expect(installer).toContain('require_command "systemctl"');
+		expect(installer).toContain("if command -v gh");
+		expect(installer).toContain("gh auth status");
+		expect(installer).toContain(
+			"gh with authentication is required for operation/workers, not for installation.",
+		);
+	});
 });

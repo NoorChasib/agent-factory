@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
-# Agent Factory authenticated quick install (the repository is private):
+# Agent Factory quick install:
 #
-# gh api -H "Accept: application/vnd.github.raw" /repos/NoorChasib/agent-factory/contents/install.sh?ref=main | bash
-# curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/NoorChasib/agent-factory/contents/install.sh?ref=main" | bash
+# curl -fsSL https://raw.githubusercontent.com/NoorChasib/agent-factory/main/install.sh | bash
+#
+# Substitute a pinned ref for main when reproducible installation is required.
 #
 # This installer uses Bash deliberately for pipefail, arrays, and safe pattern matching.
 
@@ -61,14 +62,18 @@ check_prerequisites() {
 
 	require_command "git" "Install Git before continuing."
 	require_command "bun" "Install Bun 1.3 or newer before continuing."
-	require_command "gh" "Install GitHub CLI before continuing."
 	require_command "systemctl" "Install systemd with user-service support before continuing."
 	check_bun_version
 
-	if ! gh auth status </dev/null >/dev/null 2>&1; then
-		fail "GitHub CLI is not authenticated. Run 'gh auth login' (or configure GH_TOKEN), then retry."
+	if command -v gh >/dev/null 2>&1; then
+		if gh auth status </dev/null >/dev/null 2>&1; then
+			info "GitHub CLI authentication is available for operation/workers."
+		else
+			warn "gh is not authenticated; gh with authentication is required for operation/workers, not for installation."
+		fi
+	else
+		warn "gh is not on PATH; gh with authentication is required for operation/workers, not for installation."
 	fi
-	info "GitHub CLI authentication is available."
 
 	if ! systemctl --user show-environment </dev/null >/dev/null 2>&1; then
 		fail "The systemd user manager is unavailable; 'systemctl --user' must work before installation."
@@ -131,7 +136,7 @@ prepare_checkout() {
 		checkout_parent=$(dirname -- "$requested_checkout")
 		mkdir -p -- "$checkout_parent"
 		info "Cloning $repository to $requested_checkout"
-		gh repo clone "$repository" "$requested_checkout" </dev/null
+		git clone "https://github.com/NoorChasib/agent-factory.git" "$requested_checkout" </dev/null
 	fi
 
 	checkout=$(cd -P -- "$requested_checkout" && pwd)
