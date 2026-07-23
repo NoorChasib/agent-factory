@@ -169,7 +169,7 @@ export const NewMaintenanceRequestSchema = MaintenanceRequestSchema.omit({
 export type NewMaintenanceRequest = z.infer<typeof NewMaintenanceRequestSchema>;
 
 export const ReleaseRecordSchema = z.strictObject({
-  releaseId: safeId,
+  releaseId: gitObjectId,
   commitSha: gitObjectId,
   status: ReleaseStatusSchema,
   artifactPath: z.string().min(1).max(4_096).nullable(),

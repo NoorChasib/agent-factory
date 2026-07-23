@@ -51,6 +51,8 @@ export {
   SystemClockAdapter,
   SystemRandomAdapter,
 } from "./adapters/operations";
+export * from "./adapters/release-interfaces";
+export * from "./adapters/releases";
 export { RotatingJsonLinesSink } from "./adapters/structured-log";
 export {
   ProviderWorkerSupervisor,
@@ -97,6 +99,8 @@ export {
   type WorkerResultEvent,
   WorkerResultEventSchema,
 } from "./contracts/provider-output";
+export * from "./contracts/release-manifest";
+export * from "./contracts/release-update";
 export {
   parseWorkerResult,
   type WorkerResult,
@@ -174,4 +178,5 @@ export * from "./operations/runtime";
 export * from "./providers";
 export * from "./recovery";
 export * from "./redaction";
+export * from "./releases";
 export * from "./worktrees";

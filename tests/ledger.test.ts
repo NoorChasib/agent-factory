@@ -129,7 +129,7 @@ describe("ledger migrations and SQLite configuration", () => {
           .query<{ version: number }, []>("SELECT version FROM schema_migrations ORDER BY version")
           .all()
           .map((row) => row.version);
-        expect(versions).toEqual([1, 2, 3]);
+        expect(versions).toEqual([1, 2, 3, 4]);
       } finally {
         database.close();
       }
@@ -483,10 +483,10 @@ describe("backup, restore, and repository state", () => {
         reasonCode: "operator-request",
       });
       source.saveRelease({
-        releaseId: "release-1",
+        releaseId: releaseSha,
         commitSha: releaseSha,
         status: "installed",
-        artifactPath: "releases/release-1",
+        artifactPath: releaseSha,
         requiredSchemaVersion: CURRENT_LEDGER_SCHEMA_VERSION,
         metadata: { health: "verified" },
       });

@@ -11,6 +11,7 @@ export {
   LEDGER_MIGRATIONS,
   type LedgerMigration,
   readSchemaVersion,
+  validateLedgerMigrations,
 } from "./migrations";
 export {
   LEDGER_FILENAME,

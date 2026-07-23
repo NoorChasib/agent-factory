@@ -26,7 +26,7 @@ function timestamp(clock: ClockAdapter): string {
   return value.toISOString();
 }
 
-function validateMigrations(migrations: readonly LedgerMigration[]): void {
+export function validateLedgerMigrations(migrations: readonly LedgerMigration[]): void {
   if (migrations.length === 0) {
     throw new LedgerMigrationError("at least one ledger migration is required");
   }
@@ -79,7 +79,7 @@ export function applyLedgerMigrations(
   clock: ClockAdapter,
   migrations: readonly LedgerMigration[] = LEDGER_MIGRATIONS,
 ): number {
-  validateMigrations(migrations);
+  validateLedgerMigrations(migrations);
   bootstrapMigrationTable(database);
 
   const applied = database
@@ -337,6 +337,16 @@ export const LEDGER_MIGRATIONS: readonly LedgerMigration[] = [
         CREATE UNIQUE INDEX releases_one_queued
           ON releases ((1))
           WHERE status = 'queued';
+      `,
+    ],
+  },
+  {
+    version: 4,
+    name: "release-commit-identity",
+    statements: [
+      `
+        CREATE UNIQUE INDEX releases_commit_sha_unique
+          ON releases (commit_sha);
       `,
     ],
   },

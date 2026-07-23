@@ -5,6 +5,7 @@ import {
   linkSync,
   lstatSync,
   readFileSync,
+  renameSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -32,7 +33,6 @@ import {
 } from "./errors";
 import {
   applyLedgerMigrations,
-  CURRENT_LEDGER_SCHEMA_VERSION,
   LEDGER_MIGRATIONS,
   type LedgerMigration,
   readSchemaVersion,
@@ -469,13 +469,15 @@ function installWithoutOverwrite(temporaryPath: string, destinationPath: string)
 }
 
 export class SqliteLedger implements LedgerAdapter, Disposable {
-  readonly #database: Database;
+  #database: Database;
   readonly #databasePath: string;
   readonly #instanceId: string;
   readonly #clock: ClockAdapter;
   readonly #ids: LedgerIdSource;
   readonly #ownerLeaseDurationMs: number;
   readonly #redaction: RedactionBoundary;
+  readonly #initialState: ControllerLocalState;
+  #migrations: readonly LedgerMigration[];
   #closed = false;
 
   private constructor(database: Database, databasePath: string, options: OpenSqliteLedgerOptions) {
@@ -486,6 +488,8 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     this.#ids = options.ids;
     this.#ownerLeaseDurationMs = options.ownerLeaseDurationMs ?? 300_000;
     this.#redaction = options.redaction ?? DEFAULT_REDACTION_BOUNDARY;
+    this.#initialState = ControllerLocalStateSchema.parse(structuredClone(options.initialState));
+    this.#migrations = [...(options.migrations ?? LEDGER_MIGRATIONS)];
   }
 
   public static open(options: OpenSqliteLedgerOptions): SqliteLedger {
@@ -1464,10 +1468,8 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
 
   public saveRelease(input: NewReleaseRecord): ReleaseRecord {
     const validated = NewReleaseRecordSchema.parse(structuredClone(input));
-    if (validated.requiredSchemaVersion > CURRENT_LEDGER_SCHEMA_VERSION) {
-      throw new LedgerError(
-        `release '${validated.releaseId}' requires unsupported ledger schema ${validated.requiredSchemaVersion}`,
-      );
+    if (validated.releaseId !== validated.commitSha) {
+      throw new LedgerError("release ID must equal its factory commit SHA");
     }
     const updatedAt = clockTimestamp(this.#clock);
     const existing = this.#getRelease(validated.releaseId);
@@ -1539,6 +1541,58 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
       )
       .all()
       .map(parseRelease);
+  }
+
+  public activateRelease(releaseId: string, metadata: unknown): ReleaseRecord {
+    const targetId = ReleaseRecordSchema.shape.releaseId.parse(releaseId);
+    const parsedMetadata = decodeJson(encodeJson(metadata), "release activation metadata");
+    const updatedAt = clockTimestamp(this.#clock);
+    this.#database
+      .transaction(() => {
+        this.#assertOwned();
+        const target = this.#getRelease(targetId);
+        if (target === null || target.status !== "queued") {
+          throw new LedgerError(`release '${targetId}' is not queued for activation`);
+        }
+        this.#database
+          .query(
+            `
+              UPDATE releases
+              SET status = 'candidate', updated_at = $updatedAt
+              WHERE status = 'installed' AND release_id <> $releaseId
+            `,
+          )
+          .run({ releaseId: targetId, updatedAt });
+        this.#database
+          .query(
+            `
+              UPDATE releases
+              SET status = 'installed', metadata_json = $metadataJson, updated_at = $updatedAt
+              WHERE release_id = $releaseId
+            `,
+          )
+          .run({
+            releaseId: targetId,
+            metadataJson: encodeJson(parsedMetadata),
+            updatedAt,
+          });
+        this.#insertAudit("release-activated", { releaseId: targetId }, updatedAt);
+        this.#heartbeat(updatedAt);
+      })
+      .immediate();
+    const activated = this.#getRelease(targetId);
+    if (activated === null) {
+      throw new LedgerError(`failed to activate release '${targetId}'`);
+    }
+    return activated;
+  }
+
+  public applyMigrations(migrations: readonly LedgerMigration[]): number {
+    this.#assertOwned();
+    const version = applyLedgerMigrations(this.#database, this.#clock, migrations);
+    this.#migrations = [...migrations];
+    this.appendAudit("ledger-migrations-applied", { schemaVersion: version });
+    return version;
   }
 
   public appendAudit(kind: string, payload: unknown): AuditEvent {
@@ -1637,6 +1691,55 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     }
   }
 
+  public restoreFromBackup(
+    backupPath: string,
+    migrations: readonly LedgerMigration[],
+  ): { readonly quarantinedDatabasePath: string; readonly schemaVersion: number } {
+    this.#assertOwned();
+    const priorMigrations = this.#migrations;
+    const quarantinePath = `${this.#databasePath}.pre-rollback-${generatedId(
+      this.#ids,
+      "audit-backup",
+    )}`;
+    this.close();
+    try {
+      renameSync(this.#databasePath, quarantinePath);
+    } catch (error) {
+      this.#reopen(priorMigrations);
+      throw new LedgerError("failed to quarantine the pre-rollback ledger", { cause: error });
+    }
+
+    try {
+      const restored = SqliteLedger.restore({
+        stateDirectory: dirname(this.#databasePath),
+        backupPath,
+        instanceId: this.#instanceId,
+        clock: this.#clock,
+        ids: this.#ids,
+        initialState: this.#initialState,
+        migrations,
+        ownerLeaseDurationMs: this.#ownerLeaseDurationMs,
+        redaction: this.#redaction,
+      });
+      this.#adopt(restored, migrations);
+      return {
+        quarantinedDatabasePath: quarantinePath,
+        schemaVersion: this.schemaVersion,
+      };
+    } catch (error) {
+      if (existsSync(this.#databasePath)) {
+        const failedRestorePath = `${this.#databasePath}.failed-restore-${generatedId(
+          this.#ids,
+          "audit-backup",
+        )}`;
+        renameSync(this.#databasePath, failedRestorePath);
+      }
+      renameSync(quarantinePath, this.#databasePath);
+      this.#reopen(priorMigrations);
+      throw error;
+    }
+  }
+
   public close(): void {
     if (this.#closed) {
       return;
@@ -1660,6 +1763,27 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
 
   public [Symbol.dispose](): void {
     this.close();
+  }
+
+  #adopt(source: SqliteLedger, migrations: readonly LedgerMigration[]): void {
+    this.#database = source.#database;
+    this.#closed = false;
+    this.#migrations = [...migrations];
+    source.#closed = true;
+  }
+
+  #reopen(migrations: readonly LedgerMigration[]): void {
+    const reopened = SqliteLedger.open({
+      stateDirectory: dirname(this.#databasePath),
+      instanceId: this.#instanceId,
+      clock: this.#clock,
+      ids: this.#ids,
+      initialState: this.#initialState,
+      migrations,
+      ownerLeaseDurationMs: this.#ownerLeaseDurationMs,
+      redaction: this.#redaction,
+    });
+    this.#adopt(reopened, migrations);
   }
 
   #acquireOwner(initialState: ControllerLocalState): void {

@@ -15,6 +15,17 @@ export {
   InMemoryGitHubMutationLedger,
   type MutationIdAdapter,
 } from "./in-memory-github-ledger";
+export {
+  InMemoryReleaseAlertAdapter,
+  InMemoryReleaseLedgerAdapter,
+  ScriptedFactoryReleaseBuildAdapter,
+  ScriptedLocalReleaseCommandAdapter,
+  ScriptedReleaseMaintenanceAdapter,
+  ScriptedReleaseMigrationSourceAdapter,
+  ScriptedReleaseReconciliationAdapter,
+  ScriptedReleaseServiceAdapter,
+  SequenceReleaseIdSource,
+} from "./releases";
 export { ScriptedCommandAdapter } from "./scripted-command";
 export {
   RecordingDelayAdapter,

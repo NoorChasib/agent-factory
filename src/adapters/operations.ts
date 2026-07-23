@@ -24,6 +24,7 @@ import type {
   ProcessTreeAdapter,
   RandomAdapter,
 } from "./interfaces";
+import type { ReleaseIdSource } from "./release-interfaces";
 
 export class SystemClockAdapter implements ClockAdapter {
   public now(): Date {
@@ -39,13 +40,17 @@ export class SystemRandomAdapter implements RandomAdapter {
   }
 }
 
-export class CryptoIdSource implements LedgerIdSource, ClaudeSessionIdSource {
+export class CryptoIdSource implements LedgerIdSource, ClaudeSessionIdSource, ReleaseIdSource {
   public nextId(kind: Parameters<LedgerIdSource["nextId"]>[0]): string {
     return `${kind}-${crypto.randomUUID()}`;
   }
 
   public nextClaudeSessionId(): string {
     return crypto.randomUUID();
+  }
+
+  public nextReleaseId(): string {
+    return `release-${crypto.randomUUID()}`;
   }
 }
 

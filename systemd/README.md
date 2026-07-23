@@ -10,9 +10,21 @@ systemctl --user enable --now agent-factory.service
 ```
 
 The unit starts the daemon through the immutable-release `current` pointer at
-`$HOME/.local/share/agent-factory/releases/current`. Phase 7 will implement creation and atomic
-switching of that pointer; during source-tree development, place an equivalent release layout
-there rather than changing `ExecStart`.
+`$HOME/.local/share/agent-factory/releases/current`. The Phase 7 updater creates a new relative
+symlink and atomically renames it over that pointer. Do not change `ExecStart` to a mutable source
+checkout. Phase 8 owns the initial installed-release bootstrap and final enablement drill; do not
+enable the unit before `current/bin/agent-factory-daemon` exists.
+
+After bootstrap, queue an update with a factory commit SHA:
+
+```sh
+agent-factory update queue <factory-commit-sha>
+agent-factory update status
+```
+
+The daemon drains, validates, backs up, migrates, switches, and asks systemd for a non-blocking
+restart. The new daemon completes health/reconciliation or automatically restores the prior
+pointer and ledger. See [`../docs/updates.md`](../docs/updates.md).
 
 The GitHub App PEM is a systemd credential, never an environment value. By default the unit reads
 the operator-provisioned mode-`0600` source at
@@ -28,6 +40,9 @@ LoadCredential=github-app.pem:/absolute/operator-owned/path/github-app.pem
 The unit sets `AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE` to `%d/github-app.pem`, systemd's
 ephemeral credential path. Configure the non-secret App ID and lane limits in
 `%h/.config/agent-factory/environment`; never put the PEM contents there.
+The installed service also needs `AGENT_FACTORY_SOURCE_REPOSITORY` pointing to the
+operator-maintained local factory checkout or bare repository from which commit-addressed
+releases are built. The updater does not fetch source or provision repository credentials.
 
 Use `agent-factory shutdown --when-idle` before a planned VPS reboot. A normal systemd stop is
 not a substitute for the durable drain and recovery verification performed by that command.

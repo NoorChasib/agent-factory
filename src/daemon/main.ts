@@ -32,6 +32,9 @@ import {
   LinuxProcessTreeAdapter,
   LocalDiskUsageAdapter,
   LocalDoctorSystemAdapter,
+  LocalFactoryReleaseBuildAdapter,
+  LocalReleaseFileSystemAdapter,
+  LocalReleaseMigrationSourceAdapter,
   LocalRuntimeFileSystemAdapter,
   loadFactoryConfiguration,
   NtfyNotificationAdapter,
@@ -46,13 +49,17 @@ import {
   RecoveryCommentPublisher,
   RecoveryHandoffCoordinator,
   RedactingNotificationAdapter,
+  ReleaseBuilder,
+  ReleaseStore,
   ReviewConvergenceCoordinator,
   ReviewConvergenceEngine,
   resolveXdgPaths,
   SelectionCheckoutCustody,
+  SqliteReleaseLedgerAdapter,
   StallIncidentRecorder,
   StructuredRedactionBoundary,
   SystemClockAdapter,
+  SystemdReleaseServiceAdapter,
   SystemRandomAdapter,
   WorktreeCustody,
 } from "../index";
@@ -120,6 +127,40 @@ export async function productionDaemonMain(
   });
 
   const command = new BunCommandAdapter();
+  const releaseFileSystem = new LocalReleaseFileSystemAdapter();
+  const releaseStore = new ReleaseStore({
+    root: paths.releaseDirectory,
+    fileSystem: releaseFileSystem,
+    clock,
+    ids,
+  });
+  await releaseStore.prepare();
+  const factoryRoot = resolve(import.meta.dir, "..", "..");
+  const factorySourceRepository = environment.AGENT_FACTORY_SOURCE_REPOSITORY ?? factoryRoot;
+  const commandEnvironment = Object.fromEntries(
+    Object.entries(environment).flatMap(([name, value]) =>
+      value === undefined ? [] : [[name, value]],
+    ),
+  );
+  const releaseBuilder = new ReleaseBuilder({
+    builds: new LocalFactoryReleaseBuildAdapter({
+      commands: command,
+      repositoryRoot: factorySourceRepository,
+      checkoutRoot: paths.releaseBuildDirectory,
+      environment: commandEnvironment,
+    }),
+    store: releaseStore,
+  });
+  const releaseLedger = new SqliteReleaseLedgerAdapter({
+    ledger,
+    backupDirectory: paths.releaseBackupDirectory,
+  });
+  const releaseService = new SystemdReleaseServiceAdapter({
+    commands: command,
+    releaseDirectory: paths.releaseDirectory,
+    runtimeRoot: factoryRoot,
+    environment: commandEnvironment,
+  });
   const http = new FetchGitHubTransport();
   const tokens = new GitHubAppTokenBroker({
     environment,
@@ -280,6 +321,13 @@ export async function productionDaemonMain(
     redaction,
     environment,
     ledger,
+    releases: {
+      builder: releaseBuilder,
+      store: releaseStore,
+      ledger: releaseLedger,
+      migrations: new LocalReleaseMigrationSourceAdapter(),
+      service: releaseService,
+    },
     prior: {
       controllerAdapters: {
         github,

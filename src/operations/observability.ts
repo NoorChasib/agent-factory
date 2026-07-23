@@ -79,7 +79,9 @@ export type FactoryAlert =
   | "disk-guard"
   | "drained"
   | "shutdown-ready"
-  | "stalled-handoff";
+  | "stalled-handoff"
+  | "update-failed"
+  | "update-rollback";
 
 export interface NotificationDigestInput {
   readonly status: ControllerStatus;
@@ -115,6 +117,8 @@ export class FactoryNotifications {
       drained: "Agent Factory drained",
       "shutdown-ready": "Agent Factory VPS ready to restart",
       "stalled-handoff": "Agent Factory worker handoff stalled",
+      "update-failed": "Agent Factory update failed",
+      "update-rollback": "Agent Factory update rolled back",
     };
     return this.#send(titles[kind], { kind, detail });
   }

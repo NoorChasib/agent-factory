@@ -60,6 +60,8 @@ export interface XdgPaths {
   readonly mirrorDirectory: string;
   readonly worktreeDirectory: string;
   readonly releaseDirectory: string;
+  readonly releaseBackupDirectory: string;
+  readonly releaseBuildDirectory: string;
 }
 
 export interface LoadedFactoryConfiguration {
@@ -121,6 +123,8 @@ export function resolveXdgPaths(
     mirrorDirectory: join(dataDirectory, "mirrors"),
     worktreeDirectory: join(dataDirectory, "worktrees"),
     releaseDirectory: join(dataDirectory, "releases"),
+    releaseBackupDirectory: join(stateDirectory, "release-backups"),
+    releaseBuildDirectory: join(stateDirectory, "release-builds"),
   };
 }
 
@@ -151,6 +155,8 @@ export async function prepareXdgDirectories(
     paths.mirrorDirectory,
     paths.worktreeDirectory,
     paths.releaseDirectory,
+    paths.releaseBackupDirectory,
+    paths.releaseBuildDirectory,
   ]) {
     await fileSystem.ensureDirectory(directory, 0o700);
     assertPrivate(await fileSystem.stat(directory), "directory");

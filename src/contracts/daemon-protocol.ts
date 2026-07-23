@@ -11,6 +11,7 @@ const projectId = z
   .max(64)
   .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u);
 const hash = z.string().regex(/^[0-9a-f]{64}$/u);
+const gitCommit = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
 export const AgentFactoryOperationSchema = z.union([
   z.strictObject({ operation: z.literal("status") }),
@@ -65,7 +66,7 @@ export const AgentFactoryOperationSchema = z.union([
   z.strictObject({
     operation: z.literal("update"),
     action: z.literal("queue"),
-    releaseId: safeId,
+    releaseId: gitCommit,
   }),
   z.strictObject({ operation: z.literal("doctor-live") }),
   z.strictObject({ operation: z.literal("reconcile") }),

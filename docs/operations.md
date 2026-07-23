@@ -19,9 +19,9 @@ It starts:
 %h/.local/share/agent-factory/releases/current/bin/agent-factory-daemon
 ```
 
-The unit uses `Restart=on-failure`, `UMask=0077`, and `WantedBy=default.target`. Phase 7 owns
-creation and atomic switching of `current`; do not hand-edit the unit to point into a mutable
-checkout.
+The unit uses `Restart=on-failure`, `UMask=0077`, and `WantedBy=default.target`. The release
+updater creates and atomically switches `current`; do not hand-edit the unit to point into a
+mutable checkout.
 
 The unit loads the GitHub App PEM from the operator-owned mode-`0600`
 `%h/.config/agent-factory/credentials/github-app.pem` source. A systemd override may reset
@@ -35,13 +35,15 @@ Startup performs reboot recovery before accepting normal polling. Each poll:
 
 1. measures the relevant state and data filesystems;
 2. applies the disk maintenance guard;
-3. reconciles GitHub through the controller;
-4. advances current-head review/check quiescence and guarded ready-to-merge emission in active
+3. advances a queued release or resumes its post-restart health/rollback phase, and stops the
+   tick before normal work if a service restart is pending;
+4. reconciles GitHub through the controller;
+5. advances current-head review/check quiescence and guarded ready-to-merge emission in active
    mode;
-5. sends newly opened circuit alerts;
-6. runs safe retention;
-7. completes operator drains when idle; and
-8. emits one redacted structured poll record.
+6. sends newly opened circuit alerts;
+7. runs safe retention;
+8. completes operator/update drains when idle; and
+9. emits one redacted structured poll record.
 
 The controller returns the next 60-second jittered delay from injected random input. Tests drive
 individual ticks with scripted clocks, randomness, disk, and delay.
@@ -55,7 +57,9 @@ body content with an ntfy title header. Alerts cover:
 - 80/90-percent disk guard;
 - drain completed;
 - shutdown ready;
-- stalled recovery handoff.
+- stalled recovery handoff;
+- update failure; and
+- automatic update rollback.
 
 `notifications digest` summarizes mode, rollout stage, active workers, project backlog,
 maintenance, open circuits, and releases. Alert/digest fields are sanitized before the HTTP
@@ -147,6 +151,8 @@ status command, startup check, or routine doctor performs those probes.
 ## Updates
 
 The ledger and CLI expose `installed`, `queued`, `candidate`, `failed`, and `rolled-back` release
-states. Phase 7 will implement immutable build artifacts, SQLite backup, compatible migration,
-atomic pointer switch, health/reconcile verification, and automatic rollback. Phase 6 does not
-activate or roll back a release.
+states. Phase 7 builds commit-addressed read-only artifacts from detached factory checkouts,
+drains active work, backs up SQLite, applies validated additive migrations, atomically switches
+`current`, restarts through the injected service seam, and runs health plus recovery
+reconciliation. Failed health restores both the previous pointer and pre-migration ledger,
+alerts, and restarts the prior release. See [`updates.md`](updates.md).

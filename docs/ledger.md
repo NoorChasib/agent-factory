@@ -89,14 +89,17 @@ with an older migration set. A migration containing destructive schema operation
 commit in one immediate transaction; a statement fault rolls back that entire version while
 leaving earlier versions intact. Reopening at the current version is idempotent.
 
-Phase 2 has three schema versions:
+The ledger currently has four schema versions:
 
 1. execution/session/process recovery, controller state and owner, and audit;
 2. mutations, review baselines, circuits, and maintenance;
-3. release state.
+3. release state; and
+4. unique commit identity for immutable releases.
 
-Future versions must be additive. A release requiring a schema newer than the running binary is
-rejected.
+Future versions must be additive. The Phase 7 updater loads the already-validated candidate's
+migration set, verifies that its length equals the manifest requirement, backs up first, and then
+uses this same migration engine. A candidate requiring a version older than the current database
+is rejected as a forbidden downgrade before backup or pointer switch.
 
 ## Backup and restore
 
@@ -112,6 +115,13 @@ checks integrity, applies any pending compatible additive migrations, removes th
 owner lease, checkpoints it into a standalone main database, and atomically installs it. Normal
 open then enables WAL and acquires a fresh owner lease. Corrupt backups and unknown/newer schema
 histories fail before installation.
+
+Phase 7 adds a drilled replacement path around that API for automatic rollback. It closes the
+owned live connection, renames the candidate-schema database to a unique
+`ledger.sqlite3.pre-rollback-*` quarantine file, restores the serialized update backup with the
+prior migration prefix, and adopts the reopened connection in the same ledger object. If restore
+fails, it moves the quarantined database back and reopens it. The updater retains both the backup
+and quarantine artifact for audit.
 
 ## Retention concepts
 

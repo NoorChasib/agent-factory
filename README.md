@@ -32,6 +32,7 @@ daemon router ── maintenance / rollout / disk / retention / doctor
         ├── GitHub App broker, observations, guarded mutations
         ├── Claude/Codex runners, circuits, convergence
         ├── Herdr and factory-owned Git custody
+        ├── immutable factory releases, health, and rollback
         └── redacted JSON logs and ntfy notifications
 ```
 
@@ -53,6 +54,7 @@ src/herdr/        dedicated-session custody and reboot re-association
 src/worktrees/    mirror/worktree custody and safe cleanup eligibility
 src/recovery/     sanitized recovery comments, incidents, handoffs
 src/operations/   XDG, lifecycle, disk, retention, logging, ntfy, doctor
+src/releases/     manifest, builder, immutable store/pointer, health, updater
 src/cli/          dependency-free argument parser and Unix-socket client
 src/daemon/       validated socket server, router, poll loop, composition
 src/adapters/     production I/O adapters
@@ -73,10 +75,11 @@ runtime database.
 
 ## Installation status
 
-Phase 6 supplies the CLI, daemon composition, XDG contract, and static systemd unit. Phase 7 will
-build commit-addressed immutable releases and atomically maintain the
-`$XDG_DATA_HOME/agent-factory/releases/current` pointer used by the unit. Until that phase lands,
-do not present source-tree execution as an installed immutable release.
+Phase 7 supplies commit-addressed immutable release construction, queued self-update, atomic
+`current` activation, health reconciliation, and automatic pointer/SQLite rollback. Phase 8
+still owns initial production bootstrap and final rollout verification. Until that phase lands,
+do not present source-tree execution as an installed immutable release or enable the user unit
+without a valid `current/bin/agent-factory-daemon`.
 
 Install dependencies for development:
 
@@ -101,6 +104,8 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/agent-factory/
   ledger.sqlite3              mode 0600, WAL
   agent-factory.sock          mode 0600
   logs/                       mode 0700
+  release-backups/            mode 0700
+  release-builds/             mode 0700, temporary detached checkouts
 ${XDG_DATA_HOME:-$HOME/.local/share}/agent-factory/
   mirrors/ worktrees/ releases/
 ```
@@ -152,6 +157,7 @@ AGENT_FACTORY_CLAUDE_MODEL=claude-fable-5
 AGENT_FACTORY_CLAUDE_EFFORT=high
 AGENT_FACTORY_GITHUB_APP_ID=<positive integer>
 AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE=<systemd credential path>
+AGENT_FACTORY_SOURCE_REPOSITORY=<absolute local factory Git repository>
 ```
 
 Each limit accepts `0` through `3`. Effective limits are the minimum of the rollout-stage cap,
@@ -235,9 +241,23 @@ agent-factory labels apply <project> --hash <sha256>
 
 See [`docs/label-migration.md`](docs/label-migration.md). Installation never applies labels.
 
-`agent-factory update status` and `update queue <release>` expose the release states already
-modeled by the ledger. Phase 7 will add candidate building, backup, atomic activation, health
-verification, and rollback. This phase does not activate releases or update external tools.
+Factory updates are immutable and commit-addressed:
+
+```sh
+agent-factory update status
+agent-factory update queue <factory-commit-sha>
+```
+
+Queueing builds a detached checkout of this repository with frozen dependencies and full
+validation, records a durable drain, and waits for active work. The updater then verifies the
+manifest, backs up SQLite, applies compatible additive migrations, atomically switches
+`releases/current`, restarts through the service adapter, and runs post-switch health plus
+reconciliation. Failed health automatically restores the prior pointer and database, records
+`rolled-back`, alerts, and restarts the prior release.
+
+The path has no target mirror/worktree/provider/CLI-upgrade adapters and never promotes rollout
+or changes configured limits. See [`docs/updates.md`](docs/updates.md) and the explicitly
+unauthorized [`docs/post-v1.md`](docs/post-v1.md).
 
 ## Security
 
@@ -267,7 +287,8 @@ Tests use `bun:test`, injected clocks/random/delays/disk/HTTP/process adapters, 
 files where necessary, and no real daemon, systemd, provider, or network process. The complete
 suite covers contracts, planning, SQLite recovery, GitHub mutation safety, provider behavior,
 Herdr/worktree custody, CLI/socket protocol, maintenance/rollout, exact disk and retention
-thresholds, shutdown/reboot, redaction/rotation, ntfy, doctor gating, XDG modes, and the unit text.
+thresholds, shutdown/reboot, immutable manifests, atomic pointer faults, additive update
+migration/restore drills, redaction/rotation, ntfy, doctor gating, XDG modes, and the unit text.
 
 ## Troubleshooting
 
@@ -283,6 +304,10 @@ thresholds, shutdown/reboot, redaction/rotation, ntfy, doctor gating, XDG modes,
   release retained custody.
 - **Notification failure:** validate the HTTPS ntfy base URL/topic and run
   `agent-factory notifications test`.
+- **Update waiting:** inspect active executions and the self-update drain in `status`; the
+  pointer cannot switch until active work reaches zero.
+- **Update rolled back:** inspect `update status`, the ntfy reason, retained release backup, and
+  quarantined pre-rollback ledger before deciding whether to queue a different commit.
 
 The v1 exclusions remain automatic merge, webhooks, dashboards, automatic rollout promotion,
 automatic external CLI upgrades, project-runtime coupling, history rewriting, review dismissal,

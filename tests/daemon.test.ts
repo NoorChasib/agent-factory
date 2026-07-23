@@ -88,12 +88,25 @@ describe("deterministic daemon poll loop", () => {
           loop.stop();
         },
       },
+      updates: {
+        async status() {
+          return {};
+        },
+        async queue() {
+          throw new Error("queue not expected");
+        },
+        async applyWhenIdle() {
+          events.push("updates");
+          return { state: "idle" as const };
+        },
+      },
       diskPaths: ["/state", "/data"],
     });
 
     await loop.run();
     expect(events).toEqual([
       "disk:/state,/data",
+      "updates",
       "reconcile:startup",
       "status",
       "retention",
@@ -101,5 +114,67 @@ describe("deterministic daemon poll loop", () => {
       "log",
       "delay:123",
     ]);
+  });
+
+  test("short-circuits normal work while an update restart or rollback restart is pending", async () => {
+    const events: string[] = [];
+    const loop = new DaemonPollLoop({
+      controller: {
+        async reconcile() {
+          throw new Error("reconcile must not run while restart is pending");
+        },
+      } as unknown as Controller,
+      disk: {
+        async check() {
+          events.push("disk");
+          return { percentage: 10, action: "none" as const, paths: ["/state"] };
+        },
+      } as unknown as DiskGuard,
+      retention: {
+        async run() {
+          throw new Error("retention must not run while restart is pending");
+        },
+      } as unknown as RetentionCoordinator,
+      maintenance: {
+        completeDrainsWhenIdle() {
+          throw new Error("maintenance completion must not run while restart is pending");
+        },
+      } as unknown as MaintenanceCoordinator,
+      notifications: {} as FactoryNotifications,
+      logger: {
+        async write() {
+          events.push("log");
+          return {};
+        },
+      } as unknown as StructuredLogger,
+      delay: {
+        async wait() {
+          throw new Error("tick does not wait");
+        },
+      },
+      updates: {
+        async status() {
+          return {};
+        },
+        async queue() {
+          throw new Error("queue not expected");
+        },
+        async applyWhenIdle() {
+          events.push("update");
+          return {
+            state: "rolled-back" as const,
+            releaseId: "2".repeat(40),
+            reason: "post-switch-health-failed",
+          };
+        },
+      },
+      diskPaths: ["/state"],
+    });
+
+    expect(await loop.tick("startup")).toMatchObject({
+      reconcile: null,
+      update: { state: "rolled-back" },
+    });
+    expect(events).toEqual(["disk", "update", "log"]);
   });
 });

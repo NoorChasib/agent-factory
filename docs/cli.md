@@ -70,12 +70,15 @@ agent-factory labels plan <project>
 agent-factory labels preview <project>
 agent-factory labels apply <project> --hash <64-lowercase-hex>
 agent-factory update status
-agent-factory update queue <release>
+agent-factory update queue <factory-commit-sha>
 ```
 
 Rollout transitions are adjacent and explicit. Label apply accepts only the exact hash of the
-daemon's current preview and rechecks repository-label drift. Update commands expose ledger state;
-Phase 7 owns actual release construction, activation, and rollback.
+daemon's current preview and rechecks repository-label drift. `update queue` accepts only a
+40- or 64-character lowercase hexadecimal factory commit. It builds and validates a missing
+candidate, records it queued, and starts a durable drain. The poll loop applies it when idle;
+`update status` reports the current pointer, running commit, and release states. See
+[`updates.md`](updates.md).
 
 ## Diagnostics and reconciliation
 

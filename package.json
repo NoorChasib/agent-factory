@@ -5,8 +5,8 @@
   "type": "module",
   "module": "src/index.ts",
   "bin": {
-    "agent-factory": "src/cli/main.ts",
-    "agent-factory-daemon": "src/daemon/main.ts"
+    "agent-factory": "bin/agent-factory",
+    "agent-factory-daemon": "bin/agent-factory-daemon"
   },
   "scripts": {
     "test": "bun test",

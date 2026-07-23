@@ -10,6 +10,16 @@ import type {
   RandomAdapter,
   RuntimeFileSystemAdapter,
 } from "../adapters/interfaces";
+import type {
+  ReleaseLedgerAdapter,
+  ReleaseMigrationSourceAdapter,
+  ReleaseServiceAdapter,
+} from "../adapters/release-interfaces";
+import {
+  ControllerReleaseMaintenanceAdapter,
+  ControllerReleaseReconciliationAdapter,
+  FactoryReleaseAlertAdapter,
+} from "../adapters/releases";
 import { RotatingJsonLinesSink } from "../adapters/structured-log";
 import type { ProjectProfile } from "../contracts/project-profile";
 import { parseGlobalLimitsFromEnvironment } from "../controller/config";
@@ -43,6 +53,12 @@ import {
   RedactingNotificationAdapter,
   type RedactionBoundary,
 } from "../redaction";
+import {
+  type ReleaseBuilder,
+  ReleaseHealthChecker,
+  type ReleaseStore,
+  ReleaseUpdater,
+} from "../releases";
 import type { WorktreeCustody } from "../worktrees";
 import { DaemonPollLoop } from "./poll-loop";
 import {
@@ -84,6 +100,13 @@ export interface DaemonCompositionOptions {
   readonly redaction?: RedactionBoundary;
   readonly prior: PriorPhaseRuntime;
   readonly environment: Readonly<Record<string, string | undefined>>;
+  readonly releases: {
+    readonly builder: ReleaseBuilder;
+    readonly store: ReleaseStore;
+    readonly ledger: ReleaseLedgerAdapter;
+    readonly migrations: ReleaseMigrationSourceAdapter;
+    readonly service: ReleaseServiceAdapter;
+  };
   readonly ledger?: OperationalRegistry;
   readonly startSocket?: typeof startUnixSocketServer;
 }
@@ -155,6 +178,26 @@ export function composeDaemon(options: DaemonCompositionOptions): ComposedDaemon
     redaction,
   });
   const maintenance = new MaintenanceCoordinator({ controller, ledger });
+  const releaseMaintenance = new ControllerReleaseMaintenanceAdapter({
+    controller,
+    maintenance,
+  });
+  const releaseHealth = new ReleaseHealthChecker({
+    store: options.releases.store,
+    ledger: options.releases.ledger,
+    service: options.releases.service,
+    reconciliation: new ControllerReleaseReconciliationAdapter(controller),
+  });
+  const updates = new ReleaseUpdater({
+    builder: options.releases.builder,
+    store: options.releases.store,
+    ledger: options.releases.ledger,
+    maintenance: releaseMaintenance,
+    migrations: options.releases.migrations,
+    service: options.releases.service,
+    health: releaseHealth,
+    alerts: new FactoryReleaseAlertAdapter(notifications),
+  });
   const rollout = new RolloutCoordinator(controller);
   const retention = new RetentionCoordinator({
     clock: options.clock,
@@ -194,6 +237,7 @@ export function composeDaemon(options: DaemonCompositionOptions): ComposedDaemon
     notifications,
     logger,
     delay: options.delay,
+    updates,
     diskPaths: [options.paths.stateDirectory, options.paths.dataDirectory],
   });
 
@@ -218,6 +262,7 @@ export function composeDaemon(options: DaemonCompositionOptions): ComposedDaemon
     doctor,
     workers: options.prior.workers,
     labels: options.prior.labels,
+    updates,
     shutdown,
     stopDaemon: () => {
       pollLoop.stop();

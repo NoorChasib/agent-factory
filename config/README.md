@@ -37,11 +37,17 @@ AGENT_FACTORY_CLAUDE_MODEL=claude-fable-5
 AGENT_FACTORY_CLAUDE_EFFORT=high
 AGENT_FACTORY_GITHUB_APP_ID=<positive integer>
 AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE=%d/github-app.pem
+AGENT_FACTORY_SOURCE_REPOSITORY=<absolute factory checkout or bare repository path>
 ```
 
 Lane/backlog values accept `0` through `3`. Effective limits are the minimum of rollout cap,
 environment value, and profile ceiling. Claude effort accepts `low`, `medium`, `high`, or `max`.
 Provider runtime is captured per session and preserved on resume.
+
+The source-repository path is the operator-maintained local Git repository containing the factory
+commits eligible for immutable release builds. The updater never fetches it implicitly. During
+source development the running checkout is the default; an installed service should configure
+the canonical checkout or bare repository prepared by the Phase 8 installation.
 
 The private-key variable contains only the absolute systemd credential path. PEM contents must
 never be placed in this file, an environment file, a profile, or a worker environment.

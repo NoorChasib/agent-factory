@@ -8,13 +8,13 @@
 | [Provider runners and circuits](providers.md), [review/check convergence](convergence.md) | 4 | Implemented |
 | [Herdr custody](herdr.md), [recovery records](recovery.md) | 5 | Implemented |
 | [CLI reference](cli.md), [operations](operations.md) | 6 | Implemented |
-| Immutable releases, activation, rollback | 7 | Upcoming |
+| [Immutable releases, activation, rollback](updates.md) | 7 | Implemented |
 | Final installation/rollout verification | 8 | Upcoming |
 
-The root [`README`](../README.md) is the operator entry point. Phase 6 documentation covers XDG,
-systemd assets, ntfy, disk guards, retention, rollout, graceful shutdown, reboot recovery,
-security, and troubleshooting while clearly distinguishing the Phase 7 update machinery that
-does not yet exist.
+The root [`README`](../README.md) is the operator entry point. Phase 7 adds release building,
+queue/drain/application, compatibility gating, atomic activation, post-switch health, SQLite
+restore, and automatic rollback. Phase 8 still owns initial production installation and final
+rollout verification.
 
-Post-v1 agent-assisted rebase/conflict repair, automatic rollout promotion, and automatic
-external CLI upgrades remain unauthorized future work.
+[Post-v1 work](post-v1.md) records agent-assisted rebase/conflict repair, automatic rollout
+promotion, and controlled external CLI upgrades as unauthorized future work.

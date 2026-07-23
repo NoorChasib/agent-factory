@@ -71,6 +71,8 @@ describe("XDG configuration contract", () => {
       paths.mirrorDirectory,
       paths.worktreeDirectory,
       paths.releaseDirectory,
+      paths.releaseBackupDirectory,
+      paths.releaseBuildDirectory,
     ]) {
       expect(await fileSystem.stat(path)).toEqual({ kind: "directory", mode: 0o700 });
     }

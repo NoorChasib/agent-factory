@@ -12,6 +12,7 @@ import type { DaemonTransport } from "../src/cli/client";
 import { runCli } from "../src/cli/main";
 
 const hash = "a".repeat(64);
+const commitSha = "b".repeat(40);
 
 const COMMANDS: readonly [
   readonly string[],
@@ -83,10 +84,7 @@ const COMMANDS: readonly [
     { operation: "labels", action: "apply", projectId: "project-one", hash },
   ],
   [["update", "status"], { operation: "update", action: "status" }],
-  [
-    ["update", "queue", "release-1"],
-    { operation: "update", action: "queue", releaseId: "release-1" },
-  ],
+  [["update", "queue", commitSha], { operation: "update", action: "queue", releaseId: commitSha }],
   [["doctor"], "doctor"],
   [["doctor", "--live"], { operation: "doctor-live" }],
   [["reconcile"], { operation: "reconcile" }],

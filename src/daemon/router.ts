@@ -1,3 +1,4 @@
+import type { ReleaseUpdateOperator } from "../adapters/release-interfaces";
 import type { AgentFactoryOperation } from "../contracts/daemon-protocol";
 import type { ProjectProfile } from "../contracts/project-profile";
 import type { Controller } from "../controller/controller";
@@ -16,14 +17,6 @@ import type { LoadedFactoryConfiguration } from "../operations/runtime";
 export interface OperationalRegistry extends OperationsLedger {
   listProviderCircuits(): readonly ProviderCircuitRecord[];
   listReleases(): readonly ReleaseRecord[];
-  saveRelease(input: {
-    readonly releaseId: string;
-    readonly commitSha: string;
-    readonly status: ReleaseRecord["status"];
-    readonly artifactPath: string | null;
-    readonly requiredSchemaVersion: number;
-    readonly metadata: unknown;
-  }): ReleaseRecord;
 }
 
 export interface WorkerOperator {
@@ -57,6 +50,7 @@ export interface AgentFactoryRouterOptions {
   readonly doctor: Doctor;
   readonly workers: WorkerOperator;
   readonly labels: LabelOperator;
+  readonly updates: ReleaseUpdateOperator;
   readonly shutdown: ShutdownCoordinator;
   readonly stopDaemon: () => void;
 }
@@ -163,9 +157,9 @@ export class AgentFactoryRouter implements DaemonCommandRouter {
         throw new Error("invalid labels operation");
       case "update":
         if (request.action === "status") {
-          return this.#options.ledger.listReleases();
+          return this.#options.updates.status();
         }
-        return this.#queueRelease(request.releaseId);
+        return this.#options.updates.queue(request.releaseId);
       case "doctor-live":
         return this.#options.doctor.run({ live: true });
       case "reconcile":
@@ -207,27 +201,5 @@ export class AgentFactoryRouter implements DaemonCommandRouter {
       case "kill":
         return this.#options.workers.kill(executionId);
     }
-  }
-
-  #queueRelease(releaseId: string): ReleaseRecord {
-    const release = this.#options.ledger
-      .listReleases()
-      .find((candidate) => candidate.releaseId === releaseId);
-    if (release === undefined) {
-      throw new Error(
-        `unknown release '${releaseId}'; Phase 7 installs candidates before they can be queued`,
-      );
-    }
-    if (release.status !== "candidate") {
-      throw new Error(`release '${releaseId}' is not a queueable candidate`);
-    }
-    return this.#options.ledger.saveRelease({
-      releaseId: release.releaseId,
-      commitSha: release.commitSha,
-      status: "queued",
-      artifactPath: release.artifactPath,
-      requiredSchemaVersion: release.requiredSchemaVersion,
-      metadata: release.metadata,
-    });
   }
 }
