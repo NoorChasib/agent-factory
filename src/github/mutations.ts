@@ -5,7 +5,7 @@ import { looseLabelName, projectId } from "../contracts/primitives";
 import type { ProjectProfile } from "../contracts/project-profile";
 import type { MutationRecord, MutationState, NewMutation } from "../ledger";
 import { DEFAULT_REDACTION_BOUNDARY, type RedactionBoundary } from "../redaction";
-import type { GitHubApiClient, GitHubFailureClassification } from "./client";
+import { type GitHubApiClient, type GitHubFailureClassification, githubApiHeaders } from "./client";
 
 const labelColor = z.string().regex(/^[0-9a-f]{6}$/u);
 const commentBody = z.string().min(1).max(65_536);
@@ -138,16 +138,6 @@ const repositoryCommentResponse = z
     issueUrl: comment.issue_url,
   }));
 const repositoryCommentsResponse = z.array(repositoryCommentResponse);
-
-function apiHeaders(token: string): Readonly<Record<string, string>> {
-  return {
-    accept: "application/vnd.github+json",
-    authorization: `Bearer ${token}`,
-    "content-type": "application/json",
-    "user-agent": "agent-factory",
-    "x-github-api-version": "2022-11-28",
-  };
-}
 
 function encodePath(value: string): string {
   return encodeURIComponent(value);
@@ -319,7 +309,7 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
       response = await this.#transport.request({
         method: request.method,
         url: `${this.#apiUrl}${request.path}`,
-        headers: apiHeaders(token),
+        headers: githubApiHeaders(token),
         ...("body" in request && request.body !== undefined ? { body: request.body } : {}),
       });
     } catch (error) {

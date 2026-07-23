@@ -145,10 +145,7 @@ function apiUrl(base: string, path: string): string {
   return `${base}${path}`;
 }
 
-function bearerHeaders(token: string): Readonly<Record<string, string>> {
-  if (token.length === 0) {
-    throw new Error("GitHub token must not be empty");
-  }
+export function githubApiHeaders(token: string): Readonly<Record<string, string>> {
   return {
     accept: "application/vnd.github+json",
     authorization: `Bearer ${token}`,
@@ -156,6 +153,13 @@ function bearerHeaders(token: string): Readonly<Record<string, string>> {
     "user-agent": "agent-factory",
     "x-github-api-version": "2022-11-28",
   };
+}
+
+function bearerHeaders(token: string): Readonly<Record<string, string>> {
+  if (token.length === 0) {
+    throw new Error("GitHub token must not be empty");
+  }
+  return githubApiHeaders(token);
 }
 
 export class FetchGitHubTransport implements GitHubHttpTransport {

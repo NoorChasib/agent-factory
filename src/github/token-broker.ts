@@ -8,6 +8,7 @@ import type {
   GitHubHttpTransport,
 } from "../adapters/interfaces";
 import type { ProjectProfile } from "../contracts/project-profile";
+import { githubApiHeaders } from "./client";
 import type { GitHubProjectTokenProvider } from "./mutations";
 
 export const GITHUB_APP_ID_ENVIRONMENT = "AGENT_FACTORY_GITHUB_APP_ID";
@@ -296,13 +297,7 @@ export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
     return this.#transport.request({
       method: input.method,
       url: `${this.#apiUrl}${input.path}`,
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${input.appJwt}`,
-        "content-type": "application/json",
-        "user-agent": "agent-factory",
-        "x-github-api-version": "2022-11-28",
-      },
+      headers: githubApiHeaders(input.appJwt),
       ...(input.body === undefined ? {} : { body: input.body }),
     });
   }
