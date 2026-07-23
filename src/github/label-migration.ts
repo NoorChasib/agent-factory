@@ -65,7 +65,10 @@ const LABEL_COLORS = {
 } as const;
 
 function compareText(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  if (left < right) {
+    return -1;
+  }
+  return left > right ? 1 : 0;
 }
 
 function sha256(input: string): string {

@@ -118,12 +118,12 @@ export class MaintenanceCoordinator {
     const blocking = this.#ledger
       .listMaintenanceRequests()
       .filter(
-        (request) =>
-          active(request) &&
-          request.kind !== "resume" &&
-          (request.reasonCode === "disk-guard-80" ||
-            request.reasonCode === "disk-guard-90" ||
-            request.kind === "shutdown-when-idle"),
+        (entry) =>
+          active(entry) &&
+          entry.kind !== "resume" &&
+          (entry.reasonCode === "disk-guard-80" ||
+            entry.reasonCode === "disk-guard-90" ||
+            entry.kind === "shutdown-when-idle"),
       );
     if (blocking.length > 0) {
       throw new Error(`cannot resume while '${blocking.at(-1)?.reasonCode}' maintenance is active`);
@@ -407,7 +407,7 @@ export class RebootRecoveryCoordinator {
     const state = structuredClone(snapshot.state);
     for (const classification of classifications) {
       const index = state.executions.findIndex(
-        (execution) => execution.executionId === classification.executionId,
+        (candidate) => candidate.executionId === classification.executionId,
       );
       const execution = state.executions[index];
       if (

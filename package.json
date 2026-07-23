@@ -17,13 +17,13 @@
     "validate": "bun run typecheck && bun run lint && bun test"
   },
   "dependencies": {
-    "yaml": "^2.8.1",
-    "zod": "^4.1.5"
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.3",
-    "@types/bun": "^1.2.21",
-    "typescript": "^5.9.2"
+    "@biomejs/biome": "2.5.5",
+    "@types/bun": "1.3.14",
+    "typescript": "7.0.2"
   },
   "engines": {
     "bun": ">=1.3.0"

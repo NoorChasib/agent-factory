@@ -121,9 +121,15 @@ export class Doctor {
           throw new Error("disk usage adapter returned invalid byte counts");
         }
         const percentage = (usage.usedBytes / usage.totalBytes) * 100;
+        let status: DoctorCheckStatus = "pass";
+        if (percentage >= 90) {
+          status = "fail";
+        } else if (percentage >= 80) {
+          status = "warn";
+        }
         checks.push({
           name: `disk-${name}`,
-          status: percentage >= 90 ? "fail" : percentage >= 80 ? "warn" : "pass",
+          status,
           detail: `${percentage.toFixed(1)}% used`,
         });
       } catch (error) {

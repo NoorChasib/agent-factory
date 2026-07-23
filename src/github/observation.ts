@@ -258,8 +258,25 @@ export const GITHUB_OBSERVATION_QUERY = `
 `;
 
 function compareText(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0;
+  if (left < right) {
+    return -1;
+  }
+  return left > right ? 1 : 0;
 }
+
+const PULL_REQUEST_STATES = { OPEN: "open", CLOSED: "closed", MERGED: "merged" } as const;
+
+const MERGEABILITY = {
+  MERGEABLE: "mergeable",
+  CONFLICTING: "conflicting",
+  UNKNOWN: "unknown",
+} as const;
+
+const REVIEW_DECISIONS = {
+  APPROVED: "approved",
+  CHANGES_REQUESTED: "changes-requested",
+  REVIEW_REQUIRED: "review-required",
+} as const;
 
 function labels(connection: z.infer<typeof labelConnection>): readonly string[] {
   if (connection.totalCount !== connection.nodes.length) {
@@ -342,7 +359,7 @@ function mapPullRequest(node: z.infer<typeof pullRequestNode>): GitHubPullReques
 
   return {
     number: node.number,
-    state: node.state === "OPEN" ? "open" : node.state === "MERGED" ? "merged" : "closed",
+    state: PULL_REQUEST_STATES[node.state],
     draft: node.isDraft,
     labels: labels(node.labels),
     linkedIssueNumber: linkedIssue(node),
@@ -350,20 +367,8 @@ function mapPullRequest(node: z.infer<typeof pullRequestNode>): GitHubPullReques
     headSha: node.headRefOid,
     updatedAt: node.updatedAt,
     mergedAt: node.mergedAt,
-    mergeability:
-      node.mergeable === "MERGEABLE"
-        ? "mergeable"
-        : node.mergeable === "CONFLICTING"
-          ? "conflicting"
-          : "unknown",
-    reviewDecision:
-      node.reviewDecision === null
-        ? null
-        : node.reviewDecision === "APPROVED"
-          ? "approved"
-          : node.reviewDecision === "CHANGES_REQUESTED"
-            ? "changes-requested"
-            : "review-required",
+    mergeability: MERGEABILITY[node.mergeable],
+    reviewDecision: node.reviewDecision === null ? null : REVIEW_DECISIONS[node.reviewDecision],
     commentCount: node.comments.totalCount,
     latestCommentAt: latest(node.comments.nodes.map((comment) => comment.updatedAt)),
     reviews: node.reviews.nodes

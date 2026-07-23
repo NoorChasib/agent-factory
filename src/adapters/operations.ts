@@ -278,11 +278,10 @@ export class LedgerOwnedProcessStopper implements FactoryOwnedProcessStopper {
 
 function recoveryState(recovery: ExecutionRecovery): RetentionCandidate["recoveryState"] {
   const status = recovery.attempts.at(-1)?.status;
-  return status === "stalled"
-    ? "stalled"
-    : status === "operator-required"
-      ? "operator-required"
-      : "none";
+  if (status === "stalled" || status === "operator-required") {
+    return status;
+  }
+  return "none";
 }
 
 function mergedAt(recovery: ExecutionRecovery): string | null {

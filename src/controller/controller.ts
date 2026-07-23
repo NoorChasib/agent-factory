@@ -354,7 +354,7 @@ class DeterministicController implements Controller {
     const verifiedExecutionIds: string[] = [];
     for (const transition of context.plan.transitions) {
       const index = state.executions.findIndex(
-        (execution) => execution.executionId === transition.executionId,
+        (candidate) => candidate.executionId === transition.executionId,
       );
       const execution = state.executions[index];
       if (index < 0 || execution === undefined || execution.status !== "active") {

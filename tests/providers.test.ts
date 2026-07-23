@@ -719,8 +719,8 @@ describe("outcome verification, persistence, and circuits", () => {
         if (session === null) {
           throw new Error("test expected the PR-scoped Codex session");
         }
-        const snapshot = await ledger.read();
-        const nextState = structuredClone(snapshot.state);
+        const ledgerSnapshot = await ledger.read();
+        const nextState = structuredClone(ledgerSnapshot.state);
         const previous = nextState.executions[0];
         if (previous === undefined) {
           throw new Error("test expected the prior feedback execution");
@@ -731,7 +731,7 @@ describe("outcome verification, persistence, and circuits", () => {
           executionId: "execution-102",
           status: "active",
         });
-        await ledger.commit(snapshot.revision, nextState);
+        await ledger.commit(ledgerSnapshot.revision, nextState);
 
         await expect(recorder.runInitial("execution-102", async () => outcome)).rejects.toThrow(
           "pull request already has a Codex outer session",

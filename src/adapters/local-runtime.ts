@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import type { Stats } from "node:fs";
 import {
   chmodSync,
   existsSync,
@@ -19,16 +20,23 @@ import type {
   RuntimeFileSystemAdapter,
 } from "./interfaces";
 
+function fileKind(value: Stats): FileMetadata["kind"] {
+  if (value.isFile()) {
+    return "file";
+  }
+  if (value.isDirectory()) {
+    return "directory";
+  }
+  if (value.isSymbolicLink()) {
+    return "symbolic-link";
+  }
+  return "other";
+}
+
 function metadata(path: string): FileMetadata {
   const value = lstatSync(path);
   return {
-    kind: value.isFile()
-      ? "file"
-      : value.isDirectory()
-        ? "directory"
-        : value.isSymbolicLink()
-          ? "symbolic-link"
-          : "other",
+    kind: fileKind(value),
     mode: value.mode,
   };
 }
@@ -162,32 +170,32 @@ export class LocalDoctorSystemAdapter implements DoctorSystemAdapter {
   public async liveProbe(
     provider: "claude" | "codex" | "github",
   ): Promise<{ readonly ok: boolean; readonly detail: string }> {
-    const probe =
-      provider === "github"
-        ? { command: ["gh", "api", "rate_limit"], stdin: "" }
-        : provider === "claude"
-          ? {
-              command: [
-                "claude",
-                "--print",
-                "--output-format",
-                "json",
-                "Reply with exactly: agent-factory-doctor-ok",
-              ],
-              stdin: "",
-            }
-          : {
-              command: [
-                "codex",
-                "exec",
-                "--json",
-                "--sandbox",
-                "read-only",
-                "--skip-git-repo-check",
-                "-",
-              ],
-              stdin: "Reply with exactly: agent-factory-doctor-ok",
-            };
+    const probes = {
+      github: { command: ["gh", "api", "rate_limit"], stdin: "" },
+      claude: {
+        command: [
+          "claude",
+          "--print",
+          "--output-format",
+          "json",
+          "Reply with exactly: agent-factory-doctor-ok",
+        ],
+        stdin: "",
+      },
+      codex: {
+        command: [
+          "codex",
+          "exec",
+          "--json",
+          "--sandbox",
+          "read-only",
+          "--skip-git-repo-check",
+          "-",
+        ],
+        stdin: "Reply with exactly: agent-factory-doctor-ok",
+      },
+    };
+    const probe = probes[provider];
     try {
       const process = Bun.spawn(probe.command, {
         stdout: "pipe",

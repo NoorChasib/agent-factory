@@ -118,7 +118,7 @@ export class RetentionCoordinator {
   public async release(executionId: string): Promise<void> {
     const snapshot = await this.#ledger.read();
     const state = structuredClone(snapshot.state);
-    const index = state.executions.findIndex((execution) => execution.executionId === executionId);
+    const index = state.executions.findIndex((candidate) => candidate.executionId === executionId);
     const execution = state.executions[index];
     if (execution === undefined) {
       throw new Error(`unknown execution '${executionId}'`);

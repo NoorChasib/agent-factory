@@ -32,11 +32,11 @@ const baseSnapshot = mapGitHubObservation(
   await Bun.file(new URL("fixtures/github/lumen-observation.json", import.meta.url)).json(),
 );
 const basePullRequest = (() => {
-  const pullRequest = baseSnapshot.pullRequests[0];
-  if (pullRequest === undefined) {
+  const first = baseSnapshot.pullRequests[0];
+  if (first === undefined) {
     throw new Error("convergence fixture has no pull request");
   }
-  return pullRequest;
+  return first;
 })();
 
 function profile(values: Partial<ProjectProfile["timeouts"]> = {}): ProjectProfile {

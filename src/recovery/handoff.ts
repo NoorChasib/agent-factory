@@ -57,7 +57,7 @@ export class RecoveryHandoffCoordinator {
     const snapshot = await this.#ledger.read();
     const nextState = structuredClone(snapshot.state);
     const index = nextState.executions.findIndex(
-      (execution) => execution.executionId === record.executionId,
+      (candidate) => candidate.executionId === record.executionId,
     );
     const execution = nextState.executions[index];
     if (execution === undefined) {

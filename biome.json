@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.5/schema.json",
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -9,22 +9,42 @@
     "includes": ["**", "!!node_modules", "!!bun.lock"]
   },
   "formatter": {
-    "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 100
   },
   "linter": {
-    "enabled": true,
+    "domains": {
+      "test": "recommended"
+    },
     "rules": {
-      "preset": "recommended"
-    }
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "semicolons": "always",
-      "trailingCommas": "all"
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "info",
+        "noExcessiveNestedTestSuites": "error",
+        "noForEach": "error",
+        "useArrowFunction": "error",
+        "useMaxParams": "info"
+      },
+      "correctness": {
+        "noUnusedImports": "error"
+      },
+      "performance": {
+        "noAccumulatingSpread": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error",
+        "noProcessEnv": "error",
+        "noNestedTernary": "error",
+        "noUselessElse": "error"
+      },
+      "suspicious": {
+        "noDeprecatedImports": "warn",
+        "noEvolvingTypes": "error",
+        "noImportCycles": "error",
+        "noShadow": "error",
+        "noTsIgnore": "error"
+      }
     }
   }
 }

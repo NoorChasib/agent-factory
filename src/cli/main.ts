@@ -53,9 +53,13 @@ export async function runCli(
         return 0;
     }
   } catch (error) {
-    dependencies.io.error(
-      `${error instanceof CliUsageError ? `${error.message}\nTry 'agent-factory help'.` : error instanceof Error ? error.message : "Agent Factory command failed"}\n`,
-    );
+    let message = "Agent Factory command failed";
+    if (error instanceof CliUsageError) {
+      message = `${error.message}\nTry 'agent-factory help'.`;
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    dependencies.io.error(`${message}\n`);
     return 1;
   }
 }
