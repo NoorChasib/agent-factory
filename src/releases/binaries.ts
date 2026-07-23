@@ -25,7 +25,6 @@ const RELEASE_BINARIES = [
 
 export interface ReleaseBinaryBuildPlan {
 	readonly name: (typeof RELEASE_BINARIES)[number]["name"];
-	readonly entrypoint: (typeof RELEASE_BINARIES)[number]["entrypoint"];
 	readonly outfile: string;
 	readonly externalSourcemapPath: string;
 	readonly argv: readonly string[];
@@ -44,7 +43,6 @@ export function releaseBinaryBuildPlans(
 		);
 		return {
 			name,
-			entrypoint,
 			outfile,
 			externalSourcemapPath,
 			argv: [...RELEASE_BINARY_BUILD_FLAGS, entrypoint, "--outfile", outfile],

@@ -73,9 +73,11 @@ already exist in that local factory Git repository. The production build adapter
 6. reads strict `release.json` and copies the validated checkout and installed dependencies into
    release staging;
 7. compiles both staged release executables;
-8. inventories and hashes the full staging tree, including both compiled binaries, before the
-   candidate becomes queue-eligible; and
-9. removes the temporary factory worktree.
+8. removes the temporary factory worktree.
+
+After the adapter returns, the release store inventories and hashes the full staging tree,
+including both compiled binaries, and writes the release manifest before the candidate becomes
+queue-eligible.
 
 Both the production adapter and the locally runnable
 `bun run build:binaries -- <artifact-root>` command consume the same build-plan generator. Each

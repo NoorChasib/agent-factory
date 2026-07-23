@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { BunCommandAdapter } from "@/adapters/bun-command.ts";
@@ -42,7 +43,7 @@ export async function buildBinariesMain(argv: readonly string[]): Promise<void> 
 			stderr: "capture",
 		});
 		requireBuildSuccess(plan.name, result);
-		await fileSystem.removeFile(plan.externalSourcemapPath);
+		rmSync(plan.externalSourcemapPath, { force: true });
 		process.stdout.write(`${plan.name}: ${plan.outfile}\n`);
 	}
 }

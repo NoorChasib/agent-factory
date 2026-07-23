@@ -173,10 +173,6 @@ export class LocalReleaseFileSystemAdapter implements ReleaseArtifactFileSystemA
 		rmSync(path, { recursive: true, force: true });
 	}
 
-	public async removeFile(path: string): Promise<void> {
-		rmSync(path, { force: true });
-	}
-
 	public async makeImmutable(root: string): Promise<void> {
 		const visit = (path: string): void => {
 			const metadata = lstatSync(path);
