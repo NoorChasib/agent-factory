@@ -5,9 +5,10 @@ explicitly configured GitHub projects from eligible issues to a revocable
 `ready-to-merge` handoff. GitHub remains authoritative for workflow state, and the operator
 remains the only merge authority.
 
-This repository is under construction in eight implementation phases. Phase 1 establishes the
-versioned integration contracts and the deterministic planner. The checked-in defaults are
-disabled observation mode: they launch no workers and make no GitHub mutations.
+This repository is under construction in eight implementation phases. Phases 1 and 2 establish
+the versioned integration contracts, deterministic planner, and durable SQLite execution ledger.
+The checked-in defaults are disabled observation mode: they launch no workers and make no GitHub
+mutations.
 
 ## Architecture
 
@@ -20,13 +21,13 @@ The controller is a deep module with exactly three operations:
 
 The deterministic implementation sits behind that interface. GitHub access, the clock,
 randomness, files, worker processes, notifications, and the execution ledger are injected
-adapters. Phase 1 includes deterministic in-memory adapters only. Production adapters arrive in
-later phases.
+adapters. Tests use deterministic in-memory adapters; Phase 2 adds the production SQLite ledger
+adapter without adding I/O to the controller.
 
 ```text
 project profile YAML ──> strict versioned contracts
                                   │
-GitHub observation adapter ──> controller <── execution-ledger adapter
+GitHub observation adapter ──> controller <── SQLite execution-ledger adapter
                                   │
                          deterministic planner
                                   │
@@ -45,7 +46,8 @@ src/domain/       canonical lifecycle semantics
 src/controller/   three-operation controller and deterministic planner
 src/adapters/     I/O adapter interfaces
 src/testing/      deterministic in-memory adapters
-tests/            contract and planner tests plus configuration fixtures
+src/ledger/       WAL SQLite adapter, repositories, migrations, backup and restore
+tests/            contract, planner, ledger, migration and recovery tests plus fixtures
 config/           configuration contract documentation and later examples
 systemd/          future systemd user-service assets
 docs/             documentation index and implementation plan
@@ -69,8 +71,9 @@ Canonical scripts are:
 - `bun run format` — write Biome formatting changes.
 - `bun run validate` — typecheck, lint, then test.
 
-No production service, CLI, GitHub client, credential provisioning, or persistence adapter is
-included in Phase 1.
+Phase 2 includes the production SQLite persistence adapter, but no production service, CLI,
+GitHub client, or credential provisioning. The adapter receives its state directory and all
+clock/ID sources from callers; Phase 6 will supply XDG and service wiring.
 
 ## Contracts and safety
 
@@ -83,15 +86,16 @@ Global implementation, feedback, and ready-to-merge limits come from the documen
 to one. A project may lower any limit. Zero pauses the corresponding lane; a zero
 ready-to-merge ceiling suppresses new implementation launches.
 
-See [the documentation index](docs/README.md) and [configuration notes](config/README.md).
+See [the documentation index](docs/README.md), [ledger guide](docs/ledger.md), and
+[configuration notes](config/README.md).
 
 ## Documentation plan
 
 Later phases will extend this foundation with dedicated, verified guidance for installation,
-GitHub App setup, profiles, environment variables, the ledger, GitHub reconciliation and label
-migration, provider runners and circuits, Herdr attachment, systemd operation, CLI commands,
-rollout, updates and rollback, graceful shutdown, recovery/takeover, notifications, security,
-testing, and troubleshooting. The documentation index records the owning implementation phase so
+GitHub App setup, profiles, environment variables, GitHub reconciliation and label migration,
+provider runners and circuits, Herdr attachment, systemd operation, CLI commands, rollout,
+updates and rollback, graceful shutdown, recovery/takeover, notifications, security, testing,
+and troubleshooting. The documentation index records the owning implementation phase so
 unfinished machinery is not presented as available.
 
 ## v1 boundaries

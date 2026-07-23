@@ -6,7 +6,7 @@ finished.
 | Topic | Owning phase | Current state |
 | --- | ---: | --- |
 | Architecture, contracts, development, testing | 1 | Foundation in `README.md` and source docs |
-| SQLite ledger and recovery model | 2 | Planned |
+| [SQLite ledger and recovery model](ledger.md) | 2 | Implemented |
 | GitHub App/API, profiles, label migration, reconciliation | 3 | Planned |
 | Provider runners, review convergence, circuits | 4 | Planned |
 | Herdr, recovery records, redaction | 5 | Planned |
