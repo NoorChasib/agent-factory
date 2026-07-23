@@ -1,5 +1,10 @@
+export { BunCommandAdapter } from "./adapters/bun-command";
 export type {
   ClockAdapter,
+  CommandAdapter,
+  CommandExecutionResult,
+  CommandFailureClassification,
+  CommandRequest,
   ControllerAdapters,
   DelayAdapter,
   FileMetadata,
@@ -16,6 +21,10 @@ export type {
   WorkerProcessAdapter,
 } from "./adapters/interfaces";
 export {
+  CommandExecutionResultSchema,
+  parseCommandExecutionResult,
+} from "./contracts/command-result";
+export {
   loadProjectProfileFile,
   type ProjectProfile,
   ProjectProfileFileError,
@@ -25,6 +34,22 @@ export {
   parseProjectProfileYaml,
 } from "./contracts/project-profile";
 export {
+  type ClaudeInitializationEvent,
+  ClaudeInitializationEventSchema,
+  type CodexThreadStartedEvent,
+  CodexThreadStartedEventSchema,
+  type ProviderFailureClassification,
+  ProviderFailureClassificationSchema,
+  type ProviderFailureEvent,
+  ProviderFailureEventSchema,
+  ProviderOutputError,
+  type ProviderStructuredEvent,
+  type ProviderStructuredOutput,
+  parseProviderStructuredOutput,
+  type WorkerResultEvent,
+  WorkerResultEventSchema,
+} from "./contracts/provider-output";
+export {
   parseWorkerResult,
   type WorkerResult,
   WorkerResultSchema,
@@ -32,10 +57,17 @@ export {
   WorkerTerminalStatusSchema,
 } from "./contracts/worker-result";
 export {
+  CLAUDE_EFFORT_ENVIRONMENT,
+  CLAUDE_MODEL_ENVIRONMENT,
+  type ClaudeRuntimeConfig,
+  ClaudeRuntimeConfigSchema,
   type ControllerConfig,
   ControllerConfigSchema,
+  DEFAULT_CLAUDE_EFFORT,
+  DEFAULT_CLAUDE_MODEL,
   type GlobalLimits,
   GlobalLimitsSchema,
+  parseClaudeRuntimeFromEnvironment,
   parseGlobalLimitsFromEnvironment,
   V1_MAXIMUM_LIMIT,
 } from "./controller/config";
@@ -61,6 +93,7 @@ export type {
   Provider,
   StopRequest,
 } from "./controller/model";
+export * from "./convergence";
 export {
   CANONICAL_CONDITION_SEMANTICS,
   CANONICAL_CONDITIONS,
@@ -77,3 +110,4 @@ export {
 } from "./domain/stages";
 export * from "./github";
 export * from "./ledger";
+export * from "./providers";

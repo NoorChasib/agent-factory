@@ -5,9 +5,10 @@ explicitly configured GitHub projects from eligible issues to a revocable
 `ready-to-merge` handoff. GitHub remains authoritative for workflow state, and the operator
 remains the only merge authority.
 
-This repository is under construction in eight implementation phases. Phases 1 and 2 establish
-the versioned integration contracts, deterministic planner, and durable SQLite execution ledger.
-The checked-in defaults are disabled observation mode: they launch no workers and make no GitHub
+This repository is under construction in eight implementation phases. Phases 1 through 4
+establish the versioned integration contracts, deterministic planner, durable SQLite execution
+ledger, GitHub reconciliation, provider runners/circuits, and review/check convergence. The
+checked-in defaults are disabled observation mode: they launch no workers and make no GitHub
 mutations.
 
 ## Architecture
@@ -48,6 +49,8 @@ src/adapters/     I/O adapter interfaces
 src/testing/      deterministic in-memory adapters
 src/ledger/       WAL SQLite adapter, repositories, migrations, backup and restore
 src/github/       conditional API client, observation/reconciliation, guarded labels, App tokens
+src/providers/    Claude/Codex runners, session persistence, verification, circuits and recovery
+src/convergence/  current-head review/check convergence, feedback bounds and safe rerun policy
 tests/            contract, planner, ledger, migration and recovery tests plus fixtures
 config/           configuration contract documentation and later examples
 systemd/          future systemd user-service assets
@@ -72,9 +75,11 @@ Canonical scripts are:
 - `bun run format` — write Biome formatting changes.
 - `bun run validate` — typecheck, lint, then test.
 
-Phase 3 includes the production SQLite persistence and GitHub integration components, but no
-production service, CLI, or credential provisioning. Adapters receive state paths, HTTP, clock,
-delay, randomness, and ID sources from callers; Phase 6 will supply XDG and service wiring.
+Phase 4 includes production SQLite/GitHub components and local Claude/Codex command runners, but
+no production service, Herdr ownership, CLI, or credential provisioning. Provider callers supply
+an already prepared target checkout; later phases own mirror/worktree and long-lived process
+wiring. Adapters receive state paths, HTTP, clocks, delays, randomness, IDs, and command execution
+from callers; Phase 6 will supply XDG and service composition.
 
 ## Contracts and safety
 
@@ -89,15 +94,16 @@ ready-to-merge ceiling suppresses new implementation launches.
 
 See [the documentation index](docs/README.md), [ledger guide](docs/ledger.md),
 [GitHub integration guide](docs/github.md), [label migration guide](docs/label-migration.md), and
+[provider runner guide](docs/providers.md), [convergence guide](docs/convergence.md), and
 [configuration notes](config/README.md).
 
 ## Documentation plan
 
 Later phases will extend this foundation with dedicated, verified guidance for installation,
-profiles, provider runners and circuits, Herdr attachment, systemd operation, CLI commands,
-rollout, updates and rollback, graceful shutdown, recovery/takeover, notifications, security,
-testing, and troubleshooting. The documentation index records the owning implementation phase
-so unfinished machinery is not presented as available.
+profiles, Herdr attachment, systemd operation, CLI commands, rollout, updates and rollback,
+graceful shutdown, recovery/takeover, notifications, security, testing, and troubleshooting. The
+documentation index records the owning implementation phase so unfinished machinery is not
+presented as available.
 
 ## v1 boundaries
 

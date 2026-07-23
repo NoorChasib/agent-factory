@@ -8,7 +8,7 @@ finished.
 | Architecture, contracts, development, testing | 1 | Foundation in `README.md` and source docs |
 | [SQLite ledger and recovery model](ledger.md) | 2 | Implemented |
 | [GitHub App/API and reconciliation](github.md), [label migration](label-migration.md) | 3 | Implemented |
-| Provider runners, review convergence, circuits | 4 | Planned |
+| [Provider runners and circuits](providers.md), [review/check convergence](convergence.md) | 4 | Implemented |
 | Herdr, recovery records, redaction | 5 | Planned |
 | CLI, systemd, XDG config, ntfy, disk guards, shutdown, doctor | 6 | Planned |
 | Immutable releases, updates, rollback | 7 | Planned |

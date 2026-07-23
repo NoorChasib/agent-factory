@@ -501,6 +501,10 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
     addBlock({ projectId: null, lane: "feedback", reason: "provider-circuit-open" });
     feedbackGloballyBlocked = true;
   }
+  if (input.state.circuits.reviewer.status === "open") {
+    addBlock({ projectId: null, lane: "feedback", reason: "provider-circuit-open" });
+    feedbackGloballyBlocked = true;
+  }
   if (feedbackCapacity === 0) {
     addBlock({ projectId: null, lane: "feedback", reason: "global-limit" });
     feedbackGloballyBlocked = true;

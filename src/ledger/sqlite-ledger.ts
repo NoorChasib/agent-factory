@@ -947,6 +947,54 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
     return record;
   }
 
+  public findCodexSessionForPullRequest(
+    projectId: string,
+    pullRequestNumber: number,
+  ): ProviderSession | null {
+    this.#assertOwned();
+    if (
+      !/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u.test(projectId) ||
+      projectId.length > 64 ||
+      !Number.isSafeInteger(pullRequestNumber) ||
+      pullRequestNumber <= 0
+    ) {
+      throw new LedgerError("Codex session lookup subject is invalid");
+    }
+    const sessions = this.#database
+      .query<SessionRow, [string, number]>(
+        `
+          SELECT
+            session.session_key AS sessionKey,
+            session.execution_id AS executionId,
+            session.attempt_number AS attemptNumber,
+            session.provider,
+            session.provider_session_id AS providerSessionId,
+            session.model,
+            session.reasoning_effort AS reasoningEffort,
+            session.runtime_metadata_json AS runtimeMetadataJson,
+            session.created_at AS createdAt,
+            session.last_resumed_at AS lastResumedAt
+          FROM provider_sessions AS session
+          INNER JOIN executions AS execution
+            ON execution.execution_id = session.execution_id
+          WHERE
+            execution.project_id = ?
+            AND execution.pull_request_number = ?
+            AND session.provider = 'codex'
+          ORDER BY session.created_at, session.session_key
+          LIMIT 2
+        `,
+      )
+      .all(projectId, pullRequestNumber)
+      .map(parseSession);
+    if (sessions.length > 1) {
+      throw new LedgerCorruptionError(
+        `pull request ${projectId}/${pullRequestNumber} has multiple Codex outer sessions`,
+      );
+    }
+    return sessions[0] ?? null;
+  }
+
   public markProviderSessionResumed(sessionKey: string): ProviderSession {
     const resumedAt = clockTimestamp(this.#clock);
     let result: ProviderSession | undefined;

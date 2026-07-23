@@ -483,6 +483,17 @@ describe("circuits, backlog, ownership, and external precedence", () => {
       "implementation",
     ]);
 
+    const reviewerOpen = activeState([secondProfile]);
+    reviewerOpen.circuits.reviewer = {
+      status: "open",
+      reasonCode: "reviewer-provider-unavailable",
+    };
+    const reviewerAdapters = createInMemoryAdapters([secondProfile], observed, reviewerOpen);
+    await createController(config([secondProfile]), reviewerAdapters).reconcile();
+    expect(reviewerAdapters.processes.starts.map((request) => request.lane)).toEqual([
+      "implementation",
+    ]);
+
     const githubOpen = activeState([secondProfile]);
     githubOpen.circuits.github = { status: "open", reasonCode: "unavailable" };
     const githubAdapters = createInMemoryAdapters([secondProfile], observed, githubOpen);

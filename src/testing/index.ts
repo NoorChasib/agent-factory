@@ -14,6 +14,7 @@ export {
   InMemoryGitHubMutationLedger,
   type MutationIdAdapter,
 } from "./in-memory-github-ledger";
+export { ScriptedCommandAdapter } from "./scripted-command";
 export {
   RecordingDelayAdapter,
   type ScriptedGitHubStep,

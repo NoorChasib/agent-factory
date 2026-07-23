@@ -77,6 +77,19 @@ describe("project profile contract", () => {
     expect(profile.reviewers.sentinel?.completionSignal.kind).toBe("check-run");
   });
 
+  test("applies the documented review/check/quiescence defaults when omitted", () => {
+    const valid = parseProjectProfileYaml(secondProfileYaml);
+    const withoutTimeouts = Object.fromEntries(
+      Object.entries(valid).filter(([key]) => key !== "timeouts"),
+    );
+
+    expect(parseProjectProfile(withoutTimeouts).timeouts).toEqual({
+      reviewerMinutes: 45,
+      requiredCheckMinutes: 90,
+      quiescencePolls: 2,
+    });
+  });
+
   test("resolves one lifecycle stage while preserving coexisting condition labels", () => {
     const profile = parseProjectProfileYaml(secondProfileYaml);
     expect(

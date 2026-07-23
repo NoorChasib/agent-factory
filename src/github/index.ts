@@ -60,14 +60,23 @@ export {
 } from "./observation";
 export {
   assessReadyToMerge,
+  buildCheckObservationMarker,
+  buildReviewObservationMarker,
+  type CheckObservationMarker,
   type ConvergenceAssessment,
+  type CurrentHeadRequirementAssessment,
   captureFeedbackBaseline,
+  checkSucceeded,
   detectLateFeedback,
+  detectReadyToMergeRevocation,
   GitHubLifecycleReconciler,
   type GitHubReviewBaselineRepository,
+  inspectCurrentHeadRequirements,
   type LateFeedbackReason,
   type LifecycleReconcileResult,
   type ReadyToMergeRevocationReason,
+  type ReviewObservationMarker,
+  repairableCheck,
   shouldFullyReconcile,
 } from "./reconciliation";
 export {

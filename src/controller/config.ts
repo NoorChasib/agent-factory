@@ -3,8 +3,26 @@ import { z } from "zod";
 import { ProjectProfilesSchema } from "../contracts/project-profile";
 
 export const V1_MAXIMUM_LIMIT = 3;
+export const CLAUDE_MODEL_ENVIRONMENT = "AGENT_FACTORY_CLAUDE_MODEL";
+export const CLAUDE_EFFORT_ENVIRONMENT = "AGENT_FACTORY_CLAUDE_EFFORT";
+export const DEFAULT_CLAUDE_MODEL = "claude-fable-5";
+export const DEFAULT_CLAUDE_EFFORT = "high";
 
 const limit = z.number().int().min(0).max(V1_MAXIMUM_LIMIT);
+const providerModel = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(
+    /^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u,
+    "provider model must be one safe command-argument value",
+  );
+
+export const ClaudeRuntimeConfigSchema = z.strictObject({
+  model: providerModel,
+  effort: z.enum(["low", "medium", "high", "max"]),
+});
+export type ClaudeRuntimeConfig = z.infer<typeof ClaudeRuntimeConfigSchema>;
 
 export const GlobalLimitsSchema = z.strictObject({
   implementation: limit,
@@ -47,6 +65,21 @@ export function parseGlobalLimitsFromEnvironment(
   );
 
   return GlobalLimitsSchema.parse(values);
+}
+
+export function parseClaudeRuntimeFromEnvironment(
+  environment: Readonly<Record<string, string | undefined>>,
+): ClaudeRuntimeConfig {
+  const model = environment[CLAUDE_MODEL_ENVIRONMENT] ?? DEFAULT_CLAUDE_MODEL;
+  const effort = environment[CLAUDE_EFFORT_ENVIRONMENT] ?? DEFAULT_CLAUDE_EFFORT;
+  const parsed = ClaudeRuntimeConfigSchema.safeParse({ model, effort });
+  if (!parsed.success) {
+    throw new Error(
+      `${CLAUDE_MODEL_ENVIRONMENT} and ${CLAUDE_EFFORT_ENVIRONMENT} must select a safe model and effort (low, medium, high, or max)`,
+      { cause: parsed.error },
+    );
+  }
+  return parsed.data;
 }
 
 export function parseControllerConfig(input: unknown): ControllerConfig {

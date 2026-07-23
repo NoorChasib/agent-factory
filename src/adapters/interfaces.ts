@@ -64,6 +64,38 @@ export interface WorkerProcessAdapter {
   stop(request: StopRequest): Promise<void>;
 }
 
+export type CommandFailureClassification = "cancelled" | "spawn" | "timeout" | "transport";
+
+export interface CommandRequest {
+  readonly executable: string;
+  readonly argv: readonly string[];
+  readonly cwd: string;
+  readonly env: Readonly<Record<string, string>>;
+  readonly stdin: string;
+  readonly stdout: "capture-json-lines";
+  readonly stderr: "capture";
+}
+
+interface CommandOutput {
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly processId: number | null;
+}
+
+export type CommandExecutionResult =
+  | (CommandOutput & {
+      readonly status: "exited";
+      readonly exitCode: number;
+    })
+  | (CommandOutput & {
+      readonly status: "failed";
+      readonly classification: CommandFailureClassification;
+    });
+
+export interface CommandAdapter {
+  execute(request: CommandRequest): Promise<CommandExecutionResult>;
+}
+
 export interface Notification {
   readonly topic: string;
   readonly title: string;

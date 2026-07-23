@@ -96,6 +96,11 @@ const requiredCheck = z.strictObject({
 });
 
 const laneCeiling = z.number().int().min(0).max(3);
+const DEFAULT_TIMEOUTS = {
+  reviewerMinutes: 45,
+  requiredCheckMinutes: 90,
+  quiescencePolls: 2,
+} as const;
 
 export const ProjectProfileSchema = z
   .strictObject({
@@ -150,11 +155,17 @@ export const ProjectProfileSchema = z
       owner: z.literal("project-workflow"),
       controllerProvidesIssueNumber: z.literal(false),
     }),
-    timeouts: z.strictObject({
-      reviewerMinutes: z.number().int().positive(),
-      requiredCheckMinutes: z.number().int().positive(),
-      quiescencePolls: z.number().int().positive(),
-    }),
+    timeouts: z
+      .strictObject({
+        reviewerMinutes: z.number().int().positive().default(DEFAULT_TIMEOUTS.reviewerMinutes),
+        requiredCheckMinutes: z
+          .number()
+          .int()
+          .positive()
+          .default(DEFAULT_TIMEOUTS.requiredCheckMinutes),
+        quiescencePolls: z.number().int().positive().default(DEFAULT_TIMEOUTS.quiescencePolls),
+      })
+      .default(DEFAULT_TIMEOUTS),
     ceilings: z
       .strictObject({
         implementation: laneCeiling.optional(),

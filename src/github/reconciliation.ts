@@ -38,8 +38,8 @@ const checkMarkerSchema = z.strictObject({
   ),
 });
 
-type ReviewMarker = z.infer<typeof reviewMarkerSchema>;
-type CheckMarker = z.infer<typeof checkMarkerSchema>;
+export type ReviewObservationMarker = z.infer<typeof reviewMarkerSchema>;
+export type CheckObservationMarker = z.infer<typeof checkMarkerSchema>;
 
 export type LateFeedbackReason =
   | "comments-changed"
@@ -58,6 +58,13 @@ export type ReadyToMergeRevocationReason =
 export interface ConvergenceAssessment {
   readonly ready: boolean;
   readonly reasons: readonly ReadyToMergeRevocationReason[];
+}
+
+export interface CurrentHeadRequirementAssessment {
+  readonly missingReviewerIds: readonly string[];
+  readonly optionalReviewMissing: boolean;
+  readonly missingCheckNames: readonly string[];
+  readonly failingChecks: readonly GitHubCheckSnapshot[];
 }
 
 export interface GitHubReviewBaselineRepository {
@@ -79,7 +86,9 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function reviewMarker(pullRequest: GitHubPullRequestSnapshot): ReviewMarker {
+export function buildReviewObservationMarker(
+  pullRequest: GitHubPullRequestSnapshot,
+): ReviewObservationMarker {
   return {
     commentCount: pullRequest.commentCount,
     latestCommentAt: pullRequest.latestCommentAt,
@@ -93,7 +102,9 @@ function reviewMarker(pullRequest: GitHubPullRequestSnapshot): ReviewMarker {
   };
 }
 
-function checkMarker(pullRequest: GitHubPullRequestSnapshot): CheckMarker {
+export function buildCheckObservationMarker(
+  pullRequest: GitHubPullRequestSnapshot,
+): CheckObservationMarker {
   return {
     checks: pullRequest.checks.map((check) => ({
       name: check.name,
@@ -105,9 +116,10 @@ function checkMarker(pullRequest: GitHubPullRequestSnapshot): CheckMarker {
   };
 }
 
-function baselineMarkers(
-  baseline: ReviewBaseline | null,
-): { readonly reviews: ReviewMarker; readonly checks: CheckMarker } | null {
+function baselineMarkers(baseline: ReviewBaseline | null): {
+  readonly reviews: ReviewObservationMarker;
+  readonly checks: CheckObservationMarker;
+} | null {
   if (baseline === null) {
     return null;
   }
@@ -116,7 +128,7 @@ function baselineMarkers(
   return reviews.success && checks.success ? { reviews: reviews.data, checks: checks.data } : null;
 }
 
-function checkSucceeded(check: GitHubCheckSnapshot): boolean {
+export function checkSucceeded(check: GitHubCheckSnapshot): boolean {
   return (
     check.status === "completed" &&
     (check.conclusion === "SUCCESS" ||
@@ -125,7 +137,7 @@ function checkSucceeded(check: GitHubCheckSnapshot): boolean {
   );
 }
 
-function repairableCheck(check: GitHubCheckSnapshot): boolean {
+export function repairableCheck(check: GitHubCheckSnapshot): boolean {
   return (
     check.status === "completed" &&
     (check.conclusion === "ACTION_REQUIRED" ||
@@ -154,31 +166,40 @@ function reviewCompleted(review: GitHubReviewSnapshot | undefined): boolean {
   return review?.state === "APPROVED" || review?.state === "COMMENTED";
 }
 
-function requiredReviewComplete(
+function requiredReviewState(
   profile: ProjectProfile,
   pullRequest: GitHubPullRequestSnapshot,
-): boolean {
+): {
+  readonly missingReviewerIds: readonly string[];
+  readonly optionalReviewMissing: boolean;
+} {
+  const missingReviewerIds: string[] = [];
   for (const reviewerId of profile.reviewPolicy.required) {
     const reviewer = profile.reviewers[reviewerId];
     if (reviewer === undefined) {
-      return false;
+      missingReviewerIds.push(reviewerId);
+      continue;
     }
     if (reviewer.completionSignal.kind === "pull-request-review") {
       if (!reviewCompleted(matchingReview(pullRequest, reviewer.identity.login))) {
-        return false;
+        missingReviewerIds.push(reviewerId);
       }
       continue;
     }
     const completionName = reviewer.completionSignal.name;
     const completion = pullRequest.checks.find(
-      (check) => check.name === completionName && check.headSha === pullRequest.headSha,
+      (check) =>
+        check.name === completionName &&
+        check.headSha === pullRequest.headSha &&
+        checkSucceeded(check),
     );
-    if (completion === undefined || !checkSucceeded(completion)) {
-      return false;
+    if (completion === undefined) {
+      missingReviewerIds.push(reviewerId);
     }
   }
 
   const optionalLabel = profile.reviewPolicy.optionalOwnerLabel;
+  let optionalReviewMissing = false;
   if (optionalLabel !== undefined && pullRequest.labels.includes(optionalLabel)) {
     const requiredLogins = new Set(
       profile.reviewPolicy.required.flatMap((reviewerId) => {
@@ -193,31 +214,71 @@ function requiredReviewComplete(
         reviewCompleted(review),
     );
     if (optionalReview === undefined) {
-      return false;
+      optionalReviewMissing = true;
     }
   }
-  return true;
+  return { missingReviewerIds, optionalReviewMissing };
 }
 
-function requiredChecksComplete(
+function requiredCheckState(
   profile: ProjectProfile,
   snapshot: GitHubProjectSnapshot,
   pullRequest: GitHubPullRequestSnapshot,
-): boolean {
+): {
+  readonly missingCheckNames: readonly string[];
+  readonly failingChecks: readonly GitHubCheckSnapshot[];
+} {
   const required =
     profile.requiredChecks.source === "profile"
       ? profile.requiredChecks.checks
       : snapshot.requiredCheckNames.map((name) => ({ name }));
-  return required.every((requirement) => {
+  const missingCheckNames: string[] = [];
+  const failingChecks: GitHubCheckSnapshot[] = [];
+  for (const requirement of required) {
     const check = pullRequest.checks.find(
       (candidate) =>
         candidate.name === requirement.name &&
+        candidate.headSha === pullRequest.headSha &&
         ("appSlug" in requirement && requirement.appSlug !== undefined
           ? candidate.appSlug === requirement.appSlug
           : true),
     );
-    return check !== undefined && check.headSha === pullRequest.headSha && checkSucceeded(check);
-  });
+    if (check === undefined || !checkSucceeded(check)) {
+      missingCheckNames.push(requirement.name);
+    }
+    if (check !== undefined && repairableCheck(check)) {
+      failingChecks.push(check);
+    }
+  }
+  for (const check of pullRequest.checks) {
+    if (
+      check.headSha === pullRequest.headSha &&
+      repairableCheck(check) &&
+      !failingChecks.includes(check)
+    ) {
+      failingChecks.push(check);
+    }
+  }
+  return { missingCheckNames, failingChecks };
+}
+
+export function inspectCurrentHeadRequirements(
+  profile: ProjectProfile,
+  snapshot: GitHubProjectSnapshot,
+  pullRequest: GitHubPullRequestSnapshot,
+): CurrentHeadRequirementAssessment {
+  const reviews = requiredReviewState(profile, pullRequest);
+  const checks = requiredCheckState(profile, snapshot, pullRequest);
+  return {
+    missingReviewerIds: [...reviews.missingReviewerIds].sort(),
+    optionalReviewMissing: reviews.optionalReviewMissing,
+    missingCheckNames: [...checks.missingCheckNames].sort(),
+    failingChecks: [...checks.failingChecks].sort((left, right) =>
+      `${left.appSlug ?? ""}\u0000${left.name}`.localeCompare(
+        `${right.appSlug ?? ""}\u0000${right.name}`,
+      ),
+    ),
+  };
 }
 
 export function captureFeedbackBaseline(
@@ -229,8 +290,8 @@ export function captureFeedbackBaseline(
     projectId,
     pullRequestNumber: pullRequest.number,
     headSha: pullRequest.headSha,
-    reviewObservation: reviewMarker(pullRequest),
-    checkObservation: checkMarker(pullRequest),
+    reviewObservation: buildReviewObservationMarker(pullRequest),
+    checkObservation: buildCheckObservationMarker(pullRequest),
     quiescentPollCount: 0,
   });
 }
@@ -247,7 +308,7 @@ export function detectLateFeedback(
   if (baseline.headSha !== pullRequest.headSha) {
     reasons.push("head-changed");
   }
-  const currentReviews = reviewMarker(pullRequest);
+  const currentReviews = buildReviewObservationMarker(pullRequest);
   if (
     currentReviews.commentCount !== markers.reviews.commentCount ||
     currentReviews.latestCommentAt !== markers.reviews.latestCommentAt
@@ -260,7 +321,7 @@ export function detectLateFeedback(
   ) {
     reasons.push("reviews-changed");
   }
-  const currentChecks = checkMarker(pullRequest);
+  const currentChecks = buildCheckObservationMarker(pullRequest);
   if (
     stableJson(currentChecks) !== stableJson(markers.checks) &&
     pullRequest.checks.some(repairableCheck)
@@ -277,6 +338,7 @@ export function assessReadyToMerge(
   baseline: ReviewBaseline | null,
 ): ConvergenceAssessment {
   const reasons = new Set<ReadyToMergeRevocationReason>();
+  const requirements = inspectCurrentHeadRequirements(profile, snapshot, pullRequest);
   if (pullRequest.draft) {
     reasons.add("draft");
   }
@@ -286,27 +348,33 @@ export function assessReadyToMerge(
   if (pullRequest.unresolvedThreads > 0 || pullRequest.reviewDecision === "changes-requested") {
     reasons.add("feedback");
   }
-  if (!requiredReviewComplete(profile, pullRequest)) {
+  if (requirements.missingReviewerIds.length > 0 || requirements.optionalReviewMissing) {
     reasons.add("required-review");
   }
-  if (
-    !requiredChecksComplete(profile, snapshot, pullRequest) ||
-    pullRequest.checks.some(repairableCheck)
-  ) {
+  if (requirements.missingCheckNames.length > 0 || requirements.failingChecks.length > 0) {
     reasons.add("checks");
   }
   const markers = baselineMarkers(baseline);
   if (baseline === null || markers === null || baseline.headSha !== pullRequest.headSha) {
     reasons.add("head");
   } else {
-    if (stableJson(reviewMarker(pullRequest)) !== stableJson(markers.reviews)) {
+    if (stableJson(buildReviewObservationMarker(pullRequest)) !== stableJson(markers.reviews)) {
       reasons.add("feedback");
     }
-    if (stableJson(checkMarker(pullRequest)) !== stableJson(markers.checks)) {
+    if (stableJson(buildCheckObservationMarker(pullRequest)) !== stableJson(markers.checks)) {
       reasons.add("checks");
     }
   }
   return { ready: reasons.size === 0, reasons: [...reasons].sort() };
+}
+
+export function detectReadyToMergeRevocation(
+  profile: ProjectProfile,
+  snapshot: GitHubProjectSnapshot,
+  pullRequest: GitHubPullRequestSnapshot,
+  baseline: ReviewBaseline | null,
+): readonly ReadyToMergeRevocationReason[] {
+  return assessReadyToMerge(profile, snapshot, pullRequest, baseline).reasons;
 }
 
 export function shouldFullyReconcile(
