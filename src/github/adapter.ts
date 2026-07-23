@@ -4,131 +4,131 @@ import type { GitHubProjectObservation } from "../controller/model";
 import type { GitHubApiClient } from "./client";
 import type { GitHubMutationExecutor, GitHubProjectTokenProvider } from "./mutations";
 import {
-  type GitHubObservationAssociations,
-  type GitHubProjectSnapshot,
-  readGitHubObservation,
-  toControllerObservation,
+	type GitHubObservationAssociations,
+	type GitHubProjectSnapshot,
+	readGitHubObservation,
+	toControllerObservation,
 } from "./observation";
 import { type GitHubLifecycleReconciler, shouldFullyReconcile } from "./reconciliation";
 
 export interface ProductionGitHubAdapterOptions {
-  readonly profiles: readonly ProjectProfile[];
-  readonly client: GitHubApiClient;
-  readonly tokens: GitHubProjectTokenProvider;
-  readonly mutations?: GitHubMutationExecutor;
-  readonly lifecycle?: GitHubLifecycleReconciler;
-  readonly convergence?: {
-    reconcileProject(snapshot: GitHubProjectSnapshot): Promise<{ readonly mutated: boolean }>;
-  };
-  readonly associations?: GitHubObservationAssociations;
+	readonly profiles: readonly ProjectProfile[];
+	readonly client: GitHubApiClient;
+	readonly tokens: GitHubProjectTokenProvider;
+	readonly mutations?: GitHubMutationExecutor;
+	readonly lifecycle?: GitHubLifecycleReconciler;
+	readonly convergence?: {
+		reconcileProject(snapshot: GitHubProjectSnapshot): Promise<{ readonly mutated: boolean }>;
+	};
+	readonly associations?: GitHubObservationAssociations;
 }
 
 function emptyObservation(projectId: string): GitHubProjectObservation {
-  return { projectId, issues: [], pullRequests: [] };
+	return { projectId, issues: [], pullRequests: [] };
 }
 
 export class ProductionGitHubAdapter implements GitHubAdapter {
-  readonly #profiles: ReadonlyMap<string, ProjectProfile>;
-  readonly #client: GitHubApiClient;
-  readonly #tokens: GitHubProjectTokenProvider;
-  readonly #mutations: GitHubMutationExecutor | undefined;
-  readonly #lifecycle: GitHubLifecycleReconciler | undefined;
-  readonly #convergence: ProductionGitHubAdapterOptions["convergence"];
-  readonly #associations: GitHubObservationAssociations;
-  readonly #lastObservations = new Map<string, GitHubProjectObservation>();
+	readonly #profiles: ReadonlyMap<string, ProjectProfile>;
+	readonly #client: GitHubApiClient;
+	readonly #tokens: GitHubProjectTokenProvider;
+	readonly #mutations: GitHubMutationExecutor | undefined;
+	readonly #lifecycle: GitHubLifecycleReconciler | undefined;
+	readonly #convergence: ProductionGitHubAdapterOptions["convergence"];
+	readonly #associations: GitHubObservationAssociations;
+	readonly #lastObservations = new Map<string, GitHubProjectObservation>();
 
-  public constructor(options: ProductionGitHubAdapterOptions) {
-    this.#profiles = new Map(options.profiles.map((profile) => [profile.id, profile]));
-    this.#client = options.client;
-    this.#tokens = options.tokens;
-    this.#mutations = options.mutations;
-    this.#lifecycle = options.lifecycle;
-    this.#convergence = options.convergence;
-    this.#associations = options.associations ?? {};
-  }
+	public constructor(options: ProductionGitHubAdapterOptions) {
+		this.#profiles = new Map(options.profiles.map((profile) => [profile.id, profile]));
+		this.#client = options.client;
+		this.#tokens = options.tokens;
+		this.#mutations = options.mutations;
+		this.#lifecycle = options.lifecycle;
+		this.#convergence = options.convergence;
+		this.#associations = options.associations ?? {};
+	}
 
-  public async observe(
-    projectIds: readonly string[],
-    options?: GitHubObserveOptions,
-  ): Promise<unknown> {
-    const enabled = new Set(
-      options?.enabledProjectIds ??
-        [...this.#profiles.values()]
-          .filter((profile) => profile.enabled)
-          .map((profile) => profile.id),
-    );
-    const observations: GitHubProjectObservation[] = [];
-    for (const projectId of [...projectIds].sort()) {
-      const profile = this.#profiles.get(projectId);
-      if (profile === undefined) {
-        throw new Error(`GitHub observation requested unknown project '${projectId}'`);
-      }
-      if (!enabled.has(projectId)) {
-        observations.push(emptyObservation(projectId));
-        continue;
-      }
+	public async observe(
+		projectIds: readonly string[],
+		options?: GitHubObserveOptions,
+	): Promise<unknown> {
+		const enabled = new Set(
+			options?.enabledProjectIds ??
+				[...this.#profiles.values()]
+					.filter((profile) => profile.enabled)
+					.map((profile) => profile.id),
+		);
+		const observations: GitHubProjectObservation[] = [];
+		for (const projectId of [...projectIds].sort()) {
+			const profile = this.#profiles.get(projectId);
+			if (profile === undefined) {
+				throw new Error(`GitHub observation requested unknown project '${projectId}'`);
+			}
+			if (!enabled.has(projectId)) {
+				observations.push(emptyObservation(projectId));
+				continue;
+			}
 
-      const token = await this.#tokens.tokenForProject(projectId);
-      let read = await readGitHubObservation(
-        this.#client,
-        profile,
-        token,
-        true,
-        this.#associations,
-      );
-      const full = options !== undefined && shouldFullyReconcile(options.reason, read.changed);
-      if (options?.allowMutations === true) {
-        let recovered = 0;
-        let lifecycleTransitions = 0;
-        if (full) {
-          recovered =
-            this.#mutations === undefined
-              ? 0
-              : (await this.#mutations.reconcileOutstanding(projectId)).length;
-          const activeFeedback = new Set(
-            options.activeFeedbackPullRequests
-              .filter((active) => active.projectId === projectId)
-              .map((active) => active.pullRequestNumber),
-          );
-          const lifecycle =
-            this.#lifecycle === undefined
-              ? null
-              : await this.#lifecycle.reconcileProject(read.value, activeFeedback);
-          lifecycleTransitions = lifecycle?.transitions.length ?? 0;
-        }
-        if (recovered > 0 || lifecycleTransitions > 0) {
-          read = await readGitHubObservation(
-            this.#client,
-            profile,
-            token,
-            false,
-            this.#associations,
-          );
-        }
-        const convergence = await this.#convergence?.reconcileProject(read.value);
-        if (convergence?.mutated === true) {
-          read = await readGitHubObservation(
-            this.#client,
-            profile,
-            token,
-            false,
-            this.#associations,
-          );
-        }
-      }
-      const observation = toControllerObservation(read.value);
-      this.#lastObservations.set(projectId, observation);
-      observations.push(observation);
-    }
-    return observations;
-  }
+			const token = await this.#tokens.tokenForProject(projectId);
+			let read = await readGitHubObservation(
+				this.#client,
+				profile,
+				token,
+				true,
+				this.#associations,
+			);
+			const full = options !== undefined && shouldFullyReconcile(options.reason, read.changed);
+			if (options?.allowMutations === true) {
+				let recovered = 0;
+				let lifecycleTransitions = 0;
+				if (full) {
+					recovered =
+						this.#mutations === undefined
+							? 0
+							: (await this.#mutations.reconcileOutstanding(projectId)).length;
+					const activeFeedback = new Set(
+						options.activeFeedbackPullRequests
+							.filter((active) => active.projectId === projectId)
+							.map((active) => active.pullRequestNumber),
+					);
+					const lifecycle =
+						this.#lifecycle === undefined
+							? null
+							: await this.#lifecycle.reconcileProject(read.value, activeFeedback);
+					lifecycleTransitions = lifecycle?.transitions.length ?? 0;
+				}
+				if (recovered > 0 || lifecycleTransitions > 0) {
+					read = await readGitHubObservation(
+						this.#client,
+						profile,
+						token,
+						false,
+						this.#associations,
+					);
+				}
+				const convergence = await this.#convergence?.reconcileProject(read.value);
+				if (convergence?.mutated === true) {
+					read = await readGitHubObservation(
+						this.#client,
+						profile,
+						token,
+						false,
+						this.#associations,
+					);
+				}
+			}
+			const observation = toControllerObservation(read.value);
+			this.#lastObservations.set(projectId, observation);
+			observations.push(observation);
+		}
+		return observations;
+	}
 
-  public mergedAt(projectId: string, pullRequestNumber: number): string | null {
-    return (
-      this.#lastObservations
-        .get(projectId)
-        ?.pullRequests.find((pullRequest) => pullRequest.number === pullRequestNumber)?.mergedAt ??
-      null
-    );
-  }
+	public mergedAt(projectId: string, pullRequestNumber: number): string | null {
+		return (
+			this.#lastObservations
+				.get(projectId)
+				?.pullRequests.find((pullRequest) => pullRequest.number === pullRequestNumber)?.mergedAt ??
+			null
+		);
+	}
 }

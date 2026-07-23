@@ -1,28 +1,28 @@
 {
-  "schemaVersion": 1,
-  "executionId": "execution-operator-103",
-  "target": {
-    "projectId": "lumen-notes",
-    "repository": "ExampleOrg/lumen-notes"
-  },
-  "issue": {
-    "number": 103
-  },
-  "pullRequest": null,
-  "branch": {
-    "name": "factory/issue-103",
-    "base": "trunk",
-    "headSha": "2222222222222222222222222222222222222222",
-    "pushed": true
-  },
-  "providerSession": {
-    "provider": "claude",
-    "id": "session-operator-103"
-  },
-  "checkpoint": {
-    "phase": "implementation",
-    "sequence": 2,
-    "code": "operator-decision-required"
-  },
-  "terminalStatus": "operator_required"
+	"schemaVersion": 1,
+	"executionId": "execution-operator-103",
+	"target": {
+		"projectId": "lumen-notes",
+		"repository": "ExampleOrg/lumen-notes"
+	},
+	"issue": {
+		"number": 103
+	},
+	"pullRequest": null,
+	"branch": {
+		"name": "factory/issue-103",
+		"base": "trunk",
+		"headSha": "2222222222222222222222222222222222222222",
+		"pushed": true
+	},
+	"providerSession": {
+		"provider": "claude",
+		"id": "session-operator-103"
+	},
+	"checkpoint": {
+		"phase": "implementation",
+		"sequence": 2,
+		"code": "operator-decision-required"
+	},
+	"terminalStatus": "operator_required"
 }

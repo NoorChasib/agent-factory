@@ -1,28 +1,28 @@
 {
-  "schemaVersion": 1,
-  "executionId": "execution-blocked-102",
-  "target": {
-    "projectId": "lumen-notes",
-    "repository": "ExampleOrg/lumen-notes"
-  },
-  "issue": {
-    "number": 102
-  },
-  "pullRequest": null,
-  "branch": {
-    "name": "factory/issue-102",
-    "base": "trunk",
-    "headSha": null,
-    "pushed": false
-  },
-  "providerSession": {
-    "provider": "claude",
-    "id": "session-blocked-102"
-  },
-  "checkpoint": {
-    "phase": "implementation",
-    "sequence": 1,
-    "code": "blocked-external"
-  },
-  "terminalStatus": "blocked"
+	"schemaVersion": 1,
+	"executionId": "execution-blocked-102",
+	"target": {
+		"projectId": "lumen-notes",
+		"repository": "ExampleOrg/lumen-notes"
+	},
+	"issue": {
+		"number": 102
+	},
+	"pullRequest": null,
+	"branch": {
+		"name": "factory/issue-102",
+		"base": "trunk",
+		"headSha": null,
+		"pushed": false
+	},
+	"providerSession": {
+		"provider": "claude",
+		"id": "session-blocked-102"
+	},
+	"checkpoint": {
+		"phase": "implementation",
+		"sequence": 1,
+		"code": "blocked-external"
+	},
+	"terminalStatus": "blocked"
 }

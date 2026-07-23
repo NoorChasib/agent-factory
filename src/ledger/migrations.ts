@@ -4,135 +4,135 @@ import type { ClockAdapter } from "../adapters/interfaces";
 import { LedgerMigrationError } from "./errors";
 
 export interface LedgerMigration {
-  readonly version: number;
-  readonly name: string;
-  readonly statements: readonly string[];
+	readonly version: number;
+	readonly name: string;
+	readonly statements: readonly string[];
 }
 
 interface AppliedMigrationRow {
-  readonly version: number;
-  readonly name: string;
+	readonly version: number;
+	readonly name: string;
 }
 
 const MIGRATION_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const DESTRUCTIVE_SCHEMA_SQL =
-  /\b(?:DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW)|TRUNCATE|ALTER\s+TABLE\s+\S+\s+(?:DROP|RENAME))\b/iu;
+	/\b(?:DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW)|TRUNCATE|ALTER\s+TABLE\s+\S+\s+(?:DROP|RENAME))\b/iu;
 
 function timestamp(clock: ClockAdapter): string {
-  const value = clock.now();
-  if (!Number.isFinite(value.getTime())) {
-    throw new LedgerMigrationError("migration clock returned an invalid date");
-  }
-  return value.toISOString();
+	const value = clock.now();
+	if (!Number.isFinite(value.getTime())) {
+		throw new LedgerMigrationError("migration clock returned an invalid date");
+	}
+	return value.toISOString();
 }
 
 export function validateLedgerMigrations(migrations: readonly LedgerMigration[]): void {
-  if (migrations.length === 0) {
-    throw new LedgerMigrationError("at least one ledger migration is required");
-  }
-  for (const [index, migration] of migrations.entries()) {
-    const expectedVersion = index + 1;
-    if (migration.version !== expectedVersion) {
-      throw new LedgerMigrationError(
-        `ledger migrations must be contiguous and ordered: expected version ${expectedVersion}, received ${migration.version}`,
-      );
-    }
-    if (!MIGRATION_NAME.test(migration.name)) {
-      throw new LedgerMigrationError(`invalid ledger migration name '${migration.name}'`);
-    }
-    if (migration.statements.length === 0) {
-      throw new LedgerMigrationError(`ledger migration ${migration.version} has no statements`);
-    }
-    for (const statement of migration.statements) {
-      if (DESTRUCTIVE_SCHEMA_SQL.test(statement)) {
-        throw new LedgerMigrationError(
-          `ledger migration ${migration.version} contains destructive schema SQL`,
-        );
-      }
-    }
-  }
+	if (migrations.length === 0) {
+		throw new LedgerMigrationError("at least one ledger migration is required");
+	}
+	for (const [index, migration] of migrations.entries()) {
+		const expectedVersion = index + 1;
+		if (migration.version !== expectedVersion) {
+			throw new LedgerMigrationError(
+				`ledger migrations must be contiguous and ordered: expected version ${expectedVersion}, received ${migration.version}`,
+			);
+		}
+		if (!MIGRATION_NAME.test(migration.name)) {
+			throw new LedgerMigrationError(`invalid ledger migration name '${migration.name}'`);
+		}
+		if (migration.statements.length === 0) {
+			throw new LedgerMigrationError(`ledger migration ${migration.version} has no statements`);
+		}
+		for (const statement of migration.statements) {
+			if (DESTRUCTIVE_SCHEMA_SQL.test(statement)) {
+				throw new LedgerMigrationError(
+					`ledger migration ${migration.version} contains destructive schema SQL`,
+				);
+			}
+		}
+	}
 }
 
 function bootstrapMigrationTable(database: Database): void {
-  database
-    .transaction(() => {
-      database.exec(`
+	database
+		.transaction(() => {
+			database.exec(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY CHECK (version > 0),
         name TEXT NOT NULL UNIQUE,
         applied_at TEXT NOT NULL
       ) STRICT;
     `);
-    })
-    .immediate();
+		})
+		.immediate();
 }
 
 export function readSchemaVersion(database: Database): number {
-  const row = database
-    .query<{ version: number | null }, []>("SELECT MAX(version) AS version FROM schema_migrations")
-    .get();
-  return row?.version ?? 0;
+	const row = database
+		.query<{ version: number | null }, []>("SELECT MAX(version) AS version FROM schema_migrations")
+		.get();
+	return row?.version ?? 0;
 }
 
 export function applyLedgerMigrations(
-  database: Database,
-  clock: ClockAdapter,
-  migrations: readonly LedgerMigration[] = LEDGER_MIGRATIONS,
+	database: Database,
+	clock: ClockAdapter,
+	migrations: readonly LedgerMigration[] = LEDGER_MIGRATIONS,
 ): number {
-  validateLedgerMigrations(migrations);
-  bootstrapMigrationTable(database);
+	validateLedgerMigrations(migrations);
+	bootstrapMigrationTable(database);
 
-  const applied = database
-    .query<AppliedMigrationRow, []>("SELECT version, name FROM schema_migrations ORDER BY version")
-    .all();
-  for (const [index, row] of applied.entries()) {
-    const expectedVersion = index + 1;
-    if (row.version !== expectedVersion) {
-      throw new LedgerMigrationError(
-        `ledger schema history has a gap before version ${row.version}`,
-      );
-    }
-    const known = migrations[index];
-    if (known === undefined) {
-      throw new LedgerMigrationError(
-        `ledger schema version ${row.version} is newer than supported version ${migrations.length}; downgrade is forbidden`,
-      );
-    }
-    if (known.name !== row.name) {
-      throw new LedgerMigrationError(
-        `ledger schema version ${row.version} is unknown: recorded '${row.name}', expected '${known.name}'`,
-      );
-    }
-  }
+	const applied = database
+		.query<AppliedMigrationRow, []>("SELECT version, name FROM schema_migrations ORDER BY version")
+		.all();
+	for (const [index, row] of applied.entries()) {
+		const expectedVersion = index + 1;
+		if (row.version !== expectedVersion) {
+			throw new LedgerMigrationError(
+				`ledger schema history has a gap before version ${row.version}`,
+			);
+		}
+		const known = migrations[index];
+		if (known === undefined) {
+			throw new LedgerMigrationError(
+				`ledger schema version ${row.version} is newer than supported version ${migrations.length}; downgrade is forbidden`,
+			);
+		}
+		if (known.name !== row.name) {
+			throw new LedgerMigrationError(
+				`ledger schema version ${row.version} is unknown: recorded '${row.name}', expected '${known.name}'`,
+			);
+		}
+	}
 
-  for (const migration of migrations.slice(applied.length)) {
-    database
-      .transaction(() => {
-        for (const statement of migration.statements) {
-          database.exec(statement);
-        }
-        database
-          .query(
-            "INSERT INTO schema_migrations (version, name, applied_at) VALUES ($version, $name, $appliedAt)",
-          )
-          .run({
-            version: migration.version,
-            name: migration.name,
-            appliedAt: timestamp(clock),
-          });
-      })
-      .immediate();
-  }
+	for (const migration of migrations.slice(applied.length)) {
+		database
+			.transaction(() => {
+				for (const statement of migration.statements) {
+					database.exec(statement);
+				}
+				database
+					.query(
+						"INSERT INTO schema_migrations (version, name, applied_at) VALUES ($version, $name, $appliedAt)",
+					)
+					.run({
+						version: migration.version,
+						name: migration.name,
+						appliedAt: timestamp(clock),
+					});
+			})
+			.immediate();
+	}
 
-  return readSchemaVersion(database);
+	return readSchemaVersion(database);
 }
 
 export const LEDGER_MIGRATIONS: readonly LedgerMigration[] = [
-  {
-    version: 1,
-    name: "execution-recovery-core",
-    statements: [
-      `
+	{
+		version: 1,
+		name: "execution-recovery-core",
+		statements: [
+			`
         CREATE TABLE ledger_owner (
           singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
           instance_id TEXT NOT NULL,
@@ -244,13 +244,13 @@ export const LEDGER_MIGRATIONS: readonly LedgerMigration[] = [
           SELECT RAISE(ABORT, 'audit events are append-only');
         END;
       `,
-    ],
-  },
-  {
-    version: 2,
-    name: "reconciliation-and-maintenance",
-    statements: [
-      `
+		],
+	},
+	{
+		version: 2,
+		name: "reconciliation-and-maintenance",
+		statements: [
+			`
         CREATE TABLE github_mutations (
           mutation_id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL,
@@ -310,13 +310,13 @@ export const LEDGER_MIGRATIONS: readonly LedgerMigration[] = [
         CREATE INDEX maintenance_requests_status
           ON maintenance_requests (status, created_at);
       `,
-    ],
-  },
-  {
-    version: 3,
-    name: "release-state",
-    statements: [
-      `
+		],
+	},
+	{
+		version: 3,
+		name: "release-state",
+		statements: [
+			`
         CREATE TABLE releases (
           release_id TEXT PRIMARY KEY,
           commit_sha TEXT NOT NULL,
@@ -338,18 +338,18 @@ export const LEDGER_MIGRATIONS: readonly LedgerMigration[] = [
           ON releases ((1))
           WHERE status = 'queued';
       `,
-    ],
-  },
-  {
-    version: 4,
-    name: "release-commit-identity",
-    statements: [
-      `
+		],
+	},
+	{
+		version: 4,
+		name: "release-commit-identity",
+		statements: [
+			`
         CREATE UNIQUE INDEX releases_commit_sha_unique
           ON releases (commit_sha);
       `,
-    ],
-  },
+		],
+	},
 ];
 
 export const CURRENT_LEDGER_SCHEMA_VERSION = LEDGER_MIGRATIONS.length;

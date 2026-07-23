@@ -1,14 +1,14 @@
 {
-  "token": "fixture-installation-token",
-  "expires_at": "2026-07-23T01:00:00Z",
-  "permissions": {
-    "administration": "read",
-    "checks": "read",
-    "contents": "write",
-    "issues": "write",
-    "metadata": "read",
-    "pull_requests": "write",
-    "statuses": "read"
-  },
-  "repository_selection": "selected"
+	"token": "fixture-installation-token",
+	"expires_at": "2026-07-23T01:00:00Z",
+	"permissions": {
+		"administration": "read",
+		"checks": "read",
+		"contents": "write",
+		"issues": "write",
+		"metadata": "read",
+		"pull_requests": "write",
+		"statuses": "read"
+	},
+	"repository_selection": "selected"
 }

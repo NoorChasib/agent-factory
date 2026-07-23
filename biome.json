@@ -1,50 +1,48 @@
 {
-  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "files": {
-    "includes": ["**", "!!node_modules", "!!bun.lock"]
-  },
-  "formatter": {
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "linter": {
-    "domains": {
-      "test": "recommended"
-    },
-    "rules": {
-      "complexity": {
-        "noExcessiveCognitiveComplexity": "info",
-        "noExcessiveNestedTestSuites": "error",
-        "noForEach": "error",
-        "useArrowFunction": "error",
-        "useMaxParams": "info"
-      },
-      "correctness": {
-        "noUnusedImports": "error"
-      },
-      "performance": {
-        "noAccumulatingSpread": "error"
-      },
-      "style": {
-        "noNonNullAssertion": "error",
-        "noParameterAssign": "error",
-        "noProcessEnv": "error",
-        "noNestedTernary": "error",
-        "noUselessElse": "error"
-      },
-      "suspicious": {
-        "noDeprecatedImports": "warn",
-        "noEvolvingTypes": "error",
-        "noImportCycles": "error",
-        "noShadow": "error",
-        "noTsIgnore": "error"
-      }
-    }
-  }
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": ["**", "!!node_modules", "!!bun.lock"]
+	},
+	"formatter": {
+		"lineWidth": 100
+	},
+	"linter": {
+		"domains": {
+			"test": "recommended"
+		},
+		"rules": {
+			"complexity": {
+				"noExcessiveCognitiveComplexity": "info",
+				"noExcessiveNestedTestSuites": "error",
+				"noForEach": "error",
+				"useArrowFunction": "error",
+				"useMaxParams": "info"
+			},
+			"correctness": {
+				"noUnusedImports": "error"
+			},
+			"performance": {
+				"noAccumulatingSpread": "error"
+			},
+			"style": {
+				"noNonNullAssertion": "error",
+				"noParameterAssign": "error",
+				"noProcessEnv": "error",
+				"noNestedTernary": "error",
+				"noUselessElse": "error"
+			},
+			"suspicious": {
+				"noDeprecatedImports": "warn",
+				"noEvolvingTypes": "error",
+				"noImportCycles": "error",
+				"noShadow": "error",
+				"noTsIgnore": "error"
+			}
+		}
+	}
 }

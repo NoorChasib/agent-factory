@@ -1,30 +1,30 @@
 {
-  "schemaVersion": 1,
-  "executionId": "execution-invalid-204",
-  "target": {
-    "projectId": "lumen-notes",
-    "repository": "ExampleOrg/lumen-notes"
-  },
-  "issue": {
-    "number": 204
-  },
-  "pullRequest": {
-    "number": 304
-  },
-  "branch": {
-    "name": "factory/issue-204",
-    "base": "trunk",
-    "headSha": null,
-    "pushed": false
-  },
-  "providerSession": {
-    "provider": "codex",
-    "id": "thread-invalid-204"
-  },
-  "checkpoint": {
-    "phase": "feedback",
-    "sequence": 0,
-    "code": "fixture"
-  },
-  "terminalStatus": "completed"
+	"schemaVersion": 1,
+	"executionId": "execution-invalid-204",
+	"target": {
+		"projectId": "lumen-notes",
+		"repository": "ExampleOrg/lumen-notes"
+	},
+	"issue": {
+		"number": 204
+	},
+	"pullRequest": {
+		"number": 304
+	},
+	"branch": {
+		"name": "factory/issue-204",
+		"base": "trunk",
+		"headSha": null,
+		"pushed": false
+	},
+	"providerSession": {
+		"provider": "codex",
+		"id": "thread-invalid-204"
+	},
+	"checkpoint": {
+		"phase": "feedback",
+		"sequence": 0,
+		"code": "fixture"
+	},
+	"terminalStatus": "completed"
 }
