@@ -4,6 +4,37 @@ Installation prepares local files only. It does not create or install a GitHub A
 credentials, migrate target labels, enable a profile, promote rollout, start a worker, or merge a
 pull request.
 
+## Quick install
+
+The repository is private, so download and run the installer through an authenticated GitHub CLI
+session:
+
+```sh
+gh api -H "Accept: application/vnd.github.raw" /repos/NoorChasib/agent-factory/contents/install.sh?ref=main | bash
+```
+
+Or provide a GitHub token to the API request:
+
+```sh
+curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/NoorChasib/agent-factory/contents/install.sh?ref=main" | bash
+```
+
+The script automates the manual installation steps below and deliberately stops short of
+credential provisioning, service enablement, profile enablement, or rollout promotion. GitHub CLI
+must still be installed and authenticated because it clones the private repository.
+
+The following environment variables customize a run:
+
+- `AGENT_FACTORY_CHECKOUT` changes the checkout from
+  `$HOME/.local/src/agent-factory`.
+- `AGENT_FACTORY_REF` selects a fetched commit, tag, or branch instead of the remote default
+  branch.
+- `AGENT_FACTORY_SKIP_VALIDATE=1` skips the source-checkout `bun run validate` step. This is not
+  recommended; immutable-release bootstrap still performs its documented validation.
+
+For a prerequisite-only check that does not clone or install anything, set
+`AGENT_FACTORY_INSTALL_CHECK_ONLY=1`.
+
 ## Prerequisites
 
 - Linux with `systemd --user` and Unix-domain sockets
