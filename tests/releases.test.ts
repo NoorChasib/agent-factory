@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import {
 	chmodSync,
 	existsSync,
@@ -32,6 +33,7 @@ import {
 	ReleaseStore,
 	ReleaseUpdater,
 	releaseInventoryHash,
+	resolveFactoryRuntimeRoot,
 	validateReleaseManifest,
 } from "@/releases/index.ts";
 import {
@@ -51,6 +53,10 @@ import {
 const oldSha = "1".repeat(40);
 const candidateSha = "2".repeat(40);
 const otherSha = "3".repeat(40);
+
+function sha256(value: string): string {
+	return createHash("sha256").update(value).digest("hex");
+}
 
 const activePolicy = {
 	mode: "active" as const,
@@ -172,13 +178,19 @@ describe("release manifest and immutable store", () => {
 		);
 		const packageMetadata = JSON.parse(
 			readFileSync(join(import.meta.dir, "..", "package.json"), "utf8"),
-		) as { readonly version?: unknown };
+		) as {
+			readonly version?: unknown;
+			readonly scripts?: Readonly<Record<string, unknown>>;
+		};
 		expect(packageMetadata.version).toBe(metadata.version);
+		expect(packageMetadata.scripts?.["build:binaries"]).toBe(
+			"bun src/installation/build-binaries.ts",
+		);
 		expect(metadata.requiredLedgerSchemaVersion).toBe(CURRENT_LEDGER_SCHEMA_VERSION);
 		expect(LEDGER_MIGRATIONS).toHaveLength(CURRENT_LEDGER_SCHEMA_VERSION);
 	});
 
-	test("builds only the addressed factory checkout with frozen install and full validation", async () => {
+	test("builds only the addressed checkout, then compiles both staged release binaries", async () => {
 		await inTemporaryDirectory(async (directory) => {
 			const repositoryRoot = join(directory, "factory-repository");
 			const checkoutRoot = join(directory, "factory-release-builds");
@@ -219,6 +231,32 @@ describe("release manifest and immutable store", () => {
 					"--untracked-files=no",
 				],
 				[
+					"bun",
+					"build",
+					"--compile",
+					"--minify",
+					"--sourcemap",
+					"--bytecode",
+					"--no-compile-autoload-dotenv",
+					"--no-compile-autoload-bunfig",
+					"src/cli/main.ts",
+					"--outfile",
+					join(stagingPath, "bin", "agent-factory"),
+				],
+				[
+					"bun",
+					"build",
+					"--compile",
+					"--minify",
+					"--sourcemap",
+					"--bytecode",
+					"--no-compile-autoload-dotenv",
+					"--no-compile-autoload-bunfig",
+					"src/daemon/main.ts",
+					"--outfile",
+					join(stagingPath, "bin", "agent-factory-daemon"),
+				],
+				[
 					"git",
 					"-C",
 					repositoryRoot,
@@ -235,6 +273,16 @@ describe("release manifest and immutable store", () => {
 			expect(commands.requests.map((request) => request.executable)).not.toContain("codex");
 			expect(existsSync(join(stagingPath, "src", "index.ts"))).toBe(true);
 			expect(existsSync(join(stagingPath, ".git"))).toBe(false);
+			expect(readFileSync(join(stagingPath, "bin", "agent-factory"), "utf8")).toBe(
+				"scripted compiled binary from src/cli/main.ts\n",
+			);
+			expect(readFileSync(join(stagingPath, "bin", "agent-factory-daemon"), "utf8")).toBe(
+				"scripted compiled binary from src/daemon/main.ts\n",
+			);
+			expect(readdirSync(join(stagingPath, "bin")).sort()).toEqual([
+				"agent-factory",
+				"agent-factory-daemon",
+			]);
 		});
 	});
 
@@ -248,6 +296,18 @@ describe("release manifest and immutable store", () => {
 				[...manifest.inventory.map((entry) => entry.path)].sort(),
 			);
 			expect(manifest.inventory.some((entry) => entry.path === "release.json")).toBe(true);
+			expect(manifest.inventory.find((entry) => entry.path === "bin/agent-factory")).toMatchObject({
+				kind: "file",
+				mode: 0o555,
+				sha256: sha256("scripted compiled CLI binary\n"),
+			});
+			expect(
+				manifest.inventory.find((entry) => entry.path === "bin/agent-factory-daemon"),
+			).toMatchObject({
+				kind: "file",
+				mode: 0o555,
+				sha256: sha256("scripted compiled daemon binary\n"),
+			});
 			expect(manifest.inventoryHash).toBe(releaseInventoryHash(manifest.inventory));
 			expect(await harness.store.validate(candidateSha)).toEqual(manifest);
 
@@ -258,6 +318,23 @@ describe("release manifest and immutable store", () => {
 				"inventory does not match",
 			);
 		});
+	});
+
+	test("resolves source and compiled executable roots without changing source-mode paths", () => {
+		expect(
+			resolveFactoryRuntimeRoot({
+				moduleDirectory: "/factory/src/daemon",
+				executablePath: "/opt/bun/bin/bun",
+				compiledExecutableName: "agent-factory-daemon",
+			}),
+		).toBe("/factory");
+		expect(
+			resolveFactoryRuntimeRoot({
+				moduleDirectory: "/$bunfs/root",
+				executablePath: "/data/releases/abc/bin/agent-factory-daemon",
+				compiledExecutableName: "agent-factory-daemon",
+			}),
+		).toBe("/data/releases/abc");
 	});
 
 	test("keeps the old pointer intact when the write-new-then-rename swap fails", async () => {
@@ -353,6 +430,80 @@ describe("initial immutable release bootstrap", () => {
 });
 
 describe("queued update state machine", () => {
+	test("classifies a binary compilation failure like candidate validation failure", async () => {
+		await inTemporaryDirectory(async (directory) => {
+			const store = new ReleaseStore({
+				root: join(directory, "releases"),
+				fileSystem: new LocalReleaseFileSystemAdapter(),
+				clock: new FixedClockAdapter(),
+				ids: new SequenceReleaseIdSource(),
+			});
+			await store.prepare();
+			const oldBuilds = new ScriptedFactoryReleaseBuildAdapter({
+				requiredLedgerSchemaVersion: CURRENT_LEDGER_SCHEMA_VERSION,
+			});
+			const oldManifest = await new ReleaseBuilder({ builds: oldBuilds, store }).build(oldSha);
+			await store.activate(oldSha);
+
+			const ledger = new InMemoryReleaseLedgerAdapter(CURRENT_LEDGER_SCHEMA_VERSION, [
+				{
+					releaseId: oldSha,
+					commitSha: oldSha,
+					status: "installed",
+					artifactPath: oldSha,
+					requiredSchemaVersion: oldManifest.requiredLedgerSchemaVersion,
+					metadata: { bootstrap: true },
+				},
+			]);
+			const commands = new ScriptedLocalReleaseCommandAdapter(CURRENT_LEDGER_SCHEMA_VERSION);
+			commands.compileExitCode = 1;
+			const checkoutRoot = join(directory, "factory-release-builds");
+			const builder = new ReleaseBuilder({
+				builds: new LocalFactoryReleaseBuildAdapter({
+					commands,
+					repositoryRoot: join(directory, "factory-repository"),
+					checkoutRoot,
+					environment: { PATH: "/scripted/bin" },
+				}),
+				store,
+			});
+			const maintenance = new ScriptedReleaseMaintenanceAdapter(activePolicy);
+			const service = new ScriptedReleaseServiceAdapter(oldSha);
+			const reconciliation = new ScriptedReleaseReconciliationAdapter(() => maintenance.policy);
+			const updater = new ReleaseUpdater({
+				builder,
+				store,
+				ledger,
+				maintenance,
+				migrations: new ScriptedReleaseMigrationSourceAdapter(LEDGER_MIGRATIONS),
+				service,
+				health: new ReleaseHealthChecker({ store, ledger, service, reconciliation }),
+				alerts: new InMemoryReleaseAlertAdapter(),
+			});
+
+			await expect(updater.queue(candidateSha)).rejects.toThrow("failed build validation");
+			expect(
+				commands.requests.filter(
+					(request) => request.executable === "bun" && request.argv[0] === "build",
+				),
+			).toHaveLength(1);
+			expect(ledger.listReleases()).toContainEqual(
+				expect.objectContaining({
+					releaseId: candidateSha,
+					status: "failed",
+					artifactPath: null,
+					metadata: {
+						schemaVersion: 1,
+						failureCode: "candidate-build-validation-failed",
+					},
+				}),
+			);
+			expect(await store.hasRelease(candidateSha)).toBe(false);
+			expect(readdirSync(store.root).some((name) => name.startsWith(".candidate-"))).toBe(false);
+			expect(readdirSync(checkoutRoot)).toEqual([]);
+		});
+	});
+
 	test("marks a validation failure failed and never makes it queue-eligible", async () => {
 		await inTemporaryDirectory(async (directory) => {
 			const harness = await createHarness(directory);

@@ -53,6 +53,7 @@ import {
 	ReleaseStore,
 	ReviewConvergenceCoordinator,
 	ReviewConvergenceEngine,
+	resolveFactoryRuntimeRoot,
 	resolveSourceRepository,
 	resolveXdgPaths,
 	SelectionCheckoutCustody,
@@ -118,7 +119,11 @@ export async function productionDaemonMain(
 		ids,
 	});
 	await releaseStore.prepare();
-	const factoryRoot = resolve(import.meta.dir, "..", "..");
+	const factoryRoot = resolveFactoryRuntimeRoot({
+		moduleDirectory: import.meta.dir,
+		executablePath: process.execPath,
+		compiledExecutableName: "agent-factory-daemon",
+	});
 	const factorySourceRepository = resolveSourceRepository(environment, factoryRoot);
 	const commandEnv = commandEnvironment(environment);
 	const releaseBuilder = new ReleaseBuilder({
@@ -185,7 +190,7 @@ export async function productionDaemonMain(
 		tokens,
 		mirrorBaseDirectory: paths.mirrorDirectory,
 		worktreeBaseDirectory: paths.worktreeDirectory,
-		protectedCheckoutDirectories: [resolve(import.meta.dir, "..", "..")],
+		protectedCheckoutDirectories: [factoryRoot],
 	});
 	const worktrees = new WorktreeCustody(git);
 	const processTree = new LinuxProcessTreeAdapter();
@@ -206,7 +211,7 @@ export async function productionDaemonMain(
 		delay,
 		clock,
 		stateDirectory: paths.stateDirectory,
-		workerExecutable: resolve(import.meta.dir, "worker-command.ts"),
+		workerExecutable: resolve(factoryRoot, "src", "daemon", "worker-command.ts"),
 	});
 	const verifier = new ObservedWorkerOutcomeVerifier({
 		async observeProject(projectId) {
@@ -348,5 +353,5 @@ export async function productionDaemonMain(
 }
 
 if (import.meta.main) {
-	await productionDaemonMain();
+	void productionDaemonMain();
 }

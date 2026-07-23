@@ -17,6 +17,12 @@ updater creates a new relative symlink and atomically renames it over the pointe
 `ExecStart` to a mutable source checkout, and do not enable the unit before
 `current/bin/agent-factory-daemon` exists.
 
+That daemon path is a compiled standalone executable containing the Bun runtime from its release
+build; systemd does not start it through the host `bun`. Host Bun is still a required installed
+tool for building later releases and for the artifact's source worker wrapper, which the daemon
+continues to launch with the guarded `bun <wrapper.ts> <spec>` command shape. The source checkout's
+`bin/` shell wrappers remain development-only.
+
 After bootstrap, queue an update with a factory commit SHA:
 
 ```sh
@@ -24,9 +30,12 @@ agent-factory update queue <factory-commit-sha>
 agent-factory update status
 ```
 
-The daemon drains, validates, backs up, migrates, switches, and asks systemd for a non-blocking
-restart. The new daemon completes health/reconciliation or automatically restores the prior
-pointer and ledger. See [`../docs/updates.md`](../docs/updates.md).
+The daemon installs frozen dependencies, validates, compiles the candidate CLI and daemon, and
+inventories the artifact before making it eligible and requesting a drain. Once idle it backs up,
+migrates, switches, and asks systemd for a non-blocking restart. A compilation failure fails the
+candidate before drain eligibility. The new daemon completes health/reconciliation or
+automatically restores the prior pointer and ledger. See
+[`../docs/updates.md`](../docs/updates.md).
 
 The GitHub App PEM is a systemd credential, never an environment value. By default the unit reads
 the operator-provisioned mode-`0600` source at

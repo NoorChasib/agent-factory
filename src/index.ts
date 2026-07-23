@@ -81,5 +81,5 @@ export {
 	RedactingNotificationAdapter,
 	StructuredRedactionBoundary,
 } from "@/redaction/index.ts";
-export { ReleaseBuilder, ReleaseStore } from "@/releases/index.ts";
+export { ReleaseBuilder, ReleaseStore, resolveFactoryRuntimeRoot } from "@/releases/index.ts";
 export { GuardedGitCommandAdapter, WorktreeCustody } from "@/worktrees/index.ts";

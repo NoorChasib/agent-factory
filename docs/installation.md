@@ -7,7 +7,7 @@ pull request.
 ## Prerequisites
 
 - Linux with `systemd --user` and Unix-domain sockets
-- Bun 1.3 or newer
+- Bun 1.3 or newer for source development, release building, and worker-wrapper execution
 - Git, GitHub CLI (`gh`), Claude Code, Codex, and Herdr on the service `PATH`
 - a local clone or bare repository containing each factory commit that may be installed
 - an HTTPS ntfy endpoint and private topic
@@ -25,7 +25,7 @@ bun run validate
 ```
 
 `bun run validate` is the complete repository validation command: strict TypeScript, Biome, and
-the entire Bun test suite.
+the entire Bun test suite. Development and tests continue to execute TypeScript sources directly.
 
 ## Install configuration
 
@@ -49,8 +49,9 @@ profile to be regular mode-`0600` files; directories are mode `0700`. See
 
 The bootstrap command accepts one commit already present in
 `AGENT_FACTORY_SOURCE_REPOSITORY`. It creates the observation-mode schema, builds the exact
-detached commit with frozen dependencies and complete validation, installs a read-only artifact,
-atomically creates `releases/current`, and records it as the installed release.
+detached commit with frozen dependencies and complete validation, compiles its CLI and daemon into
+standalone executables, installs a read-only artifact, atomically creates `releases/current`, and
+records it as the installed release.
 
 ```sh
 export AGENT_FACTORY_SOURCE_REPOSITORY=/absolute/path/to/agent-factory
@@ -73,7 +74,10 @@ agent-factory doctor
 
 If the link already exists, inspect it before replacing it. `version` reads the installed
 release's semantic version from `release.json`; update/release identity remains the factory
-commit SHA.
+commit SHA. The linked CLI and the systemd daemon embed the Bun runtime used to construct that
+release, so their startup does not depend on the host Bun version. Bun must remain installed for
+future release builds and for the shipped TypeScript worker wrapper, whose guarded invocation is
+still `bun <wrapper.ts> <spec>`.
 
 ## Provision credentials and the service
 

@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
 import type {
 	CommandAdapter,
 	CommandExecutionResult,
@@ -40,6 +40,7 @@ export class SequenceReleaseIdSource implements ReleaseIdSource {
 export class ScriptedLocalReleaseCommandAdapter implements CommandAdapter {
 	public readonly requests: CommandRequest[] = [];
 	public validationExitCode = 0;
+	public compileExitCode = 0;
 	readonly #requiredLedgerSchemaVersion: number;
 
 	public constructor(requiredLedgerSchemaVersion: number) {
@@ -57,27 +58,10 @@ export class ScriptedLocalReleaseCommandAdapter implements CommandAdapter {
 			request.argv.includes("worktree") &&
 			request.argv.includes("add")
 		) {
-			const separator = request.argv.indexOf("--");
-			const checkout = request.argv[separator + 1];
-			if (checkout === undefined) {
-				throw new Error("scripted worktree add omitted checkout path");
-			}
-			mkdirSync(join(checkout, "bin"), { recursive: true });
-			mkdirSync(join(checkout, "src"), { recursive: true });
-			writeFileSync(join(checkout, ".git"), "gitdir: scripted\n");
-			writeFileSync(
-				join(checkout, "release.json"),
-				JSON.stringify({
-					schemaVersion: 1,
-					version: "0.1.0",
-					requiredLedgerSchemaVersion: this.#requiredLedgerSchemaVersion,
-				}),
-			);
-			writeFileSync(join(checkout, "bin", "agent-factory-daemon"), "#!/bin/sh\nexit 0\n", {
-				mode: 0o755,
-			});
-			writeFileSync(join(checkout, "src", "index.ts"), "export {};\n");
-			return this.#success();
+			return this.#addWorktree(request);
+		}
+		if (request.executable === "bun" && request.argv[0] === "build") {
+			return this.#compileBinary(request);
 		}
 		if (request.executable === "bun" && request.argv[0] === "run") {
 			return {
@@ -93,11 +77,64 @@ export class ScriptedLocalReleaseCommandAdapter implements CommandAdapter {
 			request.argv.includes("worktree") &&
 			request.argv.includes("remove")
 		) {
-			const checkout = request.argv.at(-1);
-			if (checkout !== undefined) {
-				rmSync(checkout, { recursive: true, force: true });
-			}
-			return this.#success();
+			return this.#removeWorktree(request);
+		}
+		return this.#success();
+	}
+
+	#addWorktree(request: CommandRequest): CommandExecutionResult {
+		const separator = request.argv.indexOf("--");
+		const checkout = request.argv[separator + 1];
+		if (checkout === undefined) {
+			throw new Error("scripted worktree add omitted checkout path");
+		}
+		mkdirSync(join(checkout, "bin"), { recursive: true });
+		mkdirSync(join(checkout, "src"), { recursive: true });
+		writeFileSync(join(checkout, ".git"), "gitdir: scripted\n");
+		writeFileSync(
+			join(checkout, "release.json"),
+			JSON.stringify({
+				schemaVersion: 1,
+				version: "0.1.0",
+				requiredLedgerSchemaVersion: this.#requiredLedgerSchemaVersion,
+			}),
+		);
+		writeFileSync(join(checkout, "bin", "agent-factory"), "#!/bin/sh\nexit 0\n", {
+			mode: 0o755,
+		});
+		writeFileSync(join(checkout, "bin", "agent-factory-daemon"), "#!/bin/sh\nexit 0\n", {
+			mode: 0o755,
+		});
+		writeFileSync(join(checkout, "src", "index.ts"), "export {};\n");
+		return this.#success();
+	}
+
+	#compileBinary(request: CommandRequest): CommandExecutionResult {
+		if (this.compileExitCode !== 0) {
+			return {
+				...this.#success(),
+				exitCode: this.compileExitCode,
+			};
+		}
+		const outfileFlag = request.argv.indexOf("--outfile");
+		const outfile = request.argv[outfileFlag + 1];
+		const entrypoint = request.argv[outfileFlag - 1];
+		if (outfile === undefined || entrypoint === undefined) {
+			throw new Error("scripted binary build omitted entrypoint or outfile");
+		}
+		mkdirSync(dirname(outfile), { recursive: true });
+		writeFileSync(outfile, `scripted compiled binary from ${entrypoint}\n`, { mode: 0o755 });
+		if (request.argv.includes("--sourcemap")) {
+			const sourcemapName = `${basename(entrypoint, extname(entrypoint))}.js.map`;
+			writeFileSync(join(dirname(outfile), sourcemapName), `source map for ${entrypoint}\n`);
+		}
+		return this.#success();
+	}
+
+	#removeWorktree(request: CommandRequest): CommandExecutionResult {
+		const checkout = request.argv.at(-1);
+		if (checkout !== undefined) {
+			rmSync(checkout, { recursive: true, force: true });
 		}
 		return this.#success();
 	}
@@ -129,7 +166,8 @@ export class ScriptedFactoryReleaseBuildAdapter implements FactoryReleaseBuildAd
 	}) {
 		this.requiredLedgerSchemaVersion = input.requiredLedgerSchemaVersion;
 		this.files = input.files ?? {
-			"bin/agent-factory-daemon": "#!/bin/sh\nexit 0\n",
+			"bin/agent-factory": "scripted compiled CLI binary\n",
+			"bin/agent-factory-daemon": "scripted compiled daemon binary\n",
 			"release.json": JSON.stringify({
 				schemaVersion: 1,
 				version: "0.1.0",

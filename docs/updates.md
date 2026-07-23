@@ -17,6 +17,13 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/agent-factory/releases/
 └── current -> <factory-commit-sha>
 ```
 
+The two `bin/` files in an installed commit directory are compiled standalone Bun executables,
+not the source checkout's development shell wrappers. Release staging begins as a copy of the
+validated checkout so it still contains the worker wrapper and other sources; the builder then
+overwrites only `bin/agent-factory` and `bin/agent-factory-daemon` in staging with compiled output.
+No external source-map files remain in `bin/`. The systemd `ExecStart` and operator CLI symlink
+paths therefore stay stable across this packaging change.
+
 `release.json` contains the strict semantic CLI version and required ledger schema version.
 `agent-factory version` reads that file from the running artifact. The semantic version is human
 facing; the immutable build/update identity is always the factory commit SHA.
@@ -63,14 +70,44 @@ already exist in that local factory Git repository. The production build adapter
 3. runs `bun install --frozen-lockfile`;
 4. runs the repository's complete `bun run validate`;
 5. verifies validation did not modify tracked files;
-6. reads strict `release.json` for the required ledger schema version;
-7. copies the validated checkout and installed dependencies into release staging; and
-8. removes the temporary factory worktree.
+6. reads strict `release.json` and copies the validated checkout and installed dependencies into
+   release staging;
+7. compiles both staged release executables;
+8. inventories and hashes the full staging tree, including both compiled binaries, before the
+   candidate becomes queue-eligible; and
+9. removes the temporary factory worktree.
+
+Both the production adapter and the locally runnable
+`bun run build:binaries -- <artifact-root>` command consume the same build-plan generator. Each
+entrypoint is compiled with:
+
+```text
+bun build --compile --minify --sourcemap --bytecode \
+  --no-compile-autoload-dotenv --no-compile-autoload-bunfig \
+  <entrypoint> --outfile <artifact>/bin/<name>
+```
+
+The entrypoints are exactly `src/cli/main.ts` and `src/daemon/main.ts`; no worker or provider
+runner is compiled. `--compile` embeds the release's Bun runtime, while minification and bytecode
+reduce load/parse work for faster startup. Bun embeds each source map in its executable and also
+emits an entrypoint-named external map; the build plan deletes that redundant external file
+immediately after each compilation, preventing the two `main.ts` entrypoints from colliding while
+preserving mapped production diagnostics.
+`--no-compile-autoload-dotenv` and `--no-compile-autoload-bunfig` prevent the credential-handling
+executables from silently loading `.env` or `bunfig.toml` from their runtime working directory.
+Environment continues to arrive explicitly from the operator shell or systemd `EnvironmentFile`.
+There is deliberately no `--target`: builds are native to the deployment host.
+
+Bytecode is regenerated for every immutable release. Bun bytecode is tied to the Bun runtime
+version that produced it, which is safe here because that exact runtime is embedded in the same
+standalone executable rather than selected from the host at launch. Host Bun remains required for
+release construction, source development/tests, and the spec-mandated
+`bun <wrapper.ts> <spec>` worker command.
 
 The command/process adapter is the only build execution seam. Tests replace it with scripted
-builders and never run Git, Bun, systemctl, a provider, or the network. A build or validation
-failure creates a `failed` release row with no artifact path, never creates a queued release, and
-cannot be retried under the same immutable commit identity.
+builders and never run Git, Bun, systemctl, a provider, or the network. An install, validation, or
+binary compilation failure creates a `failed` release row with no artifact path, never creates a
+queued release, and cannot be retried under the same immutable commit identity.
 
 This custody is only for this repository. It is separate from target mirror/worktree custody and
 has no target project ID, repository profile, branch, issue, or pull request capability.

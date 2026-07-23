@@ -65,13 +65,16 @@ systemd/          agent-factory.service user unit
 ## Prerequisites
 
 - Linux with `systemd --user` and Unix-domain sockets
-- Bun 1.3 or newer
+- Bun 1.3 or newer for source development, release construction, and the shipped worker wrapper
 - Git, GitHub CLI (`gh`), Claude Code, Codex, and Herdr on the service `PATH`
 - a GitHub App installed only on explicitly enabled target repositories
 - an ntfy topic reachable over HTTPS
 
 The controller does not require Docker, Redis, a queue, a dashboard, or a target application's
-runtime database.
+runtime database. Each installed release's CLI and daemon are standalone executables with their
+own embedded Bun runtime; they do not select the host's Bun version at startup. Host Bun remains
+required for the source-based development/test flow, self-update builds, and
+`src/daemon/worker-command.ts`, which is deliberately launched as `bun <wrapper.ts> <spec>`.
 
 ## Installation
 
@@ -257,11 +260,13 @@ agent-factory update queue <factory-commit-sha>
 ```
 
 Queueing builds a detached checkout of this repository with frozen dependencies and full
-validation, records a durable drain, and waits for active work. The updater then verifies the
-manifest, backs up SQLite, applies compatible additive migrations, atomically switches
-`releases/current`, restarts through the service adapter, and runs post-switch health plus
-reconciliation. Failed health automatically restores the prior pointer and database, records
-`rolled-back`, alerts, and restarts the prior release.
+validation, then compiles the CLI and daemon as standalone Bun executables before the artifact
+inventory and manifest are created. The compiled files replace the checkout's development shell
+wrappers only inside release staging. Queueing then records a durable drain and waits for active
+work. The updater verifies the manifest, backs up SQLite, applies compatible additive migrations,
+atomically switches `releases/current`, restarts through the service adapter, and runs post-switch
+health plus reconciliation. Failed health automatically restores the prior pointer and database,
+records `rolled-back`, alerts, and restarts the prior release.
 
 The path has no target mirror/worktree/provider/CLI-upgrade adapters and never promotes rollout
 or changes configured limits. See [`docs/updates.md`](docs/updates.md) and the explicitly

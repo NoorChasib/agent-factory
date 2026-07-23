@@ -13,6 +13,7 @@ import { CLI_HELP, CliUsageError, parseCliArguments } from "@/cli/parser.ts";
 import { parseReleaseBuildMetadata } from "@/contracts/release-manifest.ts";
 import { Doctor } from "@/operations/doctor.ts";
 import { loadFactoryConfiguration, resolveXdgPaths } from "@/operations/runtime.ts";
+import { resolveFactoryRuntimeRoot } from "@/releases/runtime-root.ts";
 
 export interface CliIo {
 	out(text: string): void;
@@ -66,8 +67,13 @@ export async function runCli(
 
 async function productionMain(): Promise<number> {
 	const argv = Bun.argv.slice(2);
+	const factoryRoot = resolveFactoryRuntimeRoot({
+		moduleDirectory: import.meta.dir,
+		executablePath: process.execPath,
+		compiledExecutableName: "agent-factory",
+	});
 	const version = parseReleaseBuildMetadata(
-		JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "release.json"), "utf8")) as unknown,
+		JSON.parse(readFileSync(join(factoryRoot, "release.json"), "utf8")) as unknown,
 	).version;
 	const io = {
 		out: (text: string) => process.stdout.write(text),
@@ -122,5 +128,7 @@ async function productionMain(): Promise<number> {
 }
 
 if (import.meta.main) {
-	process.exitCode = await productionMain();
+	void productionMain().then((exitCode) => {
+		process.exitCode = exitCode;
+	});
 }

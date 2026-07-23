@@ -10,6 +10,7 @@
 	},
 	"scripts": {
 		"bootstrap": "bun src/installation/main.ts",
+		"build:binaries": "bun src/installation/build-binaries.ts",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",

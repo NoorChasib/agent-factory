@@ -49,6 +49,7 @@ import { validateLedgerMigrations } from "@/ledger/index.ts";
 import type { MaintenanceCoordinator } from "@/operations/lifecycle.ts";
 import type { FactoryNotifications } from "@/operations/observability.ts";
 import { normalizedAbsolutePath, within } from "@/path-guard.ts";
+import { releaseBinaryBuildPlans } from "@/releases/binaries.ts";
 import type { ReleasePolicySnapshot } from "@/releases/index.ts";
 
 function sha256(value: Uint8Array | string): string {
@@ -170,6 +171,10 @@ export class LocalReleaseFileSystemAdapter implements ReleaseArtifactFileSystemA
 
 	public async removeTree(path: string): Promise<void> {
 		rmSync(path, { recursive: true, force: true });
+	}
+
+	public async removeFile(path: string): Promise<void> {
+		rmSync(path, { force: true });
 	}
 
 	public async makeImmutable(root: string): Promise<void> {
@@ -299,6 +304,13 @@ export class LocalFactoryReleaseBuildAdapter implements FactoryReleaseBuildAdapt
 				dereference: false,
 				filter: (source) => source !== join(checkout, ".git"),
 			});
+			for (const plan of releaseBinaryBuildPlans(input.stagingPath)) {
+				requireCommandSuccess(
+					await this.#execute(this.#bunExecutable, plan.argv, checkout),
+					`candidate ${plan.name} binary compilation`,
+				);
+				rmSync(plan.externalSourcemapPath, { force: true });
+			}
 			return {
 				requiredLedgerSchemaVersion: metadata.requiredLedgerSchemaVersion,
 			};
