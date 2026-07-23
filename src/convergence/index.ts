@@ -1,4 +1,8 @@
 export {
+  type ProjectConvergenceResult,
+  ReviewConvergenceCoordinator,
+} from "./coordinator";
+export {
   assessFeedbackInvocation,
   type ConvergenceAction,
   type ConvergenceDecision,

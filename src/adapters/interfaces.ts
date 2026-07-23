@@ -59,8 +59,54 @@ export interface FileSystemAdapter {
   readText(path: string): Promise<string>;
 }
 
+export interface RuntimeFileSystemAdapter extends FileSystemAdapter {
+  ensureDirectory(path: string, mode: number): Promise<void>;
+  listFiles(path: string): Promise<readonly string[]>;
+}
+
+export interface DiskUsage {
+  readonly usedBytes: number;
+  readonly totalBytes: number;
+}
+
+export interface DiskUsageAdapter {
+  usage(path: string): Promise<DiskUsage>;
+}
+
+export interface StructuredLogSink {
+  append(line: string): Promise<void>;
+  readRecent(lines: number): Promise<readonly string[]>;
+}
+
+export interface NtfyHttpRequest {
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
+export interface NtfyHttpResponse {
+  readonly status: number;
+  readonly body: string;
+}
+
+export interface NtfyHttpTransport {
+  request(request: NtfyHttpRequest): Promise<NtfyHttpResponse>;
+}
+
+export interface DoctorSystemAdapter {
+  binaryVersion(name: string): Promise<string | null>;
+  socketReachable(path: string): Promise<boolean>;
+  systemdUnitPresent(unitName: string): Promise<boolean>;
+  ledgerSchemaVersion(path: string): Promise<number | null>;
+  liveProbe(provider: "claude" | "codex" | "github"): Promise<{
+    readonly ok: boolean;
+    readonly detail: string;
+  }>;
+}
+
 export interface WorkerProcessAdapter {
   start(request: LaunchRequest): Promise<unknown>;
+  activate?(execution: ExecutionRecord): Promise<void>;
   stop(request: StopRequest): Promise<void>;
 }
 

@@ -1,32 +1,47 @@
-# Configuration skeleton
+# Runtime configuration
 
-Project profiles are untrusted, versioned YAML documents validated by
-`src/contracts/project-profile.ts`. Runtime provisioning is intentionally deferred.
+Production configuration lives in
+`${XDG_CONFIG_HOME:-$HOME/.config}/agent-factory/config.yaml`. It and every referenced profile
+must be regular mode-`0600` files. The containing directories are mode `0700`.
 
-Production configuration will live below `$XDG_CONFIG_HOME/agent-factory/` and must be readable
-only by its owner. The Phase 1 loader accepts only regular files with permission bits exactly
-`0600`; repository fixtures are non-secret examples and are loaded through the deterministic
-in-memory filesystem adapter in tests.
+```yaml
+schemaVersion: 1
+profiles:
+  - profiles/first-project.yaml
+  - profiles/second-project.yaml
+ntfy:
+  baseUrl: https://ntfy.example.com
+  topic: private-factory-topic
+logging:
+  rotateBytes: 10485760
+  retainedFiles: 5
+```
 
-Global lane and backlog environment values are:
+The document is strict. Unknown/duplicate keys, YAML aliases, insecure ntfy URLs, path traversal,
+absolute profile paths, non-private modes, duplicate profile IDs/repositories, and invalid
+profiles fail startup and doctor validation.
+
+Project profiles are version-1 YAML documents validated by
+`src/contracts/project-profile.ts`. They configure repository/default branch, target-owned
+autonomous and attended workflow names, canonical stage/condition labels, reviewers and
+completion signals, required checks, branch-protection expectations, timeouts, and optional lower
+ceilings.
+
+Non-secret service environment values:
 
 ```text
 AGENT_FACTORY_IMPLEMENTATION_LIMIT=1
 AGENT_FACTORY_FEEDBACK_LIMIT=1
 AGENT_FACTORY_READY_TO_MERGE_LIMIT=1
-```
-
-Each accepts an integer from `0` through the hard v1 maximum `3`. Defaults are `1`. Project
-profiles may only lower the effective value because the controller takes the minimum of the
-global and configured project ceiling.
-
-Claude implementation runtime values are also parsed centrally:
-
-```text
 AGENT_FACTORY_CLAUDE_MODEL=claude-fable-5
 AGENT_FACTORY_CLAUDE_EFFORT=high
+AGENT_FACTORY_GITHUB_APP_ID=<positive integer>
+AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE=%d/github-app.pem
 ```
 
-The defaults shown are used when a variable is absent. Effort accepts `low`, `medium`, `high`,
-or `max`; the model must be one bounded, safe command-argument value. Runtime values are captured
-per provider session and cannot change on resume.
+Lane/backlog values accept `0` through `3`. Effective limits are the minimum of rollout cap,
+environment value, and profile ceiling. Claude effort accepts `low`, `medium`, `high`, or `max`.
+Provider runtime is captured per session and preserved on resume.
+
+The private-key variable contains only the absolute systemd credential path. PEM contents must
+never be placed in this file, an environment file, a profile, or a worker environment.

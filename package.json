@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "module": "src/index.ts",
+  "bin": {
+    "agent-factory": "src/cli/main.ts",
+    "agent-factory-daemon": "src/daemon/main.ts"
+  },
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",

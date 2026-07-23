@@ -1,116 +1,289 @@
 # Agent Factory
 
-Agent Factory is a standalone, project-agnostic Bun/TypeScript controller that advances
-explicitly configured GitHub projects from eligible issues to a revocable
-`ready-to-merge` handoff. GitHub remains authoritative for workflow state, and the operator
-remains the only merge authority.
+Agent Factory is a standalone, project-agnostic Bun/TypeScript controller that advances work in
+explicitly enabled GitHub repositories from eligible issues to a revocable `ready-to-merge`
+handoff. GitHub is authoritative for workflow state. The local SQLite ledger owns only execution,
+session, recovery, maintenance, rollout, circuit, release, and audit state. The operator remains
+the only merge authority.
 
-This repository is under construction in eight implementation phases. Phases 1 through 5
-establish the versioned integration contracts, deterministic planner, durable SQLite execution
-ledger, GitHub reconciliation, provider runners/circuits, review/check convergence, Herdr worker
-custody, factory mirror/worktree custody, and sanitized recovery. The checked-in defaults are
-disabled observation mode: they launch no workers and make no GitHub mutations.
+The checked-in runtime starts in disabled observation mode with rollout stage `observation`.
+Installation alone cannot launch workers, mutate GitHub, migrate labels, promote rollout, merge,
+or provision credentials.
 
 ## Architecture
 
-The controller is a deep module with exactly three operations:
+The controller retains its three-operation boundary:
 
-- `status` reports observed and local scheduling state without changing it.
-- `command` applies an explicit operator control change.
-- `reconcile` compares GitHub observations with local execution state, gives external GitHub
-  state precedence, and applies a deterministic plan when active mode is explicitly enabled.
+- `status` observes GitHub and reports scheduling state without changing it.
+- `command` applies a validated explicit control change.
+- `reconcile` gives current GitHub state precedence and applies a deterministic plan only when
+  active mode and an attended rollout stage permit it.
 
-The deterministic implementation sits behind that interface. GitHub access, the clock,
-randomness, files, commands, process inspection, Git custody, worker processes, notifications,
-and the execution ledger are injected adapters. Tests use deterministic scripted or in-memory
-adapters; the production SQLite ledger does not add I/O to the controller.
+The daemon adds operational composition around that boundary:
 
 ```text
-project profile YAML ──> strict versioned contracts
-                                  │
-GitHub observation adapter ──> controller <── SQLite execution-ledger adapter
-                                  │
-                         deterministic planner
-                                  │
-                    worker/process adapter + results
+agent-factory CLI
+        │ strict JSON over mode-0600 Unix socket
+        ▼
+daemon router ── maintenance / rollout / disk / retention / doctor
+        │
+        ├── controller: status / command / reconcile
+        ├── SQLite WAL ledger and append-only audit
+        ├── GitHub App broker, observations, guarded mutations
+        ├── Claude/Codex runners, circuits, convergence
+        ├── Herdr and factory-owned Git custody
+        └── redacted JSON logs and ntfy notifications
 ```
 
-Target projects provide workflow entry points and policy as configuration. The controller knows
-canonical lifecycle semantics but contains no target-specific issue ranking, skill names,
-reviewer accounts, architecture policy, or source dependencies.
+All clocks, random values, delays, HTTP, disk measurements, commands, processes, files, Git
+custody, notifications, and persistence are injected. The polling loop is a deterministic
+one-tick module; production repeats it at 60 seconds with controller-computed jitter.
 
-## Repository layout
+Repository layout:
 
 ```text
-src/contracts/    versioned project-profile and worker-result protocols
-src/domain/       canonical lifecycle semantics
-src/controller/   three-operation controller and deterministic planner
-src/adapters/     I/O adapter interfaces
-src/testing/      deterministic in-memory adapters
-src/ledger/       WAL SQLite adapter, repositories, migrations, backup and restore
-src/github/       conditional API client, observation/reconciliation, guarded labels, App tokens
-src/providers/    Claude/Codex runners, session persistence, verification, circuits and recovery
-src/convergence/  current-head review/check convergence, feedback bounds and safe rerun policy
-src/herdr/        guarded agent-factory session/pane custody and restart recovery
-src/worktrees/    factory mirror/issue-worktree custody and cleanup eligibility
-src/recovery/     reason codes, deterministic records, incidents and handoff coordination
-src/redaction/    shared structured payload redaction boundary
-tests/            contract, planner, ledger, migration and recovery tests plus fixtures
-config/           configuration contract documentation and later examples
-systemd/          future systemd user-service assets
-docs/             documentation index and implementation plan
+src/contracts/    strict untrusted profile, worker, and daemon protocols
+src/domain/       canonical stages and attended rollout caps
+src/controller/   three-operation controller and planner
+src/ledger/       SQLite WAL, recovery, maintenance, circuits, releases, audit
+src/github/       App tokens, reads, guarded mutations, label migration
+src/providers/    Claude/Codex runners, session persistence, circuits
+src/convergence/  current-head review/check convergence
+src/herdr/        dedicated-session custody and reboot re-association
+src/worktrees/    mirror/worktree custody and safe cleanup eligibility
+src/recovery/     sanitized recovery comments, incidents, handoffs
+src/operations/   XDG, lifecycle, disk, retention, logging, ntfy, doctor
+src/cli/          dependency-free argument parser and Unix-socket client
+src/daemon/       validated socket server, router, poll loop, composition
+src/adapters/     production I/O adapters
+src/testing/      deterministic scripted and in-memory adapters
+systemd/          agent-factory.service user unit
 ```
 
-## Development
+## Prerequisites
 
-Prerequisites are Bun 1.3 or newer and Git. Install and validate with:
+- Linux with `systemd --user` and Unix-domain sockets
+- Bun 1.3 or newer
+- Git, GitHub CLI (`gh`), Claude Code, Codex, and Herdr on the service `PATH`
+- a GitHub App installed only on explicitly enabled target repositories
+- an ntfy topic reachable over HTTPS
+
+The controller does not require Docker, Redis, a queue, a dashboard, or a target application's
+runtime database.
+
+## Installation status
+
+Phase 6 supplies the CLI, daemon composition, XDG contract, and static systemd unit. Phase 7 will
+build commit-addressed immutable releases and atomically maintain the
+`$XDG_DATA_HOME/agent-factory/releases/current` pointer used by the unit. Until that phase lands,
+do not present source-tree execution as an installed immutable release.
+
+Install dependencies for development:
 
 ```sh
-bun install
+bun install --frozen-lockfile
+bun run validate
+```
+
+The systemd unit installation and credential override are documented in
+[`systemd/README.md`](systemd/README.md). Do not enable it until the `current` release pointer
+contains the Phase 7 daemon binary.
+
+## XDG configuration
+
+Runtime paths are derived once at composition and injected everywhere:
+
+```text
+${XDG_CONFIG_HOME:-$HOME/.config}/agent-factory/
+  config.yaml                  mode 0600
+  profiles/*.yaml             mode 0600
+${XDG_STATE_HOME:-$HOME/.local/state}/agent-factory/
+  ledger.sqlite3              mode 0600, WAL
+  agent-factory.sock          mode 0600
+  logs/                       mode 0700
+${XDG_DATA_HOME:-$HOME/.local/share}/agent-factory/
+  mirrors/ worktrees/ releases/
+```
+
+All Agent Factory directories are mode `0700`. Overlong Unix socket paths are rejected with
+guidance to shorten `XDG_STATE_HOME`. Configuration and profiles are strict YAML: duplicate and
+unknown keys fail validation, and profile paths cannot escape `profiles/`.
+
+Example `config.yaml`:
+
+```yaml
+schemaVersion: 1
+profiles:
+  - profiles/example.yaml
+ntfy:
+  baseUrl: https://ntfy.sh
+  topic: private-agent-factory-topic
+logging:
+  rotateBytes: 10485760
+  retainedFiles: 5
+```
+
+See [`config/README.md`](config/README.md) for the complete runtime and environment contract.
+
+## GitHub App and credentials
+
+Follow [`docs/github.md`](docs/github.md) for App permissions and installation-token behavior.
+The non-secret App ID is `AGENT_FACTORY_GITHUB_APP_ID`. The PEM must be supplied as a systemd
+credential and referenced by the absolute
+`AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE` credential path. Never store PEM contents in an
+environment file, repository, profile, worker environment, log, or notification.
+
+The broker resolves the installation for each explicitly enabled profile and mints short-lived,
+reduced-permission tokens. It never installs the App or changes repository access.
+
+## Profiles and environment
+
+Profiles own repository identity, workflow entry points, lifecycle-label mapping, review/check
+policy, timeouts, and optional lower ceilings. The controller contains no target-specific skill,
+reviewer, milestone, product, or architecture policy.
+
+Operator environment values:
+
+```text
+AGENT_FACTORY_IMPLEMENTATION_LIMIT=1
+AGENT_FACTORY_FEEDBACK_LIMIT=1
+AGENT_FACTORY_READY_TO_MERGE_LIMIT=1
+AGENT_FACTORY_CLAUDE_MODEL=claude-fable-5
+AGENT_FACTORY_CLAUDE_EFFORT=high
+AGENT_FACTORY_GITHUB_APP_ID=<positive integer>
+AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE=<systemd credential path>
+```
+
+Each limit accepts `0` through `3`. Effective limits are the minimum of the rollout-stage cap,
+environment limit, and project ceiling. Changes apply only to later launches. No silent model
+fallback or paid-credit enablement exists.
+
+## Operation
+
+The installed operator command is `agent-factory`. Routine commands use strict JSON over the
+local socket and fail clearly when the daemon is absent. `help`, `version`, and non-live `doctor`
+work without the daemon.
+
+Common commands:
+
+```sh
+agent-factory status
+agent-factory workers
+agent-factory show execution-123
+agent-factory pause
+agent-factory rollout promote
+agent-factory reconcile
+agent-factory notifications digest
+agent-factory shutdown --when-idle
+```
+
+See [`docs/cli.md`](docs/cli.md) for the complete grammar and
+[`docs/operations.md`](docs/operations.md) for systemd, Herdr, rollout, disk, retention,
+shutdown, and reboot recovery.
+
+### Herdr attachment and takeover
+
+Only the dedicated `agent-factory` Herdr session is in scope. Each outer worker owns one pane.
+Attaching does not change worker custody; takeover records attended operator custody. Stop and
+kill resolve the recorded factory pane/process identity and never target unrelated sessions.
+
+```sh
+agent-factory worker attach <execution>
+agent-factory worker takeover <execution>
+agent-factory worker resume <execution>
+agent-factory worker release <execution>
+```
+
+### Rollout
+
+Rollout is attended and durable:
+
+| Stage | Hard cap |
+| --- | --- |
+| `observation` | `0/0/0` |
+| `stage1` | `1/1/1` |
+| `stage2` | `2/2/2` |
+| `stage3` | `3/3/3` |
+
+Only adjacent explicit `rollout promote` and `rollout demote` transitions are accepted. Promotion
+from observation enables active mode; demotion to observation disables it. There is no automatic
+promotion.
+
+### Shutdown and recovery
+
+Before a planned reboot:
+
+```sh
+agent-factory shutdown --when-idle
+```
+
+The request is durable, blocks new launches, waits for active work, verifies recovery data, stops
+only factory-owned processes, completes its maintenance record, and sends the ntfy
+“ready to restart” alert. On daemon startup, Herdr pane/process identity is reconciled against the
+ledger; running work is re-associated, exited work is classified, orphaned work is retained for
+recovery, stale shutdown intent is cleared, and a recovery reconcile runs before polling.
+
+## Label migration and updates
+
+Label migration is target-scoped, deterministic, previewed, and exact-hash approved:
+
+```sh
+agent-factory labels plan <project>
+agent-factory labels preview <project>
+agent-factory labels apply <project> --hash <sha256>
+```
+
+See [`docs/label-migration.md`](docs/label-migration.md). Installation never applies labels.
+
+`agent-factory update status` and `update queue <release>` expose the release states already
+modeled by the ledger. Phase 7 will add candidate building, backup, atomic activation, health
+verification, and rollback. This phase does not activate releases or update external tools.
+
+## Security
+
+- GitHub remains workflow authority; SQLite cannot override external lifecycle state.
+- The mutation and Git guards contain no merge, force-push, rebase, amend, review-dismissal, or
+  branch-protection bypass operation.
+- Workers never inherit the GitHub App PEM.
+- Structured logs, audit payloads, recovery records, daemon errors, and notifications pass
+  through the shared redaction boundary.
+- Absolute VPS paths, tokens, bearer credentials, PEM blocks, prompts, and configured environment
+  sentinels are removed before output.
+- The socket and configuration are owner-only; XDG directories are mode `0700`.
+- `doctor --live` is the only diagnostic mode allowed to make provider-consuming probes.
+
+## Development and testing
+
+```sh
+bun install --frozen-lockfile
+bun run typecheck
+bun run lint
+bun test
 bun run validate
 git diff --check
 ```
 
-Canonical scripts are:
+Tests use `bun:test`, injected clocks/random/delays/disk/HTTP/process adapters, temporary local
+files where necessary, and no real daemon, systemd, provider, or network process. The complete
+suite covers contracts, planning, SQLite recovery, GitHub mutation safety, provider behavior,
+Herdr/worktree custody, CLI/socket protocol, maintenance/rollout, exact disk and retention
+thresholds, shutdown/reboot, redaction/rotation, ntfy, doctor gating, XDG modes, and the unit text.
 
-- `bun test` — deterministic Bun tests.
-- `bun run typecheck` — strict TypeScript validation without emitting files.
-- `bun run lint` — Biome formatting and lint checks.
-- `bun run format` — write Biome formatting changes.
-- `bun run validate` — typecheck, lint, then test.
+## Troubleshooting
 
-Phase 5 includes guarded Herdr and Git command builders but no production service, CLI, XDG path
-selection, or credential provisioning. Adapters receive custody roots, protected checkout paths,
-state paths, HTTP, clocks, delays, randomness, IDs, process inspection, and command execution from
-callers; Phase 6 will supply XDG and service composition.
+- **Daemon unavailable:** run `agent-factory doctor`; then inspect the user unit with
+  `systemctl --user status agent-factory.service`.
+- **Config rejected:** ensure `config.yaml` and every profile are regular mode-`0600` files and
+  all Agent Factory directories are mode `0700`.
+- **Socket path too long:** set a shorter absolute `XDG_STATE_HOME` consistently for the service
+  and CLI.
+- **Launches paused:** inspect `status`, `circuits`, maintenance records, rollout stage, and disk
+  usage. Disk recovery clears the guard record but requires explicit operator resume.
+- **Worker unavailable after reboot:** use `show`, then attach/takeover/resume or explicitly
+  release retained custody.
+- **Notification failure:** validate the HTTPS ntfy base URL/topic and run
+  `agent-factory notifications test`.
 
-## Contracts and safety
-
-Project profiles and worker results carry schema version `1` and are parsed as untrusted input.
-Every object is strict: unknown fields are rejected. Profile YAML may be loaded only through a
-filesystem adapter from a regular file whose permission bits are exactly mode `0600`.
-
-Global implementation, feedback, and ready-to-merge limits come from the documented
-`AGENT_FACTORY_*_LIMIT` environment names, accept integers from zero through three, and default
-to one. A project may lower any limit. Zero pauses the corresponding lane; a zero
-ready-to-merge ceiling suppresses new implementation launches.
-
-See [the documentation index](docs/README.md), [ledger guide](docs/ledger.md),
-[GitHub integration guide](docs/github.md), [label migration guide](docs/label-migration.md),
-[provider runner guide](docs/providers.md), [convergence guide](docs/convergence.md),
-[Herdr custody guide](docs/herdr.md), [recovery guide](docs/recovery.md), and
-[configuration notes](config/README.md).
-
-## Documentation plan
-
-Later phases will extend this foundation with dedicated, verified guidance for installation,
-profiles, systemd operation, CLI implementation, rollout, updates and rollback, graceful
-shutdown, notifications, security, testing, and troubleshooting. The documentation index records
-the owning implementation phase so unfinished machinery is not presented as available.
-
-## v1 boundaries
-
-Agent Factory never merges, force-pushes, rebases, amends, dismisses reviews, bypasses branch
-protection, provisions live credentials, silently falls back between models, or embeds a target
-project's policy. Docker, Redis, message queues, web dashboards, webhooks, automatic rollout
-promotion, and automatic external CLI upgrades are outside v1.
+The v1 exclusions remain automatic merge, webhooks, dashboards, automatic rollout promotion,
+automatic external CLI upgrades, project-runtime coupling, history rewriting, review dismissal,
+and branch-protection bypass.

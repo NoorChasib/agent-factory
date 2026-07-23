@@ -16,17 +16,28 @@ export interface RecoveryHandoffCoordinatorOptions {
   readonly ledger: LedgerAdapter;
   readonly comments: RecoveryCommentPublisher;
   readonly incidents: StallIncidentRecorder;
+  readonly onHandoff?: (input: {
+    readonly terminalStatus: WorkerTerminalStatus;
+    readonly record: unknown;
+  }) => Promise<void>;
 }
 
 export class RecoveryHandoffCoordinator {
   readonly #ledger: LedgerAdapter;
   readonly #comments: RecoveryCommentPublisher;
   readonly #incidents: StallIncidentRecorder;
+  readonly #onHandoff:
+    | ((input: {
+        readonly terminalStatus: WorkerTerminalStatus;
+        readonly record: unknown;
+      }) => Promise<void>)
+    | undefined;
 
   public constructor(options: RecoveryHandoffCoordinatorOptions) {
     this.#ledger = options.ledger;
     this.#comments = options.comments;
     this.#incidents = options.incidents;
+    this.#onHandoff = options.onHandoff;
   }
 
   public async handoff(input: {
@@ -83,6 +94,7 @@ export class RecoveryHandoffCoordinator {
     if (comment === undefined) {
       throw new Error("recovery comment publication returned no result");
     }
+    await this.#onHandoff?.({ terminalStatus, record });
     return {
       executionId: record.executionId,
       capacityFreed,

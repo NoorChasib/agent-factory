@@ -60,6 +60,7 @@ const pullRequestNode = z.strictObject({
   headRefName: z.string().min(1).max(255),
   headRefOid: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u),
   updatedAt: z.iso.datetime({ offset: true }),
+  mergedAt: z.iso.datetime({ offset: true }).nullable().default(null),
   mergeable: z.enum(["MERGEABLE", "CONFLICTING", "UNKNOWN"]),
   reviewDecision: z.enum(["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"]).nullable(),
   labels: labelConnection,
@@ -163,6 +164,7 @@ export interface GitHubPullRequestSnapshot {
   readonly branch: string;
   readonly headSha: string;
   readonly updatedAt: string;
+  readonly mergedAt: string | null;
   readonly mergeability: "mergeable" | "conflicting" | "unknown";
   readonly reviewDecision: "approved" | "changes-requested" | "review-required" | null;
   readonly commentCount: number;
@@ -212,7 +214,7 @@ export const GITHUB_OBSERVATION_QUERY = `
         orderBy: {field: CREATED_AT, direction: ASC}
       ) {
         nodes {
-          number state isDraft headRefName headRefOid updatedAt mergeable reviewDecision
+          number state isDraft headRefName headRefOid updatedAt mergedAt mergeable reviewDecision
           labels(first: 100) { totalCount nodes { name } }
           closingIssuesReferences(first: 10) { totalCount nodes { number } }
           comments(last: 100) { totalCount nodes { updatedAt } }
@@ -341,6 +343,7 @@ function mapPullRequest(node: z.infer<typeof pullRequestNode>): GitHubPullReques
     branch: node.headRefName,
     headSha: node.headRefOid,
     updatedAt: node.updatedAt,
+    mergedAt: node.mergedAt,
     mergeability:
       node.mergeable === "MERGEABLE"
         ? "mergeable"
@@ -457,6 +460,7 @@ export function toControllerObservation(snapshot: GitHubProjectSnapshot): GitHub
       linkedIssueNumber: pullRequest.linkedIssueNumber,
       branch: pullRequest.branch,
       headSha: pullRequest.headSha,
+      mergedAt: pullRequest.mergedAt,
     })),
   });
 }

@@ -1,4 +1,5 @@
 export { BunCommandAdapter } from "./adapters/bun-command";
+export { HerdrCommandExecutionAdapter } from "./adapters/herdr-command";
 export type {
   ClockAdapter,
   CommandAdapter,
@@ -7,6 +8,9 @@ export type {
   CommandRequest,
   ControllerAdapters,
   DelayAdapter,
+  DiskUsage,
+  DiskUsageAdapter,
+  DoctorSystemAdapter,
   FileMetadata,
   FileSystemAdapter,
   GitCustodyAdapter,
@@ -19,15 +23,55 @@ export type {
   LedgerAdapter,
   Notification,
   NotificationAdapter,
+  NtfyHttpRequest,
+  NtfyHttpResponse,
+  NtfyHttpTransport,
   ProcessIdentity,
   ProcessTreeAdapter,
   RandomAdapter,
+  RuntimeFileSystemAdapter,
+  StructuredLogSink,
   WorkerProcessAdapter,
 } from "./adapters/interfaces";
+export {
+  LocalDiskUsageAdapter,
+  LocalDoctorSystemAdapter,
+  LocalRuntimeFileSystemAdapter,
+} from "./adapters/local-runtime";
+export { FetchNtfyTransport, NtfyNotificationAdapter } from "./adapters/ntfy";
+export {
+  CryptoIdSource,
+  GitHubLabelOperator,
+  HerdrProviderExecutionRepository,
+  HerdrWorkerOperator,
+  LedgerOwnedProcessStopper,
+  LedgerRecoveryVerifier,
+  LedgerRetentionArtifacts,
+  LinuxProcessTreeAdapter,
+  SystemClockAdapter,
+  SystemRandomAdapter,
+} from "./adapters/operations";
+export { RotatingJsonLinesSink } from "./adapters/structured-log";
+export {
+  ProviderWorkerSupervisor,
+  SelectionCheckoutCustody,
+} from "./adapters/worker-supervisor";
+export {
+  AgentFactoryDaemonClient,
+  BunUnixDaemonTransport,
+  DaemonUnavailableError,
+} from "./cli/client";
+export {
+  CLI_HELP,
+  type CliInvocation,
+  CliUsageError,
+  parseCliArguments,
+} from "./cli/parser";
 export {
   CommandExecutionResultSchema,
   parseCommandExecutionResult,
 } from "./contracts/command-result";
+export * from "./contracts/daemon-protocol";
 export {
   loadProjectProfileFile,
   type ProjectProfile,
@@ -94,10 +138,17 @@ export type {
   GitHubPullRequestObservation,
   Lane,
   LaunchRequest,
+  LedgerSnapshot,
   Provider,
+  RolloutStage,
   StopRequest,
 } from "./controller/model";
 export * from "./convergence";
+export * from "./daemon/composition";
+export * from "./daemon/poll-loop";
+export * from "./daemon/router";
+export * from "./daemon/socket";
+export * from "./domain/rollout";
 export {
   CANONICAL_CONDITION_SEMANTICS,
   CANONICAL_CONDITIONS,
@@ -115,6 +166,11 @@ export {
 export * from "./github";
 export * from "./herdr";
 export * from "./ledger";
+export * from "./operations/doctor";
+export * from "./operations/lifecycle";
+export * from "./operations/observability";
+export * from "./operations/retention";
+export * from "./operations/runtime";
 export * from "./providers";
 export * from "./recovery";
 export * from "./redaction";

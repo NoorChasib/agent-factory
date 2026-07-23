@@ -14,6 +14,7 @@ import type { ProjectProfile } from "../contracts/project-profile";
 import {
   type ControllerLocalState,
   ControllerLocalStateSchema,
+  type ExecutionRecord,
   ExecutionRecordSchema,
   type GitHubProjectObservation,
   GitHubProjectObservationSchema,
@@ -123,6 +124,7 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
 
 export class InMemoryWorkerProcessAdapter implements WorkerProcessAdapter {
   readonly starts: LaunchRequest[] = [];
+  readonly activations: ExecutionRecord[] = [];
   readonly stops: StopRequest[] = [];
   readonly #queuedExecutions: unknown[] = [];
   #nextExecution = 1;
@@ -158,6 +160,10 @@ export class InMemoryWorkerProcessAdapter implements WorkerProcessAdapter {
 
   public async stop(request: StopRequest): Promise<void> {
     this.stops.push(clone(request));
+  }
+
+  public async activate(execution: ExecutionRecord): Promise<void> {
+    this.activations.push(ExecutionRecordSchema.parse(clone(execution)));
   }
 }
 
@@ -206,6 +212,7 @@ export function createInitialControllerState(
 ): ControllerLocalState {
   return ControllerLocalStateSchema.parse({
     mode: "observation",
+    rolloutStage: "stage3",
     projectEnabled: Object.fromEntries(profiles.map((profile) => [profile.id, profile.enabled])),
     rotation: {
       implementation: null,

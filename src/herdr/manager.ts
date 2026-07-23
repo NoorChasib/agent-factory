@@ -25,6 +25,7 @@ const runtimeMetadata = z.strictObject({
   lastAttachedAt: z.iso.datetime({ offset: true }).nullable(),
   takenOverAt: z.iso.datetime({ offset: true }).nullable(),
   killedAt: z.iso.datetime({ offset: true }).nullable(),
+  providerRun: z.unknown().optional(),
 });
 
 type HerdrRuntimeMetadata = z.infer<typeof runtimeMetadata>;

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-import { CircuitStatusSchema, ControllerModeSchema, ProviderSchema } from "./model";
+import {
+  CircuitStatusSchema,
+  ControllerModeSchema,
+  ProviderSchema,
+  RolloutStageSchema,
+} from "./model";
 
 const projectId = z
   .string()
@@ -28,6 +33,10 @@ export const ControllerCommandSchema = z.discriminatedUnion("type", [
       .max(200)
       .regex(/^[A-Za-z0-9](?:[A-Za-z0-9._:-]*[A-Za-z0-9])?$/u)
       .nullable(),
+  }),
+  z.strictObject({
+    type: z.literal("set-rollout-stage"),
+    stage: RolloutStageSchema,
   }),
 ]);
 

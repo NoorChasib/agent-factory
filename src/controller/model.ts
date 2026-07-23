@@ -25,6 +25,7 @@ const issueNumber = z.number().int().positive();
 export const LaneSchema = z.enum(["implementation", "feedback"]);
 export const ProviderSchema = z.enum(["claude", "codex", "github", "reviewer"]);
 export const ControllerModeSchema = z.enum(["observation", "active"]);
+export const RolloutStageSchema = z.enum(["observation", "stage1", "stage2", "stage3"]);
 export const CircuitStatusSchema = z.enum(["closed", "open"]);
 export const ClaimStateSchema = z.enum(["selecting", "awaiting-verification", "verified"]);
 export const ExecutionStatusSchema = z.enum(["active", "completed", "released"]);
@@ -32,6 +33,7 @@ export const ExecutionStatusSchema = z.enum(["active", "completed", "released"])
 export type Lane = z.infer<typeof LaneSchema>;
 export type Provider = z.infer<typeof ProviderSchema>;
 export type ControllerMode = z.infer<typeof ControllerModeSchema>;
+export type RolloutStage = z.infer<typeof RolloutStageSchema>;
 export type CircuitStatus = z.infer<typeof CircuitStatusSchema>;
 export type ClaimState = z.infer<typeof ClaimStateSchema>;
 
@@ -110,6 +112,7 @@ export const GitHubPullRequestObservationSchema = z.strictObject({
   linkedIssueNumber: issueNumber.nullable(),
   branch,
   headSha: gitObjectId,
+  mergedAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
 
 export const GitHubProjectObservationSchema = z.strictObject({
@@ -129,6 +132,7 @@ const circuit = z.strictObject({
 
 export const ControllerLocalStateSchema = z.strictObject({
   mode: ControllerModeSchema,
+  rolloutStage: RolloutStageSchema.default("observation"),
   projectEnabled: z.record(projectId, z.boolean()),
   rotation: z.strictObject({
     implementation: projectId.nullable(),

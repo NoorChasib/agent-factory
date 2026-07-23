@@ -1,0 +1,19 @@
+[Unit]
+Description=Agent Factory controller
+Documentation=https://github.com/NoorChasib/agent-factory
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+UMask=0077
+EnvironmentFile=-%h/.config/agent-factory/environment
+Environment=AGENT_FACTORY_GITHUB_APP_PRIVATE_KEY_FILE=%d/github-app.pem
+LoadCredential=github-app.pem:%h/.config/agent-factory/credentials/github-app.pem
+ExecStart=%h/.local/share/agent-factory/releases/current/bin/agent-factory-daemon
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=default.target

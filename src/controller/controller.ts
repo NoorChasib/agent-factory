@@ -6,6 +6,7 @@ import {
   type GitHubObserveOptions,
 } from "../adapters/interfaces";
 import type { ProjectProfile } from "../contracts/project-profile";
+import { clampLimitsToRollout } from "../domain/rollout";
 import { resolveCanonicalLabels } from "../domain/stages";
 import { ControllerCommandSchema, ReconcileRequestSchema } from "./commands";
 import { type ControllerConfig, type GlobalLimits, parseControllerConfig } from "./config";
@@ -36,6 +37,7 @@ export interface ProjectStatus {
 export interface ControllerStatus {
   readonly observedAt: string;
   readonly mode: ControllerLocalState["mode"];
+  readonly rolloutStage: ControllerLocalState["rolloutStage"];
   readonly revision: number;
   readonly limits: GlobalLimits;
   readonly circuits: ControllerLocalState["circuits"];
@@ -48,6 +50,7 @@ export interface ControllerStatus {
 export interface CommandResult {
   readonly revision: number;
   readonly mode: ControllerLocalState["mode"];
+  readonly rolloutStage: ControllerLocalState["rolloutStage"];
   readonly circuits: ControllerLocalState["circuits"];
   readonly projectEnabled: Readonly<Record<string, boolean>>;
 }
@@ -242,10 +245,14 @@ class DeterministicController implements Controller {
               pullRequest.state === "open" &&
               resolveCanonicalLabels(profile.labels, pullRequest.labels).stage === "ready-to-merge",
           ).length ?? 0;
+        const rolloutLimits = clampLimitsToRollout(
+          this.#config.limits,
+          context.ledger.state.rolloutStage,
+        );
         return {
           id: profile.id,
           enabled: context.ledger.state.projectEnabled[profile.id] ?? profile.enabled,
-          effectiveLimits: effectiveLimits(profile, this.#config.limits),
+          effectiveLimits: effectiveLimits(profile, rolloutLimits),
           observedIssues: observation?.issues.length ?? 0,
           observedPullRequests: observation?.pullRequests.length ?? 0,
           readyToMerge,
@@ -261,8 +268,9 @@ class DeterministicController implements Controller {
     return {
       observedAt: context.observedAt,
       mode: context.ledger.state.mode,
+      rolloutStage: context.ledger.state.rolloutStage,
       revision: context.ledger.revision,
-      limits: this.#config.limits,
+      limits: clampLimitsToRollout(this.#config.limits, context.ledger.state.rolloutStage),
       circuits: context.ledger.state.circuits,
       projects,
       executions: context.ledger.state.executions,
@@ -278,6 +286,9 @@ class DeterministicController implements Controller {
 
     switch (command.type) {
       case "set-mode":
+        if (command.mode === "active" && state.rolloutStage === "observation") {
+          throw new Error("active mode requires rollout stage1 or later");
+        }
         state.mode = command.mode;
         break;
       case "set-project-enabled":
@@ -292,6 +303,12 @@ class DeterministicController implements Controller {
           reasonCode: command.status === "closed" ? null : command.reasonCode,
         };
         break;
+      case "set-rollout-stage":
+        state.rolloutStage = command.stage;
+        if (command.stage === "observation") {
+          state.mode = "observation";
+        }
+        break;
     }
 
     const committed = assertLedgerSnapshot(
@@ -300,6 +317,7 @@ class DeterministicController implements Controller {
     return {
       revision: committed.revision,
       mode: committed.state.mode,
+      rolloutStage: committed.state.rolloutStage,
       circuits: committed.state.circuits,
       projectEnabled: committed.state.projectEnabled,
     };
@@ -382,6 +400,12 @@ class DeterministicController implements Controller {
         ),
       );
       revision = committed.revision;
+    }
+    for (const executionId of startedExecutionIds) {
+      const execution = state.executions.find((candidate) => candidate.executionId === executionId);
+      if (execution !== undefined) {
+        await this.#adapters.processes.activate?.(execution);
+      }
     }
 
     return {

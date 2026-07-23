@@ -19,6 +19,7 @@ import {
   type RepositoryLabel,
   type ReviewBaseline,
   type ReviewBaselineInput,
+  ReviewConvergenceCoordinator,
   ReviewConvergenceEngine,
 } from "../src";
 import { FixedClockAdapter, InMemoryGitHubMutationLedger } from "../src/testing";
@@ -296,6 +297,37 @@ describe("quiescence and ready-to-merge integration", () => {
     const revoked = evaluate(state.convergence, profile(), changedHead);
     expect(revoked.action).toBe("revoke-ready-to-merge");
     expect(revoked.reasons).toContain("head");
+  });
+
+  test("production coordinator advances unchanged active-stage observations", async () => {
+    const state = engine();
+    const current = pullRequest({ labels: [profileFixture.labels.inProgress] });
+    const gateway = new LabelGateway(current.labels);
+    const executor = new GitHubMutationExecutor(
+      new InMemoryGitHubMutationLedger(state.clock, new MutationIds()),
+      gateway,
+    );
+    const coordinator = new ReviewConvergenceCoordinator({
+      profiles: [profile()],
+      engine: state.convergence,
+      emitters: new Map([
+        [
+          profileFixture.id,
+          new ReadyToMergeEmitter(new CanonicalStageManager(profile(), executor)),
+        ],
+      ]),
+      clock: state.clock,
+    });
+
+    expect((await coordinator.reconcileProject(snapshot(current))).mutated).toBe(false);
+    state.clock.advance(60_000);
+    expect((await coordinator.reconcileProject(snapshot(current))).mutated).toBe(false);
+    state.clock.advance(60_000);
+    const ready = await coordinator.reconcileProject(snapshot(current));
+
+    expect(ready.mutated).toBe(true);
+    expect(ready.evaluations[0]?.emission.decision.action).toBe("emit-ready-to-merge");
+    expect(gateway.labels()).toEqual([profileFixture.labels.readyToMerge]);
   });
 });
 

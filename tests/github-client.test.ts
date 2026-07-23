@@ -305,4 +305,30 @@ describe("production observation mapping", () => {
     ).toEqual([{ projectId: "lumen-notes", issues: [], pullRequests: [] }]);
     expect(setup.transport.requests).toEqual([]);
   });
+
+  test("drives convergence on active unchanged polls only", async () => {
+    const setup = client([response(lumenObservation)]);
+    const snapshots: string[] = [];
+    const adapter = new ProductionGitHubAdapter({
+      profiles: [lumenProfile],
+      client: setup.client,
+      tokens: {
+        tokenForProject: async () => "project-token",
+      },
+      convergence: {
+        async reconcileProject(snapshot) {
+          snapshots.push(snapshot.projectId);
+          return { mutated: false };
+        },
+      },
+    });
+
+    await adapter.observe(["lumen-notes"], {
+      reason: "poll",
+      allowMutations: true,
+      enabledProjectIds: ["lumen-notes"],
+      activeFeedbackPullRequests: [],
+    });
+    expect(snapshots).toEqual(["lumen-notes"]);
+  });
 });

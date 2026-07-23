@@ -1,4 +1,5 @@
 import type { ProjectProfile } from "../contracts/project-profile";
+import { clampLimitsToRollout } from "../domain/rollout";
 import { resolveCanonicalLabels } from "../domain/stages";
 import type { ControllerConfig } from "./config";
 import type {
@@ -25,9 +26,9 @@ function enabled(profile: ProjectProfile, state: ControllerLocalState): boolean 
 function effectiveLimit(
   profile: ProjectProfile,
   lane: "implementation" | "feedback" | "readyToMerge",
-  config: ControllerConfig,
+  limits: ControllerConfig["limits"],
 ): number {
-  return Math.min(config.limits[lane], profile.ceilings?.[lane] ?? config.limits[lane]);
+  return Math.min(limits[lane], profile.ceilings?.[lane] ?? limits[lane]);
 }
 
 function valuesAfter<T>(values: readonly T[], last: T | null): readonly T[] {
@@ -358,6 +359,7 @@ function eligibleImplementation(
 }
 
 export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
+  const rolloutLimits = clampLimitsToRollout(input.config.limits, input.state.rolloutStage);
   const profiles = [...input.config.profiles].sort((left, right) =>
     left.id.localeCompare(right.id),
   );
@@ -429,11 +431,11 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
     addBlock({ projectId: null, lane: "implementation", reason: "provider-circuit-open" });
     implementationGloballyBlocked = true;
   }
-  if (activeImplementation >= input.config.limits.implementation) {
+  if (activeImplementation >= rolloutLimits.implementation) {
     addBlock({ projectId: null, lane: "implementation", reason: "global-limit" });
     implementationGloballyBlocked = true;
   }
-  if (globalReadyToMerge >= input.config.limits.readyToMerge) {
+  if (globalReadyToMerge >= rolloutLimits.readyToMerge) {
     addBlock({ projectId: null, lane: "implementation", reason: "global-backlog-limit" });
     implementationGloballyBlocked = true;
   }
@@ -453,14 +455,14 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
     }
     if (
       countActive(executions, "implementation", profile.id) >=
-      effectiveLimit(profile, "implementation", input.config)
+      effectiveLimit(profile, "implementation", rolloutLimits)
     ) {
       addBlock({ projectId: profile.id, lane: "implementation", reason: "project-limit" });
       return false;
     }
     if (
       readyToMergeCount(profile, observation) >=
-      effectiveLimit(profile, "readyToMerge", input.config)
+      effectiveLimit(profile, "readyToMerge", rolloutLimits)
     ) {
       addBlock({
         projectId: profile.id,
@@ -495,7 +497,7 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
   }
 
   const activeFeedback = countActive(executions, "feedback");
-  let feedbackCapacity = Math.max(0, input.config.limits.feedback - activeFeedback);
+  let feedbackCapacity = Math.max(0, rolloutLimits.feedback - activeFeedback);
   let feedbackGloballyBlocked = observationMode || githubCircuitOpen;
   if (input.state.circuits.codex.status === "open") {
     addBlock({ projectId: null, lane: "feedback", reason: "provider-circuit-open" });
@@ -536,7 +538,7 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
       continue;
     }
     const active = countActive(executions, "feedback", profile.id);
-    if (active >= effectiveLimit(profile, "feedback", input.config)) {
+    if (active >= effectiveLimit(profile, "feedback", rolloutLimits)) {
       addBlock({ projectId: profile.id, lane: "feedback", reason: "project-limit" });
       continue;
     }
@@ -568,7 +570,7 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
     if (candidate === undefined) {
       break;
     }
-    if (candidate.active >= effectiveLimit(candidate.profile, "feedback", input.config)) {
+    if (candidate.active >= effectiveLimit(candidate.profile, "feedback", rolloutLimits)) {
       feedbackByProject.delete(selectedId);
       addBlock({ projectId: selectedId, lane: "feedback", reason: "project-limit" });
       continue;
@@ -596,7 +598,7 @@ export function buildPlannerPlan(input: PlannerInput): PlannerPlan {
     rotation.feedback = selectedId;
     if (
       candidate.pullRequests.length === 0 ||
-      candidate.active >= effectiveLimit(candidate.profile, "feedback", input.config)
+      candidate.active >= effectiveLimit(candidate.profile, "feedback", rolloutLimits)
     ) {
       feedbackByProject.delete(selectedId);
     }
