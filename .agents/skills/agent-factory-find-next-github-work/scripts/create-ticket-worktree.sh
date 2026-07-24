@@ -6,15 +6,18 @@ usage() {
 	cat <<'EOF'
 Usage: create-ticket-worktree.sh --issue NUMBER --slug SLUG [options]
 
-Create an isolated ticket branch/worktree, copy every ignored .env* file from the primary
-checkout into the same relative location, verify the copies, and install dependencies.
+Create an isolated ticket branch/worktree and install dependencies. Ignored .env* files are
+left operator-owned and are copied only when --copy-env is passed explicitly.
 
 Options:
   --issue NUMBER       GitHub issue number (required)
   --slug SLUG          Lowercase branch/path slug (required)
   --base REF           Base ref (default: origin's default branch)
+  --copy-env           Also copy ignored .env* files from the primary checkout and
+                       verify the copies (off by default; may duplicate credentials)
   --env-source PATH    Primary checkout containing canonical local .env* files
-                       (default: checkout containing this script)
+                       (default: checkout containing this script; implies nothing
+                       unless --copy-env is passed)
   --skip-install       Do not run bun install --frozen-lockfile
   -h, --help           Show this help
 EOF
@@ -29,6 +32,7 @@ issue=""
 slug=""
 base_ref=""
 env_source=""
+copy_env=false
 install_dependencies=true
 
 while (($# > 0)); do
@@ -47,6 +51,10 @@ while (($# > 0)); do
 			(($# >= 2)) || die "--base requires a value"
 			base_ref="$2"
 			shift 2
+			;;
+		--copy-env)
+			copy_env=true
+			shift
 			;;
 		--env-source)
 			(($# >= 2)) || die "--env-source requires a value"
@@ -123,32 +131,36 @@ cleanup_on_error() {
 }
 trap cleanup_on_error EXIT
 
+# Ignored .env* files stay operator-owned by default. Copying them duplicates any
+# credential material they hold, so it happens only on an explicit --copy-env.
 env_count=0
-while IFS= read -r -d '' relative_path; do
-	[[ "$relative_path" != /* && "$relative_path" != *"../"* ]] ||
-		die "unsafe environment path returned by Git: $relative_path"
-	source_path="$env_source/$relative_path"
-	destination_path="$destination/$relative_path"
-	[[ -f "$source_path" || -L "$source_path" ]] ||
-		die "environment path is not a file or symlink: $relative_path"
-	git -C "$destination" check-ignore --quiet -- "$relative_path" ||
-		die "destination environment path is not ignored: $relative_path"
-	mkdir -p -- "$(dirname -- "$destination_path")"
-	cp -a -- "$source_path" "$destination_path"
+if [[ "$copy_env" == true ]]; then
+	while IFS= read -r -d '' relative_path; do
+		[[ "$relative_path" != /* && "$relative_path" != *"../"* ]] ||
+			die "unsafe environment path returned by Git: $relative_path"
+		source_path="$env_source/$relative_path"
+		destination_path="$destination/$relative_path"
+		[[ -f "$source_path" || -L "$source_path" ]] ||
+			die "environment path is not a file or symlink: $relative_path"
+		git -C "$destination" check-ignore --quiet -- "$relative_path" ||
+			die "destination environment path is not ignored: $relative_path"
+		mkdir -p -- "$(dirname -- "$destination_path")"
+		cp -a -- "$source_path" "$destination_path"
 
-	if [[ -L "$source_path" ]]; then
-		[[ -L "$destination_path" ]] || die "copied symlink became a regular file: $relative_path"
-		[[ "$(readlink -- "$source_path")" == "$(readlink -- "$destination_path")" ]] ||
-			die "copied symlink target differs: $relative_path"
-	else
-		cmp --silent -- "$source_path" "$destination_path" ||
-			die "copied environment file differs: $relative_path"
-	fi
-	((env_count += 1))
-done < <(
-	git -C "$env_source" ls-files --others --ignored --exclude-standard -z -- \
-		'.env*' ':(glob)**/.env*'
-)
+		if [[ -L "$source_path" ]]; then
+			[[ -L "$destination_path" ]] || die "copied symlink became a regular file: $relative_path"
+			[[ "$(readlink -- "$source_path")" == "$(readlink -- "$destination_path")" ]] ||
+				die "copied symlink target differs: $relative_path"
+		else
+			cmp --silent -- "$source_path" "$destination_path" ||
+				die "copied environment file differs: $relative_path"
+		fi
+		((env_count += 1))
+	done < <(
+		git -C "$env_source" ls-files --others --ignored --exclude-standard -z -- \
+			'.env*' ':(glob)**/.env*'
+	)
+fi
 
 if [[ "$install_dependencies" == true ]]; then
 	command -v bun >/dev/null 2>&1 || die "bun is required unless --skip-install is passed"
@@ -161,7 +173,11 @@ printf 'Created ticket worktree\n'
 printf '  branch: %s\n' "$branch"
 printf '  path: %s\n' "$destination"
 printf '  base: %s\n' "$base_ref"
-printf '  environment files copied: %d\n' "$env_count"
+if [[ "$copy_env" == true ]]; then
+	printf '  environment files copied: %d\n' "$env_count"
+else
+	printf '  environment files: left operator-owned (pass --copy-env to copy)\n'
+fi
 if [[ "$install_dependencies" == true ]]; then
 	printf '  dependencies: installed\n'
 else

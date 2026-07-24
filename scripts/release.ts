@@ -4,6 +4,10 @@
  *
  * Usage: bun run release <patch|minor|major|x.y.z>
  *
+ * Running this command is the explicit operator grant of commit-and-tag
+ * authority that AGENTS.md requires: it is operator-invoked release tooling,
+ * never run by agents, CI, or any automated flow on their own initiative.
+ *
  * The script never pushes. Publish with:
  *   git push origin main v<x.y.z>
  * The tag push triggers .github/workflows/release.yml, which creates the
@@ -14,48 +18,84 @@ import { parseReleaseBuildMetadata } from "@/contracts/release-manifest.ts";
 
 export type BumpKeyword = "patch" | "minor" | "major";
 
-const RELEASE_VERSION_PATTERN = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
+const VERSION_CORE = String.raw`(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)`;
+const FINAL_VERSION_PATTERN = new RegExp(`^${VERSION_CORE}$`, "u");
+// Mirrors the ReleaseBuildMetadataSchema version regex, with leading zeros rejected.
+const RELEASE_VERSION_PATTERN = new RegExp(
+	String.raw`^(?<core>${VERSION_CORE})(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`,
+	"u",
+);
 
 export function isBumpKeyword(value: string): value is BumpKeyword {
 	return value === "patch" || value === "minor" || value === "major";
 }
 
+export type SplitVersion = {
+	readonly core: readonly [number, number, number];
+	readonly isFinal: boolean;
+};
+
+/**
+ * Accepts any version the release metadata contract permits, including
+ * prerelease and build suffixes. `isFinal` is false when a suffix is present.
+ */
+export function splitVersion(version: string): SplitVersion {
+	const core = RELEASE_VERSION_PATTERN.exec(version)?.groups?.["core"];
+	if (core === undefined) {
+		throw new Error(`Expected a semantic version, received "${version}".`);
+	}
+	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+	return { core: [major, minor, patch], isFinal: core === version };
+}
+
+/** Accepts only bare final x.y.z versions — the form this script releases. */
 export function parseVersion(version: string): readonly [number, number, number] {
-	if (!RELEASE_VERSION_PATTERN.test(version)) {
+	if (!FINAL_VERSION_PATTERN.test(version)) {
 		throw new Error(`Expected a strict x.y.z version, received "${version}".`);
 	}
-	const [major = 0, minor = 0, patch = 0] = version.split(".").map(Number);
-	return [major, minor, patch];
+	return splitVersion(version).core;
+}
+
+function compareCores(
+	left: readonly [number, number, number],
+	right: readonly [number, number, number],
+): number {
+	if (left[0] !== right[0]) {
+		return left[0] - right[0];
+	}
+	if (left[1] !== right[1]) {
+		return left[1] - right[1];
+	}
+	return left[2] - right[2];
 }
 
 export function compareVersions(left: string, right: string): number {
-	const [leftMajor, leftMinor, leftPatch] = parseVersion(left);
-	const [rightMajor, rightMinor, rightPatch] = parseVersion(right);
-	if (leftMajor !== rightMajor) {
-		return leftMajor - rightMajor;
-	}
-	if (leftMinor !== rightMinor) {
-		return leftMinor - rightMinor;
-	}
-	return leftPatch - rightPatch;
+	return compareCores(parseVersion(left), parseVersion(right));
 }
 
+/**
+ * The next version is always a bare final x.y.z. A prerelease current version
+ * finalizes on `patch` (1.2.3-rc.1 -> 1.2.3), and an explicit request equal to
+ * a prerelease's core is accepted because the final release outranks it.
+ */
 export function computeNextVersion(current: string, request: string): string {
+	const { core, isFinal } = splitVersion(current);
 	if (!isBumpKeyword(request)) {
-		parseVersion(request);
-		if (compareVersions(request, current) <= 0) {
+		const requested = parseVersion(request);
+		const comparison = compareCores(requested, core);
+		if (comparison < 0 || (comparison === 0 && isFinal)) {
 			throw new Error(`Requested version ${request} must be greater than current ${current}.`);
 		}
 		return request;
 	}
-	const [major, minor, patch] = parseVersion(current);
+	const [major, minor, patch] = core;
 	switch (request) {
 		case "major":
 			return `${major + 1}.0.0`;
 		case "minor":
 			return `${major}.${minor + 1}.0`;
 		case "patch":
-			return `${major}.${minor}.${patch + 1}`;
+			return isFinal ? `${major}.${minor}.${patch + 1}` : `${major}.${minor}.${patch}`;
 	}
 }
 

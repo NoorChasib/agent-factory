@@ -18,8 +18,9 @@
 		"fallow:audit": "fallow audit",
 		"fallow:staged": "git diff --cached --no-ext-diff --unified=0 | fallow audit --base HEAD --diff-stdin",
 		"release": "bun scripts/release.ts",
-		"validate": "bun run typecheck && bun run lint && bun test",
-		"prepare": "git symbolic-ref -q HEAD >/dev/null 2>&1 && lefthook install || exit 0"
+		"test:skills": "cd .agents/skills/agent-factory-address-pr-feedback && python3 -m unittest discover tests",
+		"validate": "bun run typecheck && bun run lint && bun test && bun run test:skills",
+		"prepare": "if git symbolic-ref -q HEAD >/dev/null 2>&1; then lefthook install; fi"
 	},
 	"dependencies": {
 		"yaml": "2.9.0",

@@ -13,6 +13,10 @@ description: Find, claim, resume, and complete one Agent Factory GitHub issue th
   tracked in `docs/README.md`, and `docs/post-v1.md` lists explicitly unauthorized future work.
   Never implement future phases speculatively or start work that has no authority in the issues
   or docs.
+- This skill's claims, comments, branches, pushes, and PRs are the repository mutations
+  AGENTS.md requires explicit authority for; an operator invocation that selects an issue to
+  work grants exactly that authority and no more. Discovery-only invocations ("what is next?")
+  stay read-only: recommend, but do not claim, comment, or write.
 - Immediately claim every selected issue before substantive work: re-read its current state,
   assign the authenticated user, and post a short claim comment naming the intended scope. If
   another agent or assignee got there first, stop and report the issue's exact state.

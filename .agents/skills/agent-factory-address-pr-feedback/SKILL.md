@@ -7,6 +7,11 @@ description: Autonomously audit and address GitHub pull-request feedback through
 
 ## Operating contract
 
+- This skill's commits, pushes, replies, and thread resolutions are the repository mutations
+  AGENTS.md requires explicit authority for; an operator invocation that asks to fix, respond
+  to, resolve, continue, or finish feedback grants exactly that authority and no more. When the
+  operator asks only to inspect, audit, or summarize feedback, stop after the read-only audit
+  and report dispositions without committing, pushing, replying, or resolving.
 - Work on exactly one pull request at a time. Treat its originating issue, PR body, agreed scope,
   repository guidance (`AGENTS.md` and GitHub issues NoorChasib/agent-factory#1 and #2 as
   implementation authority), and canonical design documents under `docs/` as the behavior contract.
