@@ -174,10 +174,18 @@ function assertCleanRepository(): void {
 	if (status.trim() !== "") {
 		throw new Error("Working tree is not clean. Commit or stash changes before releasing.");
 	}
-	runOrFail(
+	// release.yml only publishes tags whose commit is reachable from main, so a
+	// release commit created anywhere else would produce a tag the workflow
+	// rejects. Require main before any file is modified.
+	const branch = runOrFail(
 		["git", "symbolic-ref", "--quiet", "HEAD"],
-		"HEAD is detached. Check out a branch before releasing.",
-	);
+		"HEAD is detached. Check out main before releasing.",
+	).trim();
+	if (branch !== "refs/heads/main") {
+		throw new Error(
+			`Releases must start from main; currently on ${branch.replace("refs/heads/", "")}.`,
+		);
+	}
 }
 
 function assertTagAbsent(tag: string): void {
