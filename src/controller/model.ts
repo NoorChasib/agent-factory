@@ -34,6 +34,7 @@ export const ExecutionRecordSchema = z
 		lane: LaneSchema,
 		provider: z.enum(["claude", "codex"]),
 		workflow: workflowEntryPoint,
+		purpose: z.literal("conflict-repair").optional(),
 		claimState: ClaimStateSchema,
 		issueNumber: issueNumber.nullable(),
 		pullRequestNumber: issueNumber.nullable(),

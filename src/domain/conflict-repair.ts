@@ -10,7 +10,7 @@ export const ConflictRepairInvocationSchema = z.strictObject({
 	pullRequestNumber: z.number().int().positive(),
 	headSha: gitObjectId,
 	executionId: safeId,
-	status: z.enum(["active", "completed", "failed"]),
+	status: z.enum(["active", "completed", "failed", "released"]),
 });
 
 export type ConflictRepairInvocation = z.infer<typeof ConflictRepairInvocationSchema>;
@@ -78,13 +78,9 @@ export interface ConflictRepairBudget {
 export type ConflictRepairBudgetDecision =
 	| {
 			readonly allowed: true;
-			readonly perHeadInvocations: number;
-			readonly perPullRequestInvocations: number;
 	  }
 	| {
 			readonly allowed: false;
-			readonly perHeadInvocations: number;
-			readonly perPullRequestInvocations: number;
 			readonly reason: "per-head-limit" | "per-pull-request-limit" | "worker-failure";
 			readonly priorExecutionId: string;
 	  };
@@ -108,6 +104,7 @@ export function assessConflictRepairInvocation(input: {
 }): ConflictRepairBudgetDecision {
 	const invocations = input.state.invocations.filter(
 		(invocation) =>
+			invocation.status !== "released" &&
 			invocation.projectId === input.projectId &&
 			invocation.pullRequestNumber === input.pullRequestNumber,
 	);
@@ -118,8 +115,6 @@ export function assessConflictRepairInvocation(input: {
 	if (failed !== undefined) {
 		return {
 			allowed: false,
-			perHeadInvocations: headInvocations.length,
-			perPullRequestInvocations: invocations.length,
 			reason: "worker-failure",
 			priorExecutionId: failed.executionId,
 		};
@@ -128,8 +123,6 @@ export function assessConflictRepairInvocation(input: {
 	if (invocations.length >= input.budget.perPullRequestInvocations && latest !== undefined) {
 		return {
 			allowed: false,
-			perHeadInvocations: headInvocations.length,
-			perPullRequestInvocations: invocations.length,
 			reason: "per-pull-request-limit",
 			priorExecutionId: latest.executionId,
 		};
@@ -138,15 +131,9 @@ export function assessConflictRepairInvocation(input: {
 	if (headInvocations.length >= input.budget.perHeadInvocations && latestHead !== undefined) {
 		return {
 			allowed: false,
-			perHeadInvocations: headInvocations.length,
-			perPullRequestInvocations: invocations.length,
 			reason: "per-head-limit",
 			priorExecutionId: latestHead.executionId,
 		};
 	}
-	return {
-		allowed: true,
-		perHeadInvocations: headInvocations.length,
-		perPullRequestInvocations: invocations.length,
-	};
+	return { allowed: true };
 }

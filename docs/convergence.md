@@ -63,9 +63,9 @@ is refused if applied to a later head.
 
 Mergeability is evaluated after review/check quiescence. A mergeable, non-draft PR proceeds to
 ready assessment. `unknown` mergeability waits. A PR whose only remaining ready-assessment reason
-is `mergeability` and whose authoritative value is `conflicting` becomes a conflict-repair
-candidate only for a profile that opted in. A mergeable branch that is merely behind never enters
-repair.
+is `mergeability` and whose authoritative value is `conflicting` is detected as a conflict-repair
+candidate unconditionally. The planner launches that candidate only when the profile configures
+`workflow.conflictRepair`. A mergeable branch that is merely behind never enters repair.
 
 If a PR already carries ready-to-merge, the engine calls
 `detectReadyToMergeRevocation`. Head, feedback, required-review, checks, draft, or mergeability

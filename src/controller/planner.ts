@@ -307,7 +307,8 @@ function transitionForObservedClaim(
 		resolved.stage !== "in-progress" &&
 		(execution.claimState === "verified" ||
 			(execution.claimState === "awaiting-verification" &&
-				resolved.stage !== awaitingVerificationStage))
+				resolved.stage !== awaitingVerificationStage &&
+				!(execution.purpose === "conflict-repair" && resolved.stage === null)))
 	) {
 		return {
 			executionId: execution.executionId,

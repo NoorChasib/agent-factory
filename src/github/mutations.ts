@@ -194,6 +194,12 @@ export class GitHubMutationRejectedError extends Error {
 export interface GitHubLabelGateway {
 	apply(input: unknown): Promise<void>;
 	verify(input: GitHubAllowedMutation): Promise<boolean>;
+	findSubjectCommentId?(
+		projectId: string,
+		subjectType: "issue" | "pull-request",
+		subjectNumber: number,
+		marker: string,
+	): Promise<number | null>;
 	readSubjectLabels(
 		projectId: string,
 		subjectType: "issue" | "pull-request",
@@ -370,6 +376,18 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 				);
 			}
 		}
+	}
+
+	public async findSubjectCommentId(
+		projectIdValue: string,
+		_subjectType: "issue" | "pull-request",
+		subjectNumber: number,
+		marker: string,
+	): Promise<number | null> {
+		const comment = (await this.#readSubjectComments(projectIdValue, subjectNumber)).find(
+			(candidate) => candidate.body?.startsWith(marker),
+		);
+		return comment?.id ?? null;
 	}
 
 	public async readSubjectLabels(

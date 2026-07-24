@@ -550,6 +550,46 @@ describe("guarded mutations and sequential verified claims", () => {
 		);
 	});
 
+	test("finds an existing canonical recovery comment by its hidden marker", async () => {
+		const marker = "<!-- agent-factory:recovery:execution-42 -->";
+		const transport = new ScriptedGitHubTransport([
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([
+						{
+							id: 99,
+							body: `${marker}\n## Agent Factory recovery`,
+							issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/42`,
+						},
+					]),
+				},
+			},
+		]);
+		const gateway = new GuardedGitHubLabelApi({
+			profiles: [lumenProfile],
+			client: new GitHubApiClient({
+				transport,
+				delay: new RecordingDelayAdapter(),
+				apiUrl: "https://api.github.test",
+			}),
+			transport,
+			tokens: {
+				tokenForProject: async () => "fixture-token",
+			},
+			apiUrl: "https://api.github.test",
+		});
+
+		expect(await gateway.findSubjectCommentId(lumenProfile.id, "pull-request", 42, marker)).toBe(
+			99,
+		);
+		expect(transport.requests[0]?.url).toEndWith(
+			`/repos/${lumenProfile.repository}/issues/42/comments?per_page=100&page=1`,
+		);
+	});
+
 	test("refuses to update a comment associated with another subject", async () => {
 		const transport = new ScriptedGitHubTransport([
 			{

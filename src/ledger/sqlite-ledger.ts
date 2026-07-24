@@ -1922,7 +1922,8 @@ export class SqliteLedger implements LedgerAdapter, Disposable {
 		);
 		for (const execution of executions) {
 			const validated = ExecutionRecordSchema.parse(execution);
-			statement.run({ ...validated, createdAt: at, updatedAt: at });
+			const { purpose: _purpose, ...persisted } = validated;
+			statement.run({ ...persisted, createdAt: at, updatedAt: at });
 		}
 	}
 

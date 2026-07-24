@@ -7,6 +7,7 @@ import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import type { WorkerTerminalStatus } from "@/contracts/worker-result.ts";
 import {
 	type ConflictRepairHandoffRequest,
+	type ControllerLocalState,
 	type ExecutionRecord,
 	ExecutionRecordSchema,
 	type LaunchRequest,
@@ -103,6 +104,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 	readonly #stopExecution: (executionId: string) => Promise<void>;
 	readonly #recoveryHandoff: RecoveryHandoffCoordinator | undefined;
 	readonly #launches = new Map<string, LaunchRequest>();
+	readonly #releaseRequested = new Set<string>();
 
 	public constructor(input: {
 		readonly profiles: readonly ProjectProfile[];
@@ -143,6 +145,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			lane: request.lane,
 			provider: request.provider,
 			workflow: request.workflow,
+			...(request.purpose === undefined ? {} : { purpose: request.purpose }),
 			claimState: request.issueNumber === null ? "selecting" : "awaiting-verification",
 			issueNumber: request.issueNumber,
 			pullRequestNumber: request.pullRequestNumber,
@@ -155,25 +158,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 
 	public async activate(execution: ExecutionRecord): Promise<void> {
 		if (!this.#launches.has(execution.executionId)) {
-			const profile = this.#profiles.get(execution.projectId);
-			if (profile === undefined) {
-				throw new Error(`execution '${execution.executionId}' belongs to an unknown project`);
-			}
-			const state = await this.#ledger.read();
-			const conflictRepair = state.state.conflictRepair.invocations.some(
-				(invocation) => invocation.executionId === execution.executionId,
-			);
-			this.#launches.set(execution.executionId, {
-				projectId: execution.projectId,
-				lane: execution.lane,
-				provider: execution.provider,
-				workflow: execution.workflow,
-				issueNumber: execution.issueNumber,
-				pullRequestNumber: execution.pullRequestNumber,
-				branch: execution.branch,
-				headSha: execution.headSha,
-				...(conflictRepair ? { purpose: "conflict-repair" as const } : {}),
-			});
+			throw new Error(`execution '${execution.executionId}' has no pending worker launch`);
 		}
 		void this.#run(execution).catch((error: unknown) =>
 			this.#recordSupervisionFailure(execution.executionId, error),
@@ -181,7 +166,13 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 	}
 
 	public async stop(request: StopRequest): Promise<void> {
-		await this.#stopExecution(request.executionId);
+		this.#releaseRequested.add(request.executionId);
+		try {
+			await this.#stopExecution(request.executionId);
+		} catch (error) {
+			this.#releaseRequested.delete(request.executionId);
+			throw error;
+		}
 	}
 
 	public async handoffConflictRepair(request: ConflictRepairHandoffRequest): Promise<void> {
@@ -412,6 +403,45 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 		this.#launches.delete(execution.executionId);
 	}
 
+	#recordConflictRepairOutcome(
+		state: ControllerLocalState,
+		executionId: string,
+		status: "completed" | "failed" | "released",
+		handoff: boolean,
+	): void {
+		const invocationIndex = state.conflictRepair.invocations.findIndex(
+			(candidate) => candidate.executionId === executionId,
+		);
+		const invocation = state.conflictRepair.invocations[invocationIndex];
+		if (invocation === undefined) {
+			return;
+		}
+		const effectiveStatus =
+			invocation.status === "released" || status === "released" ? "released" : status;
+		state.conflictRepair.invocations[invocationIndex] = {
+			...invocation,
+			status: effectiveStatus,
+		};
+		if (
+			effectiveStatus !== "released" &&
+			handoff &&
+			!state.conflictRepair.handoffs.some(
+				(existing) =>
+					existing.projectId === invocation.projectId &&
+					existing.pullRequestNumber === invocation.pullRequestNumber &&
+					existing.headSha === invocation.headSha,
+			)
+		) {
+			state.conflictRepair.handoffs.push({
+				projectId: invocation.projectId,
+				pullRequestNumber: invocation.pullRequestNumber,
+				headSha: invocation.headSha,
+				executionId,
+				reason: "worker-failure",
+			});
+		}
+	}
+
 	async #finish(
 		executionId: string,
 		input: {
@@ -438,6 +468,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			if (current === undefined) {
 				throw new Error(`completed worker '${executionId}' is absent from the ledger`);
 			}
+			const released = current.status === "released" || this.#releaseRequested.has(executionId);
 			state.executions[index] = ExecutionRecordSchema.parse({
 				...current,
 				issueNumber: input.issueNumber,
@@ -446,36 +477,20 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				headSha: input.headSha,
 				worktreeId: input.worktreeId,
 				claimState: input.issueNumber === null ? "selecting" : "awaiting-verification",
-				status: current.status === "released" ? "released" : "completed",
+				status: released ? "released" : "completed",
 			});
 			if (input.conflictRepair !== null) {
-				const invocationIndex = state.conflictRepair.invocations.findIndex(
-					(candidate) => candidate.executionId === executionId,
-				);
-				const invocation = state.conflictRepair.invocations[invocationIndex];
-				if (invocation !== undefined) {
-					state.conflictRepair.invocations[invocationIndex] = {
-						...invocation,
-						status: input.status === "completed" ? "completed" : "failed",
-					};
-					if (
-						input.conflictRepair.handoff &&
-						!state.conflictRepair.handoffs.some(
-							(handoff) =>
-								handoff.projectId === invocation.projectId &&
-								handoff.pullRequestNumber === invocation.pullRequestNumber &&
-								handoff.headSha === invocation.headSha,
-						)
-					) {
-						state.conflictRepair.handoffs.push({
-							projectId: invocation.projectId,
-							pullRequestNumber: invocation.pullRequestNumber,
-							headSha: invocation.headSha,
-							executionId,
-							reason: "worker-failure",
-						});
-					}
+				let invocationStatus: "completed" | "failed" | "released" =
+					input.status === "completed" ? "completed" : "failed";
+				if (released) {
+					invocationStatus = "released";
 				}
+				this.#recordConflictRepairOutcome(
+					state,
+					executionId,
+					invocationStatus,
+					input.conflictRepair.handoff,
+				);
 			}
 			if (input.circuitSignal !== null) {
 				state.circuits[input.circuitSignal.provider] = {
@@ -489,6 +504,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 					executionId,
 					status: input.status,
 				});
+				this.#releaseRequested.delete(executionId);
 				return;
 			} catch (error) {
 				if (!(error instanceof LedgerRevisionConflictError) || attempt === 3) {
@@ -503,7 +519,8 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			const recovery = this.#ledger.readExecutionRecovery(executionId);
 			const launch = this.#launches.get(executionId);
 			const profile = this.#profiles.get(recovery.execution.projectId);
-			if (launch?.purpose === "conflict-repair" && profile !== undefined) {
+			const released = this.#releaseRequested.has(executionId);
+			if (!released && launch?.purpose === "conflict-repair" && profile !== undefined) {
 				try {
 					await this.#handoff({
 						profile,
@@ -538,35 +555,17 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				if (current === undefined) {
 					break;
 				}
-				if (current.status === "active") {
+				if (released) {
+					state.executions[index] = { ...current, status: "released" };
+				} else if (current.status === "active") {
 					state.executions[index] = { ...current, status: "completed" };
 				}
-				const invocationIndex = state.conflictRepair.invocations.findIndex(
-					(candidate) => candidate.executionId === executionId,
+				this.#recordConflictRepairOutcome(
+					state,
+					executionId,
+					released || current.status === "released" ? "released" : "failed",
+					!released && current.status !== "released",
 				);
-				const invocation = state.conflictRepair.invocations[invocationIndex];
-				if (invocation !== undefined) {
-					state.conflictRepair.invocations[invocationIndex] = {
-						...invocation,
-						status: "failed",
-					};
-					if (
-						!state.conflictRepair.handoffs.some(
-							(handoff) =>
-								handoff.projectId === invocation.projectId &&
-								handoff.pullRequestNumber === invocation.pullRequestNumber &&
-								handoff.headSha === invocation.headSha,
-						)
-					) {
-						state.conflictRepair.handoffs.push({
-							projectId: invocation.projectId,
-							pullRequestNumber: invocation.pullRequestNumber,
-							headSha: invocation.headSha,
-							executionId,
-							reason: "worker-failure",
-						});
-					}
-				}
 				try {
 					await this.#ledger.commit(snapshot.revision, state);
 					break;
@@ -577,6 +576,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				}
 			}
 			this.#launches.delete(executionId);
+			this.#releaseRequested.delete(executionId);
 			this.#ledger.appendAudit("worker-supervision-failed", {
 				executionId,
 				message: error instanceof Error ? error.message : "worker supervision failed",

@@ -154,6 +154,7 @@ function normalizedExecution(
 
 	const normalized = ExecutionRecordSchema.parse({
 		...parsed,
+		...(request.purpose === undefined ? {} : { purpose: request.purpose }),
 		issueNumber: request.issueNumber ?? parsed.issueNumber,
 		pullRequestNumber: request.pullRequestNumber,
 		branch: request.branch ?? parsed.branch,
@@ -371,6 +372,16 @@ class DeterministicController implements Controller {
 					executionId: transition.executionId,
 					reason: transition.reason,
 				});
+				const invocationIndex = state.conflictRepair.invocations.findIndex(
+					(candidate) => candidate.executionId === transition.executionId,
+				);
+				const invocation = state.conflictRepair.invocations[invocationIndex];
+				if (invocation !== undefined && invocation.status === "active") {
+					state.conflictRepair.invocations[invocationIndex] = {
+						...invocation,
+						status: "released",
+					};
+				}
 				stoppedExecutionIds.push(transition.executionId);
 			} else {
 				verifiedExecutionIds.push(transition.executionId);

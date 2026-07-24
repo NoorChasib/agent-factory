@@ -150,6 +150,7 @@ export class InMemoryWorkerProcessAdapter implements WorkerProcessAdapter {
 			lane: request.lane,
 			provider: request.provider,
 			workflow: request.workflow,
+			...(request.purpose === undefined ? {} : { purpose: request.purpose }),
 			claimState: request.issueNumber === null ? "selecting" : "awaiting-verification",
 			issueNumber: request.issueNumber,
 			pullRequestNumber: request.pullRequestNumber,

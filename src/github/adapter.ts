@@ -80,10 +80,10 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 				this.#associations,
 			);
 			const full = options !== undefined && shouldFullyReconcile(options.reason, read.changed);
+			const conflictRepairPullRequestNumbers = new Set<number>();
 			if (options?.allowMutations === true) {
 				let recovered = 0;
 				let lifecycleTransitions = 0;
-				const conflictRepairPullRequestNumbers = new Set<number>();
 				if (full) {
 					recovered =
 						this.#mutations === undefined
@@ -125,12 +125,8 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 						this.#associations,
 					);
 				}
-				const observation = toControllerObservation(read.value, conflictRepairPullRequestNumbers);
-				this.#lastObservations.set(projectId, observation);
-				observations.push(observation);
-				continue;
 			}
-			const observation = toControllerObservation(read.value);
+			const observation = toControllerObservation(read.value, conflictRepairPullRequestNumbers);
 			this.#lastObservations.set(projectId, observation);
 			observations.push(observation);
 		}

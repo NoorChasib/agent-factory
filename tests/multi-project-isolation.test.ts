@@ -120,6 +120,7 @@ class SessionRecordingWorkers implements WorkerProcessAdapter {
 			lane: request.lane,
 			provider: request.provider,
 			workflow: request.workflow,
+			...(request.purpose === undefined ? {} : { purpose: request.purpose }),
 			claimState: "awaiting-verification",
 			issueNumber: request.issueNumber,
 			pullRequestNumber: request.pullRequestNumber,

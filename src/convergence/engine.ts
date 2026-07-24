@@ -13,6 +13,7 @@ import {
 	type GitHubPullRequestSnapshot,
 	type GitHubReviewBaselineRepository,
 	inspectCurrentHeadRequirements,
+	isConvergedExceptConflict,
 	repairableCheck,
 	type StageTransitionResult,
 } from "@/github/index.ts";
@@ -416,7 +417,7 @@ export class ReviewConvergenceEngine {
 			});
 		}
 
-		if (pullRequest.mergeability === "conflicting" && !pullRequest.draft) {
+		if (isConvergedExceptConflict(input.profile, input.snapshot, pullRequest, quiescent)) {
 			return decision({
 				action: "repair-conflict",
 				pullRequest,

@@ -143,6 +143,7 @@ function completedRepairExecution(
 		lane: "feedback",
 		provider: "codex",
 		workflow: profile.workflow.conflictRepair,
+		purpose: "conflict-repair",
 		claimState: "verified",
 		issueNumber: pullRequestNumber,
 		pullRequestNumber,
@@ -435,6 +436,89 @@ describe("feedback-lane launch and claim gating", () => {
 		expect(adapters.processes.starts.map((launch) => launch.pullRequestNumber)).toEqual([50, 51]);
 	});
 
+	test("keeps a post-revocation stage-null repair alive until its claim verifies", async () => {
+		const readyToMerge = repairPullRequest(repairProfile, 50, oldHead, {
+			labels: [repairProfile.labels.readyToMerge],
+			mergeability: "mergeable",
+			conflictRepairEligible: false,
+		});
+		const postRevocation = repairPullRequest(repairProfile, 50, oldHead, {
+			labels: [],
+		});
+		const adapters = createInMemoryAdapters(
+			[repairProfile],
+			[repairObservation(repairProfile, [readyToMerge])],
+			activeState([repairProfile]),
+		);
+		const controller = createController(config([repairProfile]), adapters);
+
+		expect((await controller.reconcile({ reason: "change" })).startedExecutionIds).toEqual([]);
+
+		adapters.github.setObservations([repairObservation(repairProfile, [postRevocation])]);
+		expect((await controller.reconcile({ reason: "change" })).startedExecutionIds).toEqual([
+			"execution-1",
+		]);
+
+		const awaitingVerification = await controller.reconcile({ reason: "poll" });
+		expect(awaitingVerification.stoppedExecutionIds).toEqual([]);
+		expect((await adapters.ledger.read()).state.executions[0]).toMatchObject({
+			executionId: "execution-1",
+			purpose: "conflict-repair",
+			claimState: "awaiting-verification",
+			status: "active",
+		});
+
+		adapters.github.setObservations([
+			repairObservation(repairProfile, [
+				{ ...postRevocation, labels: [repairProfile.labels.inProgress] },
+			]),
+		]);
+		expect((await controller.reconcile({ reason: "change" })).verifiedExecutionIds).toEqual([
+			"execution-1",
+		]);
+	});
+
+	test("does not charge a released unverified repair claim against its budgets", async () => {
+		const postRevocation = repairPullRequest(repairProfile, 50, oldHead, {
+			labels: [],
+		});
+		const adapters = createInMemoryAdapters(
+			[repairProfile],
+			[repairObservation(repairProfile, [postRevocation])],
+			activeState([repairProfile]),
+		);
+		const controller = createController(config([repairProfile]), adapters);
+
+		expect((await controller.reconcile({ reason: "change" })).startedExecutionIds).toEqual([
+			"execution-1",
+		]);
+
+		adapters.github.setObservations([
+			repairObservation(repairProfile, [
+				{
+					...postRevocation,
+					labels: [repairProfile.labels.readyToMerge],
+					mergeability: "mergeable",
+					conflictRepairEligible: false,
+				},
+			]),
+		]);
+		expect((await controller.reconcile({ reason: "change" })).stoppedExecutionIds).toEqual([
+			"execution-1",
+		]);
+		expect((await adapters.ledger.read()).state.conflictRepair.invocations).toMatchObject([
+			{
+				executionId: "execution-1",
+				status: "released",
+			},
+		]);
+
+		adapters.github.setObservations([repairObservation(repairProfile, [postRevocation])]);
+		const relaunched = await controller.reconcile({ reason: "change" });
+		expect(relaunched.startedExecutionIds).toEqual(["execution-2"]);
+		expect(relaunched.conflictRepairHandoffExecutionIds).toEqual([]);
+	});
+
 	test("shares observation, rollout, circuit, ceiling, and one-owner gates with feedback", async () => {
 		const observation = repairObservation(repairProfile, [
 			repairPullRequest(repairProfile, 49, oldHead, {
@@ -646,6 +730,7 @@ describe("separate persisted repair budgets", () => {
 						status: "completed",
 					},
 				]);
+				expect((await ledger.read()).state.executions[0]?.purpose).toBe("conflict-repair");
 				expect(ledger.schemaVersion).toBe(4);
 				expect(
 					assessFeedbackInvocation({ codeChangingRounds: 0, totalInvocations: 0 }, true),
