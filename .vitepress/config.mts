@@ -1,5 +1,6 @@
 import { defineConfig } from "vitepress";
 
+// fallow-ignore-next-line unused-export -- loaded by the vitepress CLI, never imported
 export default defineConfig({
 	title: "Agent Factory",
 	description: "Standalone controller that supervises coding-agent workers against GitHub work.",
