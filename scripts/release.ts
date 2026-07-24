@@ -18,13 +18,12 @@ import { parseReleaseBuildMetadata } from "@/contracts/release-manifest.ts";
 
 export type BumpKeyword = "patch" | "minor" | "major";
 
-const VERSION_CORE = String.raw`(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)`;
-const FINAL_VERSION_PATTERN = new RegExp(`^${VERSION_CORE}$`, "u");
-// Mirrors the ReleaseBuildMetadataSchema version regex, with leading zeros rejected.
-const RELEASE_VERSION_PATTERN = new RegExp(
-	String.raw`^(?<core>${VERSION_CORE})(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`,
-	"u",
-);
+// The strict form this script emits: no leading zeros, no suffixes.
+const FINAL_VERSION_PATTERN = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
+// Mirrors the ReleaseBuildMetadataSchema version regex exactly, so every version
+// the contract accepts in checked-in metadata can be read as the current version.
+const RELEASE_VERSION_PATTERN =
+	/^(?<core>[0-9]+\.[0-9]+\.[0-9]+)(?<prerelease>-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
 
 export function isBumpKeyword(value: string): value is BumpKeyword {
 	return value === "patch" || value === "minor" || value === "major";
@@ -35,17 +34,37 @@ export type SplitVersion = {
 	readonly isFinal: boolean;
 };
 
+function parseComponent(component: string, version: string): number {
+	const value = Number(component);
+	if (!Number.isSafeInteger(value)) {
+		throw new Error(
+			`Version component "${component}" in "${version}" exceeds the safe integer range.`,
+		);
+	}
+	return value;
+}
+
 /**
- * Accepts any version the release metadata contract permits, including
- * prerelease and build suffixes. `isFinal` is false when a suffix is present.
+ * Accepts any version the release metadata contract permits, including leading
+ * zeros, prerelease, and build suffixes. `isFinal` follows semver precedence:
+ * build metadata is ignored, so only a prerelease part makes a version
+ * non-final. Components beyond Number.MAX_SAFE_INTEGER are rejected rather
+ * than silently rounded.
  */
 export function splitVersion(version: string): SplitVersion {
-	const core = RELEASE_VERSION_PATTERN.exec(version)?.groups?.["core"];
-	if (core === undefined) {
+	const groups = RELEASE_VERSION_PATTERN.exec(version)?.groups;
+	if (groups?.["core"] === undefined) {
 		throw new Error(`Expected a semantic version, received "${version}".`);
 	}
-	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
-	return { core: [major, minor, patch], isFinal: core === version };
+	const [majorText = "0", minorText = "0", patchText = "0"] = groups["core"].split(".");
+	return {
+		core: [
+			parseComponent(majorText, version),
+			parseComponent(minorText, version),
+			parseComponent(patchText, version),
+		],
+		isFinal: groups["prerelease"] === undefined,
+	};
 }
 
 /** Accepts only bare final x.y.z versions — the form this script releases. */
@@ -76,7 +95,9 @@ export function compareVersions(left: string, right: string): number {
 /**
  * The next version is always a bare final x.y.z. A prerelease current version
  * finalizes on `patch` (1.2.3-rc.1 -> 1.2.3), and an explicit request equal to
- * a prerelease's core is accepted because the final release outranks it.
+ * a prerelease's core is accepted because the final release outranks it. Build
+ * metadata carries no precedence, so 1.2.3+build.4 behaves exactly like 1.2.3:
+ * `patch` yields 1.2.4 and an explicit 1.2.3 is rejected as a non-increase.
  */
 export function computeNextVersion(current: string, request: string): string {
 	const { core, isFinal } = splitVersion(current);

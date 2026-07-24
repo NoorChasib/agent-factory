@@ -48,13 +48,24 @@ describe("release script version helpers", () => {
 		expect(() => computeNextVersion("0.1.0", "not-a-version")).toThrow();
 	});
 
-	test("splits contract-valid prerelease and build versions", () => {
+	test("splits every contract-valid version", () => {
 		expect(splitVersion("1.2.3")).toEqual({ core: [1, 2, 3], isFinal: true });
 		expect(splitVersion("1.2.3-rc.1")).toEqual({ core: [1, 2, 3], isFinal: false });
-		expect(splitVersion("1.2.3+build.4")).toEqual({ core: [1, 2, 3], isFinal: false });
 		expect(splitVersion("1.2.3-rc.1+build.4")).toEqual({ core: [1, 2, 3], isFinal: false });
-		expect(() => splitVersion("01.2.3-rc.1")).toThrow();
+		expect(splitVersion("01.2.3-rc.1")).toEqual({ core: [1, 2, 3], isFinal: false });
 		expect(() => splitVersion("not-a-version")).toThrow();
+	});
+
+	test("build metadata carries no precedence", () => {
+		expect(splitVersion("1.2.3+build.4")).toEqual({ core: [1, 2, 3], isFinal: true });
+		expect(computeNextVersion("1.2.3+build.4", "patch")).toBe("1.2.4");
+		expect(() => computeNextVersion("1.2.3+build.4", "1.2.3")).toThrow();
+	});
+
+	test("rejects version components beyond the safe integer range", () => {
+		expect(() => splitVersion("9007199254740993.0.0")).toThrow();
+		expect(() => computeNextVersion("9007199254740993.0.0", "major")).toThrow();
+		expect(() => computeNextVersion("0.1.0", "9007199254740993.0.0")).toThrow();
 	});
 
 	test("releases from a prerelease current version", () => {
@@ -62,7 +73,7 @@ describe("release script version helpers", () => {
 		expect(computeNextVersion("1.2.3-rc.1", "minor")).toBe("1.3.0");
 		expect(computeNextVersion("1.2.3-rc.1", "major")).toBe("2.0.0");
 		expect(computeNextVersion("1.2.3-rc.1", "1.2.3")).toBe("1.2.3");
-		expect(computeNextVersion("1.2.3+build.4", "patch")).toBe("1.2.3");
+		expect(computeNextVersion("01.2.3-rc.1", "patch")).toBe("1.2.3");
 		expect(() => computeNextVersion("1.2.3-rc.1", "1.2.2")).toThrow();
 		expect(() => computeNextVersion("1.2.3-rc.1", "1.2.3-rc.2")).toThrow();
 	});

@@ -113,6 +113,12 @@ git -C "$env_source" rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null 
 if git -C "$env_source" show-ref --verify --quiet "refs/heads/$branch"; then
 	die "ticket branch already exists: $branch"
 fi
+# Another session may own the ticket remotely without a local branch here. Creating a
+# fresh branch from the base would later fail as non-fast-forward or rewrite that
+# history, so stop and let the operator resume the existing branch instead.
+if git -C "$env_source" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+	die "ticket branch already exists on origin: $branch (fetch and resume it instead)"
+fi
 [[ ! -e "$destination" && ! -L "$destination" ]] ||
 	die "worktree destination already exists: $destination"
 
