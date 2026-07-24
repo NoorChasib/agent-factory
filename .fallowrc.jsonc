@@ -260,7 +260,7 @@
 		"coverage": {
 			// Product source, scripts, and tests must belong to a declared zone.
 			"requireAllFiles": true,
-			"allowUnmatched": ["config/**", "systemd/**", "bin/**"]
+			"allowUnmatched": [".vitepress/**", "config/**", "systemd/**", "bin/**"]
 		}
 	}
 }
