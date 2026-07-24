@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+	buildReleaseChoices,
 	compareVersions,
 	computeNextVersion,
+	confirmsPush,
 	isBumpKeyword,
 	parseVersion,
 	renderVersionedJson,
+	resolveChoice,
 	splitVersion,
 } from "@scripts/release.ts";
 
@@ -97,5 +100,78 @@ describe("release script version helpers", () => {
 	test("rejects documents without a string version", () => {
 		expect(() => renderVersionedJson('{\n\t"name": "x"\n}\n', "0.2.0")).toThrow();
 		expect(() => renderVersionedJson('{\n\t"version": 2\n}\n', "0.2.0")).toThrow();
+	});
+});
+
+describe("release script interactive menu", () => {
+	test("offers the as-is release while the current version is untagged", () => {
+		expect(buildReleaseChoices("0.1.0", false)).toEqual([
+			{ kind: "patch", label: "patch", detail: "0.1.0 -> 0.1.1", version: "0.1.1" },
+			{ kind: "minor", label: "minor", detail: "0.1.0 -> 0.2.0", version: "0.2.0" },
+			{ kind: "major", label: "major", detail: "0.1.0 -> 1.0.0", version: "1.0.0" },
+			{
+				kind: "as-is",
+				label: "as-is",
+				detail: "release 0.1.0 without bumping",
+				version: "0.1.0",
+			},
+			{ kind: "custom", label: "custom", detail: "enter an explicit version" },
+		]);
+	});
+
+	test("drops the as-is release once the current version is tagged", () => {
+		const choices = buildReleaseChoices("0.1.0", true);
+		expect(choices.map((choice) => choice.kind)).toEqual(["patch", "minor", "major", "custom"]);
+	});
+
+	test("resolves a prerelease current version to its finalizing bumps", () => {
+		const choices = buildReleaseChoices("1.2.3-rc.1", false);
+		expect(choices.map((choice) => choice.version)).toEqual([
+			"1.2.3",
+			"1.3.0",
+			"2.0.0",
+			"1.2.3-rc.1",
+			undefined,
+		]);
+		expect(choices[3]?.detail).toBe("release 1.2.3-rc.1 without bumping");
+	});
+
+	test("resolves one-based selections and rejects anything else", () => {
+		const choices = buildReleaseChoices("0.1.0", false);
+		expect(resolveChoice(choices, "1").kind).toBe("patch");
+		expect(resolveChoice(choices, "4").kind).toBe("as-is");
+		expect(resolveChoice(choices, " 5 ").kind).toBe("custom");
+		expect(() => resolveChoice(choices, "")).toThrow();
+		expect(() => resolveChoice(choices, "0")).toThrow();
+		expect(() => resolveChoice(choices, "6")).toThrow();
+		expect(() => resolveChoice(choices, "abc")).toThrow();
+		expect(() => resolveChoice(choices, "1.5")).toThrow();
+	});
+
+	test("renumbers selections when the as-is release is unavailable", () => {
+		const choices = buildReleaseChoices("0.1.0", true);
+		expect(resolveChoice(choices, "4").kind).toBe("custom");
+		expect(() => resolveChoice(choices, "5")).toThrow();
+	});
+
+	test("pushes only on an explicit yes", () => {
+		expect(confirmsPush("y")).toBe(true);
+		expect(confirmsPush("Y")).toBe(true);
+		expect(confirmsPush("yes")).toBe(true);
+		expect(confirmsPush(" Yes ")).toBe(true);
+	});
+
+	test("declines the push for every other answer", () => {
+		expect(confirmsPush("n")).toBe(false);
+		expect(confirmsPush("no")).toBe(false);
+		expect(confirmsPush("")).toBe(false);
+		expect(confirmsPush("   ")).toBe(false);
+		expect(confirmsPush("yolo")).toBe(false);
+		expect(confirmsPush("ya")).toBe(false);
+		expect(confirmsPush("1")).toBe(false);
+	});
+
+	test("declines the push when no operator is present to answer", () => {
+		expect(confirmsPush(null)).toBe(false);
 	});
 });
