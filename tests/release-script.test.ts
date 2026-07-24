@@ -68,6 +68,13 @@ describe("release script version helpers", () => {
 		expect(() => computeNextVersion("0.1.0", "9007199254740993.0.0")).toThrow();
 	});
 
+	test("rejects bumps whose result would leave the safe integer range", () => {
+		expect(() => computeNextVersion("9007199254740991.0.0", "major")).toThrow();
+		expect(() => computeNextVersion("0.9007199254740991.0", "minor")).toThrow();
+		expect(() => computeNextVersion("0.0.9007199254740991", "patch")).toThrow();
+		expect(computeNextVersion("9007199254740991.0.0", "patch")).toBe("9007199254740991.0.1");
+	});
+
 	test("releases from a prerelease current version", () => {
 		expect(computeNextVersion("1.2.3-rc.1", "patch")).toBe("1.2.3");
 		expect(computeNextVersion("1.2.3-rc.1", "minor")).toBe("1.3.0");

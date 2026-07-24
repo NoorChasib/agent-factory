@@ -112,12 +112,29 @@ export function computeNextVersion(current: string, request: string): string {
 	const [major, minor, patch] = core;
 	switch (request) {
 		case "major":
-			return `${major + 1}.0.0`;
+			return `${increment(major, current)}.0.0`;
 		case "minor":
-			return `${major}.${minor + 1}.0`;
+			return `${major}.${increment(minor, current)}.0`;
 		case "patch":
-			return isFinal ? `${major}.${minor}.${patch + 1}` : `${major}.${minor}.${patch}`;
+			return isFinal
+				? `${major}.${minor}.${increment(patch, current)}`
+				: `${major}.${minor}.${patch}`;
 	}
+}
+
+/**
+ * A bumped component must itself survive splitVersion on the next release, so
+ * the increment refuses to leave the safe integer range rather than writing
+ * metadata this helper could never read back.
+ */
+function increment(component: number, current: string): number {
+	const next = component + 1;
+	if (!Number.isSafeInteger(next)) {
+		throw new Error(
+			`Bumping ${current} would push a version component beyond the safe integer range.`,
+		);
+	}
+	return next;
 }
 
 /**
@@ -164,9 +181,19 @@ function assertCleanRepository(): void {
 }
 
 function assertTagAbsent(tag: string): void {
-	const result = runCommand(["git", "rev-parse", "--quiet", "--verify", `refs/tags/${tag}`]);
-	if (result.exitCode === 0) {
+	const local = runCommand(["git", "rev-parse", "--quiet", "--verify", `refs/tags/${tag}`]);
+	if (local.exitCode === 0) {
 		throw new Error(`Tag ${tag} already exists.`);
+	}
+	// Another checkout may have pushed the tag without this clone fetching it.
+	// Failing here preserves the all-or-nothing flow: nothing is written when
+	// the later push would be rejected anyway.
+	const remote = runCommand(["git", "ls-remote", "--exit-code", "--tags", "origin", tag]);
+	if (remote.exitCode === 0) {
+		throw new Error(`Tag ${tag} already exists on origin. Fetch tags and pick a newer version.`);
+	}
+	if (remote.exitCode !== 2) {
+		throw new Error(`Unable to check origin for tag ${tag}; verify network access and retry.`);
 	}
 }
 
