@@ -31,6 +31,7 @@ export {
 	ForbiddenGitHubMutationError,
 	type GitHubAllowedMutation,
 	GitHubAllowedMutationSchema,
+	type GitHubAppAuthorIdentity,
 	type GitHubLabelGateway,
 	GitHubMutationAmbiguousError,
 	type GitHubMutationExecutionResult,

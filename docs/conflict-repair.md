@@ -94,7 +94,9 @@ the PR lifetime. A new head resets only the per-head count.
 
 Invocation and deduplicated handoff records live in the validated SQLite controller-state JSON.
 The existing schema already durably stores that state, so v1.1 needs no table or column
-migration. Every launch is counted before activation, including an invocation that later fails.
+migration. Counted invocations include completed and failed repair attempts. Controller-released
+launches, externally disqualified before any repair ran, receive `released` status and do not
+consume either budget.
 
 Budget exhaustion or any repair failure stops automatic repair for that head and uses the
 standard sanitized operator handoff. The PR worktree and Codex thread remain available through

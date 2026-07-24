@@ -20,10 +20,20 @@ import {
 	type CodexFeedbackRunner,
 	type ProviderExecutionRecorder,
 	type ProviderRuntime,
+	type ResumeWorkflowIdentity,
 	resumeProviderSessionFromLedger,
 } from "@/providers/index.ts";
 import type { RecoveryHandoffCoordinator } from "@/recovery/index.ts";
 import type { WorktreeCustody } from "@/worktrees/index.ts";
+
+function resumeWorkflowIdentity(profile: ProjectProfile): ResumeWorkflowIdentity {
+	return {
+		feedback: profile.workflow.feedback,
+		...(profile.workflow.conflictRepair === undefined
+			? {}
+			: { conflictRepair: profile.workflow.conflictRepair }),
+	};
+}
 
 export class SelectionCheckoutCustody {
 	readonly #git: GitCustodyAdapter;
@@ -230,6 +240,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			(candidate) => candidate.executionId === executionId,
 		);
 		const purpose = invocation === undefined ? undefined : ("conflict-repair" as const);
+		const workflowIdentity = resumeWorkflowIdentity(profile);
 		void this.#commands
 			.runForExecution(executionId, async () => {
 				const path =
@@ -251,10 +262,15 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 					...(execution.branch === null ? {} : { branch: execution.branch }),
 					...(invocation === undefined ? {} : { initialHeadSha: invocation.headSha }),
 				};
-				return this.#recorder.runResume(executionId, session, () =>
+				return this.#recorder.runResume(executionId, session, workflowIdentity, () =>
 					session.provider === "claude"
 						? this.#claude.resume({ request, session })
-						: this.#codex.resume({ request, runtime: this.#codexRuntime, session }),
+						: this.#codex.resume({
+								request,
+								runtime: this.#codexRuntime,
+								session,
+								workflowIdentity,
+							}),
 				);
 			})
 			.then(async (persisted) => {
@@ -339,6 +355,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			launch.lane === "feedback" && launch.pullRequestNumber !== null
 				? this.#ledger.findCodexSessionForPullRequest(profile.id, launch.pullRequestNumber)
 				: null;
+		const workflowIdentity = resumeWorkflowIdentity(profile);
 		const persisted = await this.#commands.runForExecution(execution.executionId, () => {
 			if (launch.lane === "implementation") {
 				return this.#recorder.runInitial(execution.executionId, () => this.#claude.launch(request));
@@ -349,11 +366,12 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				);
 			}
 			const session = resumeProviderSessionFromLedger(existingCodexSession);
-			return this.#recorder.runResume(execution.executionId, session, () =>
+			return this.#recorder.runResume(execution.executionId, session, workflowIdentity, () =>
 				this.#codex.resume({
 					request,
 					runtime: this.#codexRuntime,
 					session,
+					workflowIdentity,
 				}),
 			);
 		});

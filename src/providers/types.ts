@@ -55,6 +55,12 @@ export const ProviderSessionContextSchema = z.strictObject({
 });
 export type ProviderSessionContext = z.infer<typeof ProviderSessionContextSchema>;
 
+export const ResumeWorkflowIdentitySchema = z.strictObject({
+	feedback: workflowEntryPoint,
+	conflictRepair: workflowEntryPoint.optional(),
+});
+export type ResumeWorkflowIdentity = z.infer<typeof ResumeWorkflowIdentitySchema>;
+
 export interface WorkerTokenBroker {
 	tokenForProject(projectId: string): Promise<string>;
 }

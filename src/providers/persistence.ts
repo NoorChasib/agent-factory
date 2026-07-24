@@ -7,10 +7,13 @@ import type {
 	ProcessMetadataInput,
 	ProviderSession,
 } from "@/ledger/index.ts";
+import { resumeWorkflowMatches } from "@/providers/runner-support.ts";
 import {
 	type ProviderRunOutcome,
 	ProviderSessionContextSchema,
 	type ResumeProviderSession,
+	type ResumeWorkflowIdentity,
+	ResumeWorkflowIdentitySchema,
 } from "@/providers/types.ts";
 
 export interface ProviderExecutionRepository {
@@ -114,9 +117,11 @@ export class ProviderExecutionRecorder {
 	public async runResume(
 		executionId: string,
 		recordedSession: ResumeProviderSession,
+		workflowIdentity: ResumeWorkflowIdentity,
 		resume: () => Promise<ProviderRunOutcome>,
 	): Promise<PersistedProviderRun> {
 		const target = this.#repository.readExecutionRecovery(executionId).execution;
+		const parsedWorkflowIdentity = ResumeWorkflowIdentitySchema.parse(workflowIdentity);
 		const sameClaudeExecution =
 			recordedSession.provider === "claude" && recordedSession.executionId === executionId;
 		const sameCodexPullRequest =
@@ -125,9 +130,14 @@ export class ProviderExecutionRecorder {
 			target.pullRequestNumber !== null &&
 			recordedSession.runtimeMetadata.projectId === target.projectId &&
 			recordedSession.runtimeMetadata.issueNumber === target.issueNumber &&
-			recordedSession.runtimeMetadata.pullRequestNumber === target.pullRequestNumber;
+			recordedSession.runtimeMetadata.pullRequestNumber === target.pullRequestNumber &&
+			resumeWorkflowMatches(
+				recordedSession.runtimeMetadata.workflow,
+				target.workflow,
+				parsedWorkflowIdentity,
+			);
 		if (!sameClaudeExecution && !sameCodexPullRequest) {
-			throw new Error("provider resume session belongs to a different execution");
+			throw new Error("resume-session-mismatch");
 		}
 		const started = this.#repository.startAttempt(executionId);
 		const outcome = await resume();

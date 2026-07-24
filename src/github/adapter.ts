@@ -30,6 +30,23 @@ function emptyObservation(projectId: string): GitHubProjectObservation {
 	return { projectId, issues: [], pullRequests: [] };
 }
 
+function conflictRepairEligibilityKey(pullRequestNumber: number, headSha: string): string {
+	return `${pullRequestNumber}:${headSha}`;
+}
+
+function recordConflictRepairEligibility(
+	eligibility: Set<string>,
+	snapshot: GitHubProjectSnapshot,
+	pullRequestNumbers: readonly number[],
+): void {
+	const requested = new Set(pullRequestNumbers);
+	for (const pullRequest of snapshot.pullRequests) {
+		if (requested.has(pullRequest.number)) {
+			eligibility.add(conflictRepairEligibilityKey(pullRequest.number, pullRequest.headSha));
+		}
+	}
+}
+
 export class ProductionGitHubAdapter implements GitHubAdapter {
 	readonly #profiles: ReadonlyMap<string, ProjectProfile>;
 	readonly #client: GitHubApiClient;
@@ -80,7 +97,7 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 				this.#associations,
 			);
 			const full = options !== undefined && shouldFullyReconcile(options.reason, read.changed);
-			const conflictRepairPullRequestNumbers = new Set<number>();
+			const conflictRepairEligibility = new Set<string>();
 			if (options?.allowMutations === true) {
 				let recovered = 0;
 				let lifecycleTransitions = 0;
@@ -99,9 +116,11 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 							? null
 							: await this.#lifecycle.reconcileProject(read.value, activeFeedback);
 					lifecycleTransitions = lifecycle?.transitions.length ?? 0;
-					for (const pullRequestNumber of lifecycle?.conflictRepairPullRequestNumbers ?? []) {
-						conflictRepairPullRequestNumbers.add(pullRequestNumber);
-					}
+					recordConflictRepairEligibility(
+						conflictRepairEligibility,
+						read.value,
+						lifecycle?.conflictRepairPullRequestNumbers ?? [],
+					);
 				}
 				if (recovered > 0 || lifecycleTransitions > 0) {
 					read = await readGitHubObservation(
@@ -113,9 +132,11 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 					);
 				}
 				const convergence = await this.#convergence?.reconcileProject(read.value);
-				for (const pullRequestNumber of convergence?.conflictRepairPullRequestNumbers ?? []) {
-					conflictRepairPullRequestNumbers.add(pullRequestNumber);
-				}
+				recordConflictRepairEligibility(
+					conflictRepairEligibility,
+					read.value,
+					convergence?.conflictRepairPullRequestNumbers ?? [],
+				);
 				if (convergence?.mutated === true) {
 					read = await readGitHubObservation(
 						this.#client,
@@ -126,6 +147,15 @@ export class ProductionGitHubAdapter implements GitHubAdapter {
 					);
 				}
 			}
+			const conflictRepairPullRequestNumbers = new Set(
+				read.value.pullRequests.flatMap((pullRequest) =>
+					conflictRepairEligibility.has(
+						conflictRepairEligibilityKey(pullRequest.number, pullRequest.headSha),
+					)
+						? [pullRequest.number]
+						: [],
+				),
+			);
 			const observation = toControllerObservation(read.value, conflictRepairPullRequestNumbers);
 			this.#lastObservations.set(projectId, observation);
 			observations.push(observation);

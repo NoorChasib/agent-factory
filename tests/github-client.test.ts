@@ -346,4 +346,55 @@ describe("production observation mapping", () => {
 			},
 		]);
 	});
+
+	test("drops conflict-repair eligibility when the PR head moves before the final re-read", async () => {
+		const movedHead = "2222222222222222222222222222222222222222";
+		const movedHeadObservation = structuredClone(lumenObservation);
+		const pullRequest = movedHeadObservation.data.repository.pullRequests.nodes[0];
+		const commit = pullRequest?.commits.nodes[0]?.commit;
+		if (pullRequest === undefined || commit === undefined) {
+			throw new Error("fixture must contain one pull request head");
+		}
+		pullRequest.headRefOid = movedHead;
+		commit.oid = movedHead;
+		const setup = client([
+			response(lumenObservation),
+			response(movedHeadObservation, '"fixture-v2"'),
+		]);
+		const adapter = new ProductionGitHubAdapter({
+			profiles: [lumenProfile],
+			client: setup.client,
+			tokens: {
+				tokenForProject: async () => "project-token",
+			},
+			convergence: {
+				async reconcileProject() {
+					return {
+						mutated: true,
+						conflictRepairPullRequestNumbers: [101],
+					};
+				},
+			},
+		});
+
+		const observed = await adapter.observe(["lumen-notes"], {
+			reason: "poll",
+			allowMutations: true,
+			enabledProjectIds: ["lumen-notes"],
+			activeFeedbackPullRequests: [],
+		});
+
+		expect(observed).toMatchObject([
+			{
+				pullRequests: [
+					{
+						number: 101,
+						headSha: movedHead,
+						conflictRepairEligible: false,
+					},
+				],
+			},
+		]);
+		expect(setup.transport.requests).toHaveLength(2);
+	});
 });

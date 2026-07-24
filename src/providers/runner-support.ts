@@ -19,6 +19,7 @@ import type {
 	ProviderRunRequest,
 	ProviderSessionContext,
 	ResumeProviderSession,
+	ResumeWorkflowIdentity,
 	WorkerOutcomeVerification,
 	WorkerOutcomeVerifier,
 	WorkerTokenBroker,
@@ -79,17 +80,36 @@ export function sessionMetadata(request: ProviderRunRequest): ProviderSessionCon
 export function resumeContextMatches(
 	request: ProviderRunRequest,
 	session: ResumeProviderSession,
+	workflowIdentity?: ResumeWorkflowIdentity,
 ): boolean {
 	const metadata = session.runtimeMetadata;
-	const crossesConflictRepairBoundary =
-		request.purpose === "conflict-repair" || metadata.purpose === "conflict-repair";
+	const workflowMatches =
+		workflowIdentity === undefined
+			? metadata.workflow === request.checkout.workflow
+			: resumeWorkflowMatches(metadata.workflow, request.checkout.workflow, workflowIdentity);
 	return (
 		metadata.projectId === request.checkout.projectId &&
 		metadata.repository === request.checkout.repository &&
 		metadata.defaultBranch === request.checkout.defaultBranch &&
-		(metadata.workflow === request.checkout.workflow || crossesConflictRepairBoundary) &&
+		workflowMatches &&
 		metadata.issueNumber === request.issueNumber &&
 		metadata.pullRequestNumber === request.pullRequestNumber
+	);
+}
+
+export function resumeWorkflowMatches(
+	recordedWorkflow: string,
+	targetWorkflow: string,
+	workflowIdentity: ResumeWorkflowIdentity,
+): boolean {
+	if (recordedWorkflow === targetWorkflow) {
+		return true;
+	}
+	const conflictRepair = workflowIdentity.conflictRepair;
+	return (
+		conflictRepair !== undefined &&
+		((recordedWorkflow === workflowIdentity.feedback && targetWorkflow === conflictRepair) ||
+			(recordedWorkflow === conflictRepair && targetWorkflow === workflowIdentity.feedback))
 	);
 }
 

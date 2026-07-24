@@ -89,6 +89,7 @@ describe("GitHub App token broker", () => {
 
 		expect(await broker.tokenForProject(profile.id)).toBe("fixture-installation-token");
 		expect(await broker.tokenForProject(profile.id)).toBe("fixture-installation-token");
+		expect(broker.commentAuthorIdentity).toEqual({ appId: "1234" });
 		expect(transport.requests).toHaveLength(2);
 		expect(transport.requests[0]?.url).toBe(
 			"https://api.github.test/repos/ExampleOrg/lumen-notes/installation",
