@@ -40,7 +40,8 @@ Read the relevant guidance before making changes:
 - Installation, releases, or updates: read `docs/installation.md` and `docs/updates.md`. Version
   releases with `bun run release <patch|minor|major|x.y.z>`, or `bun run release` alone for an
   interactive menu of the resolved versions. Either form updates `package.json` and `release.json`
-  together and never pushes.
+  together. It pushes only on an explicit yes at the post-tag prompt; agents and any unattended
+  invocation must leave the tag local.
 - GitHub issue work: use `$agent-factory-find-next-github-work` as the only entry point for
   finding, selecting, resuming, or working an issue; an explicit issue number or URL may bypass
   discovery. Use `$agent-factory-address-pr-feedback` only after a PR exists and its review

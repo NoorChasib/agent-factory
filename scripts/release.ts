@@ -9,11 +9,14 @@
  * authority that AGENTS.md requires: it is operator-invoked release tooling,
  * never run by agents, CI, or any automated flow on their own initiative.
  *
- * The script never pushes. Publish with:
+ * The script never pushes on its own. After tagging it offers:
  *   git push origin main v<x.y.z>
- * The tag push triggers .github/workflows/release.yml, which creates the
- * GitHub release. requiredLedgerSchemaVersion is deliberately never touched;
- * it changes only alongside ledger migrations.
+ * which runs only on an explicit yes at the prompt; every other answer, and
+ * any invocation with no operator attached, leaves the tag local for the
+ * operator to push by hand. The tag push triggers
+ * .github/workflows/release.yml, which creates the public GitHub release.
+ * requiredLedgerSchemaVersion is deliberately never touched; it changes only
+ * alongside ledger migrations.
  */
 import { parseReleaseBuildMetadata } from "@/contracts/release-manifest.ts";
 
@@ -189,6 +192,17 @@ export function buildReleaseChoices(
 	return choices;
 }
 
+/**
+ * Parses the push confirmation. Only an explicit yes pushes: any other answer,
+ * and the null prompt() returns at EOF, declines. Pushing the tag is what
+ * triggers release.yml and publishes a public GitHub release, so a stray
+ * keypress or an unattended invocation must never reach it.
+ */
+export function confirmsPush(answer: string | null): boolean {
+	const normalized = answer?.trim().toLowerCase();
+	return normalized === "y" || normalized === "yes";
+}
+
 /** Resolves a 1-based menu selection, rejecting anything outside the listed range. */
 export function resolveChoice(choices: readonly ReleaseChoice[], input: string): ReleaseChoice {
 	const trimmed = input.trim();
@@ -356,8 +370,27 @@ async function main(): Promise<void> {
 		runOrFail(["git", "commit", "-m", `release: ${tag}`], "git commit failed.");
 	}
 	runOrFail(["git", "tag", "-a", tag, "-m", `agent-factory ${tag}`], "git tag failed.");
-	console.log(`Created ${bumps ? "release commit and tag" : "tag"} ${tag}. Publish with:`);
-	console.log(`  git push origin main ${tag}`);
+	console.log(`Created ${bumps ? "release commit and tag" : "tag"} ${tag}.`);
+	offerPush(tag);
+}
+
+/**
+ * Offers the publish step the script used to leave entirely to the operator.
+ * The push is still never automatic: it happens only on an explicit yes from a
+ * real prompt, because it triggers release.yml and publishes a public GitHub
+ * release. Declining — including the null prompt() returns when no operator is
+ * present — prints the command and leaves the tag local, exactly as before.
+ */
+function offerPush(tag: string): void {
+	const command = `git push origin main ${tag}`;
+	console.log("\nPushing the tag triggers release.yml and publishes a public GitHub release.");
+	if (confirmsPush(prompt(`Run "${command}" now? [y/N]:`))) {
+		runOrFail(["git", "push", "origin", "main", tag], "git push failed.");
+		console.log(`Pushed ${tag}. Watch the release workflow with: gh run list --workflow Release`);
+		return;
+	}
+	console.log(`Left ${tag} local. Publish with:`);
+	console.log(`  ${command}`);
 }
 
 if (import.meta.main) {

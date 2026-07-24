@@ -3,6 +3,7 @@ import {
 	buildReleaseChoices,
 	compareVersions,
 	computeNextVersion,
+	confirmsPush,
 	isBumpKeyword,
 	parseVersion,
 	renderVersionedJson,
@@ -151,5 +152,26 @@ describe("release script interactive menu", () => {
 		const choices = buildReleaseChoices("0.1.0", true);
 		expect(resolveChoice(choices, "4").kind).toBe("custom");
 		expect(() => resolveChoice(choices, "5")).toThrow();
+	});
+
+	test("pushes only on an explicit yes", () => {
+		expect(confirmsPush("y")).toBe(true);
+		expect(confirmsPush("Y")).toBe(true);
+		expect(confirmsPush("yes")).toBe(true);
+		expect(confirmsPush(" Yes ")).toBe(true);
+	});
+
+	test("declines the push for every other answer", () => {
+		expect(confirmsPush("n")).toBe(false);
+		expect(confirmsPush("no")).toBe(false);
+		expect(confirmsPush("")).toBe(false);
+		expect(confirmsPush("   ")).toBe(false);
+		expect(confirmsPush("yolo")).toBe(false);
+		expect(confirmsPush("ya")).toBe(false);
+		expect(confirmsPush("1")).toBe(false);
+	});
+
+	test("declines the push when no operator is present to answer", () => {
+		expect(confirmsPush(null)).toBe(false);
 	});
 });
