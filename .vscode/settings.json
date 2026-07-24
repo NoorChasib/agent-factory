@@ -1,0 +1,29 @@
+{
+	"files.readonlyInclude": {
+		"bun.lock": true
+	},
+	"files.watcherExclude": {
+		"bun.lock": true
+	},
+	"search.exclude": {
+		"bun.lock": true
+	},
+	"editor.formatOnSave": true,
+	"editor.codeActionsOnSave": {
+		"source.organizeImports.biome": "explicit",
+		"source.fixAll.biome": "explicit",
+		"source.quickfix.biome": "explicit"
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[json]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome"
+	}
+}

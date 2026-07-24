@@ -1,0 +1,266 @@
+{
+	// Keep this version aligned with package.json. Renovate updates the CLI, schema, and action together.
+	"$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/v3.7.1/schema.json",
+
+	// Reject remote and out-of-tree inherited configuration.
+	"sealed": true,
+
+	// Runtime roots that are not visible through package exports or detected scripts.
+	// worker-command.ts is spawned by the daemon via a resolved path (src/daemon/main.ts).
+	"entry": [
+		"src/index.ts",
+		"src/cli/main.ts",
+		"src/daemon/main.ts",
+		"src/daemon/worker-command.ts",
+		"src/installation/main.ts",
+		"src/installation/build-binaries.ts",
+		"scripts/release.ts"
+	],
+
+	"ignoreDependencies": [
+		// Fallow: loaded by Bun's install scanner hook rather than imported by application code.
+		"@socketsecurity/bun-security-scanner",
+		// Fallow: git-hook manager invoked through the prepare script, never imported.
+		"lefthook"
+	],
+
+	// Entry exports form the factory's public adapter surface and should still be checked for drift.
+	"includeEntryExports": true,
+
+	// Rules, duplicates, and health thresholds are written out in full — including values that
+	// match today's fallow defaults — so this sealed policy is immune to upstream default drift.
+	"rules": {
+		// High-confidence structural failures block changed-code audits.
+		"unused-files": "error",
+		"unused-dependencies": "error",
+		"unresolved-imports": "error",
+		"unlisted-dependencies": "error",
+		"duplicate-exports": "error",
+		"circular-dependencies": "error",
+		"boundary-violation": "error",
+
+		// Cleanup and API-surface findings remain visible during adoption.
+		"unused-exports": "warn",
+		"unused-types": "warn",
+		"unused-dev-dependencies": "warn",
+		"unused-optional-dependencies": "warn",
+		"type-only-dependencies": "warn",
+		"test-only-dependencies": "warn",
+		"dev-dependencies-in-production": "warn",
+		"re-export-cycle": "warn",
+		"stale-suppressions": "error",
+
+		// Intentional exceptions must remain reviewable and self-explanatory.
+		"require-suppression-reason": "error"
+	},
+
+	"duplicates": {
+		"mode": "mild",
+		"minTokens": 50,
+		"minLines": 5,
+		"minOccurrences": 3,
+
+		// Duplication is advisory until the existing patterns have been triaged.
+		"threshold": 0
+	},
+
+	"health": {
+		"maxCyclomatic": 20,
+		"maxCognitive": 15,
+		"maxUnitSize": 60,
+
+		// Bun emits LCOV, while exact CRAP scoring requires Istanbul coverage-final.json.
+		// Gate only high-risk new production findings; the fallow skill requires evidence-based
+		// review because the current coverage component is graph-estimated.
+		"maxCrap": 60,
+
+		"thresholdOverrides": [
+			{
+				"files": ["tests/**"],
+				"maxUnitSize": 500,
+				"maxCrap": 1000000,
+				"reason": "Test callbacks are not meaningful coverage targets; retain direct complexity checks while moving test CRAP out of reporting range and relaxing wrapper-size reporting."
+			}
+		],
+
+		// Generated hints omit the reason required by the suppression policy above.
+		"suggestInlineSuppression": false
+	},
+
+	"audit": {
+		// Existing findings remain visible, but only findings introduced by the change fail.
+		"gate": "new-only"
+	},
+
+	// Zones mirror the src/ module directories. Allow lists encode the measured import
+	// graph as of adoption; tighten toward the AGENTS.md layering as edges are removed.
+	// The root zone covers src/index.ts, src/env.ts, and src/path-guard.ts.
+	"boundaries": {
+		"zones": [
+			{ "name": "adapters", "patterns": ["src/adapters/**"] },
+			{ "name": "cli", "patterns": ["src/cli/**"] },
+			{ "name": "contracts", "patterns": ["src/contracts/**"] },
+			{ "name": "controller", "patterns": ["src/controller/**"] },
+			{ "name": "convergence", "patterns": ["src/convergence/**"] },
+			{ "name": "daemon", "patterns": ["src/daemon/**"] },
+			{ "name": "domain", "patterns": ["src/domain/**"] },
+			{ "name": "github", "patterns": ["src/github/**"] },
+			{ "name": "herdr", "patterns": ["src/herdr/**"] },
+			{ "name": "installation", "patterns": ["src/installation/**"] },
+			{ "name": "ledger", "patterns": ["src/ledger/**"] },
+			{ "name": "operations", "patterns": ["src/operations/**"] },
+			{ "name": "providers", "patterns": ["src/providers/**"] },
+			{ "name": "recovery", "patterns": ["src/recovery/**"] },
+			{ "name": "redaction", "patterns": ["src/redaction/**"] },
+			{ "name": "releases", "patterns": ["src/releases/**"] },
+			{ "name": "testing", "patterns": ["src/testing/**"] },
+			{ "name": "worktrees", "patterns": ["src/worktrees/**"] },
+			{ "name": "root", "patterns": ["src/*.ts"] },
+			{ "name": "scripts", "patterns": ["scripts/**"] },
+			{ "name": "tests", "patterns": ["tests/**"] }
+		],
+		"rules": [
+			{
+				"from": "adapters",
+				"allow": [
+					"contracts",
+					"controller",
+					"daemon",
+					"github",
+					"herdr",
+					"ledger",
+					"operations",
+					"providers",
+					"recovery",
+					"releases",
+					"worktrees",
+					"root"
+				]
+			},
+			{ "from": "cli", "allow": ["adapters", "contracts", "operations", "releases"] },
+			{ "from": "contracts", "allow": ["adapters", "controller", "domain"] },
+			{ "from": "controller", "allow": ["adapters", "contracts", "domain"] },
+			{
+				"from": "convergence",
+				"allow": ["adapters", "contracts", "domain", "github", "ledger", "providers"]
+			},
+			{
+				"from": "daemon",
+				"allow": [
+					"adapters",
+					"contracts",
+					"controller",
+					"convergence",
+					"herdr",
+					"ledger",
+					"operations",
+					"providers",
+					"recovery",
+					"redaction",
+					"releases",
+					"worktrees",
+					"root"
+				]
+			},
+			{ "from": "domain", "allow": ["contracts", "controller"] },
+			{
+				"from": "github",
+				"allow": ["adapters", "contracts", "controller", "domain", "ledger", "redaction", "root"]
+			},
+			{ "from": "herdr", "allow": ["adapters", "contracts", "controller", "ledger"] },
+			{
+				"from": "installation",
+				"allow": ["adapters", "daemon", "ledger", "operations", "releases", "root"]
+			},
+			{ "from": "ledger", "allow": ["adapters", "contracts", "controller", "redaction"] },
+			{
+				"from": "operations",
+				"allow": [
+					"adapters",
+					"contracts",
+					"controller",
+					"domain",
+					"ledger",
+					"redaction",
+					"worktrees",
+					"root"
+				]
+			},
+			{
+				"from": "providers",
+				"allow": ["adapters", "contracts", "controller", "github", "ledger"]
+			},
+			{
+				"from": "recovery",
+				"allow": ["adapters", "contracts", "domain", "github", "ledger", "redaction"]
+			},
+			{ "from": "redaction", "allow": ["adapters"] },
+			{
+				"from": "releases",
+				"allow": ["adapters", "contracts", "controller", "ledger", "root"]
+			},
+			{
+				"from": "testing",
+				"allow": [
+					"adapters",
+					"contracts",
+					"controller",
+					"github",
+					"ledger",
+					"releases",
+					"worktrees"
+				]
+			},
+			{ "from": "worktrees", "allow": ["adapters", "contracts", "github", "root"] },
+			{
+				"from": "root",
+				"allow": [
+					"adapters",
+					"controller",
+					"convergence",
+					"daemon",
+					"github",
+					"herdr",
+					"ledger",
+					"operations",
+					"providers",
+					"recovery",
+					"redaction",
+					"releases",
+					"worktrees"
+				]
+			},
+			{ "from": "scripts", "allow": ["contracts"] },
+			{
+				"from": "tests",
+				"allow": [
+					"adapters",
+					"cli",
+					"contracts",
+					"controller",
+					"convergence",
+					"daemon",
+					"domain",
+					"github",
+					"herdr",
+					"installation",
+					"ledger",
+					"operations",
+					"providers",
+					"recovery",
+					"redaction",
+					"releases",
+					"testing",
+					"worktrees",
+					"root",
+					"scripts"
+				]
+			}
+		],
+		"coverage": {
+			// Product source, scripts, and tests must belong to a declared zone.
+			"requireAllFiles": true,
+			"allowUnmatched": ["config/**", "systemd/**", "bin/**"]
+		}
+	}
+}

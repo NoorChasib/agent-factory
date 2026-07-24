@@ -1,0 +1,64 @@
+name: Fallow
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: fallow-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: changed-code audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Audit pull request changes
+        id: fallow
+        uses: fallow-rs/fallow@5988b978230134388b89060a39707a501211085a # v3.7.1
+        with:
+          command: audit
+          config: .fallowrc.jsonc
+          auto-changed-since: true
+          diff-filter: added
+          summary-scope: diff
+          review-comments: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          review-guidance: true
+          annotations: true
+          branded-token: false
+          github-token: ${{ github.token }}
+
+      - name: Report degraded PR integration
+        if: always()
+        env:
+          CHANGED_FILES_UNAVAILABLE: ${{ steps.fallow.outputs.changed-files-unavailable }}
+          POST_SKIPPED_REASON: ${{ steps.fallow.outputs.post-skipped-reason }}
+          DEDUP_LOOKUP_FAILED: ${{ steps.fallow.outputs.dedup-lookup-failed }}
+        run: |
+          if [ "$CHANGED_FILES_UNAVAILABLE" = "true" ]; then
+            echo "::error::Fallow could not enumerate the pull request's changed files."
+            exit 1
+          fi
+
+          if [ -n "$POST_SKIPPED_REASON" ]; then
+            echo "::warning::Fallow skipped inline review posting: $POST_SKIPPED_REASON"
+          fi
+
+          if [ "$DEDUP_LOOKUP_FAILED" = "true" ]; then
+            echo "::warning::Fallow could not fully reconcile existing review comments."
+          fi

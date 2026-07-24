@@ -3,6 +3,10 @@ dist/
 coverage/
 .cache/
 .tmp/
+.fallow/
+.claude/worktrees/
+__pycache__/
+*.pyc
 
 # Local environment and credentials
 .env
@@ -25,5 +29,7 @@ coverage/
 # Editor and operating-system files
 .DS_Store
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.swp

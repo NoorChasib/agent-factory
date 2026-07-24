@@ -2,3 +2,11 @@ telemetry = false
 
 [install]
 exact = true
+# Wait three days after publish before adopting new package versions, to avoid
+# freshly-compromised releases. Type packages and TypeScript are excluded because
+# they are develop-time only and often need same-day fixes.
+minimumReleaseAge = 259200
+minimumReleaseAgeExcludes = ["@types/bun", "typescript"]
+
+[install.security]
+scanner = "@socketsecurity/bun-security-scanner"
