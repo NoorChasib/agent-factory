@@ -8,6 +8,7 @@ import {
 	safeId,
 	workflowEntryPoint,
 } from "@/contracts/primitives.ts";
+import { ConflictRepairStateSchema } from "@/domain/conflict-repair.ts";
 
 const issueNumber = z.number().int().positive();
 
@@ -33,6 +34,7 @@ export const ExecutionRecordSchema = z
 		lane: LaneSchema,
 		provider: z.enum(["claude", "codex"]),
 		workflow: workflowEntryPoint,
+		purpose: z.literal("conflict-repair").optional(),
 		claimState: ClaimStateSchema,
 		issueNumber: issueNumber.nullable(),
 		pullRequestNumber: issueNumber.nullable(),
@@ -102,6 +104,8 @@ export const GitHubPullRequestObservationSchema = z.strictObject({
 	branch: looseBranch,
 	headSha: gitObjectId,
 	mergedAt: z.iso.datetime({ offset: true }).nullable().optional(),
+	mergeability: z.enum(["mergeable", "conflicting", "unknown"]).optional(),
+	conflictRepairEligible: z.boolean().optional(),
 });
 
 export const GitHubProjectObservationSchema = z.strictObject({
@@ -134,6 +138,7 @@ export const ControllerLocalStateSchema = z.strictObject({
 		reviewer: circuit,
 	}),
 	executions: z.array(ExecutionRecordSchema),
+	conflictRepair: ConflictRepairStateSchema,
 });
 
 export type ControllerLocalState = z.infer<typeof ControllerLocalStateSchema>;
@@ -152,6 +157,16 @@ export interface LaunchRequest {
 	readonly pullRequestNumber: number | null;
 	readonly branch: string | null;
 	readonly headSha: string | null;
+	readonly purpose?: "conflict-repair";
+}
+
+export interface ConflictRepairHandoffRequest {
+	readonly projectId: string;
+	readonly pullRequestNumber: number;
+	readonly branch: string;
+	readonly headSha: string;
+	readonly executionId: string;
+	readonly reason: "per-head-limit" | "per-pull-request-limit" | "worker-failure";
 }
 
 export interface StopRequest {
@@ -191,12 +206,14 @@ export interface PlannerBlock {
 		| "claim-in-flight"
 		| "provider-circuit-open"
 		| "github-circuit-open"
-		| "invariant-violation";
+		| "invariant-violation"
+		| "conflict-repair-budget-exhausted";
 }
 
 export interface PlannerPlan {
 	readonly transitions: readonly PlannedTransition[];
 	readonly launches: readonly LaunchRequest[];
+	readonly conflictRepairHandoffs: readonly ConflictRepairHandoffRequest[];
 	readonly rotation: Readonly<ControllerLocalState["rotation"]>;
 	readonly blocks: readonly PlannerBlock[];
 	readonly invariantViolations: readonly string[];

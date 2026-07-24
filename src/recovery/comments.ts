@@ -39,17 +39,27 @@ export class RecoveryCommentPublisher {
 	}): Promise<RecoveryCommentPublication> {
 		const record: RecoveryRecord = RecoveryRecordSchema.parse(input.record);
 		const body = renderRecoveryComment(record, this.#redaction);
-		const kind = input.existingCommentId === null ? "create-comment" : "update-comment";
+		const marker = `<!-- agent-factory:recovery:${record.executionId} -->`;
+		const existingCommentId =
+			input.existingCommentId ??
+			(await this.#mutations.gateway.findSubjectCommentId?.(
+				record.projectAlias,
+				record.subject.kind,
+				record.subject.number,
+				marker,
+			)) ??
+			null;
+		const kind = existingCommentId === null ? "create-comment" : "update-comment";
 		const result = await this.#mutations.execute({
 			operationKey: [
 				"recovery-comment",
 				record.executionId,
-				input.existingCommentId ?? "create",
+				existingCommentId ?? "create",
 				bodyFingerprint(body),
 			].join(":"),
 			executionId: record.executionId,
 			mutation:
-				input.existingCommentId === null
+				existingCommentId === null
 					? {
 							kind,
 							projectId: record.projectAlias,
@@ -62,7 +72,7 @@ export class RecoveryCommentPublisher {
 							projectId: record.projectAlias,
 							subjectType: record.subject.kind,
 							subjectNumber: record.subject.number,
-							commentId: input.existingCommentId,
+							commentId: existingCommentId,
 							body,
 						},
 		});

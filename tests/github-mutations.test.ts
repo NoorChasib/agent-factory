@@ -21,6 +21,7 @@ import {
 	type RepositoryLabel,
 } from "@/github/index.ts";
 import { type LedgerIdSource, openSqliteLedger } from "@/ledger/index.ts";
+import { RecoveryCommentPublisher, renderRecoveryComment } from "@/recovery/index.ts";
 import {
 	createInitialControllerState,
 	FixedClockAdapter,
@@ -54,6 +55,37 @@ const orbitProfile = parseProjectProfile({
 const faultFixtures = (await Bun.file(
 	new URL("fixtures/github/fault-scripts.json", import.meta.url),
 ).json()) as Record<string, ScriptedGitHubStep>;
+const factoryAuthor = { appId: "1234" } as const;
+
+function factoryComment(id: number, body: string, subjectNumber = 42) {
+	return {
+		id,
+		body,
+		issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/${subjectNumber}`,
+		user: {
+			login: "agent-factory[bot]",
+			type: "Bot",
+		},
+		performed_via_github_app: {
+			id: 1234,
+			slug: "agent-factory",
+		},
+	};
+}
+
+function markerRecoveryRecord() {
+	return {
+		projectAlias: lumenProfile.id,
+		executionId: "execution-42",
+		subject: { kind: "pull-request" as const, number: 42 },
+		branch: "factory/issue-42",
+		commit: "1".repeat(40),
+		pane: "pane-42",
+		providerSessionId: "thread-42",
+		checkpoint: "handoff",
+		reasonCode: "operator-required" as const,
+	};
+}
 
 class SequenceMutationIds {
 	#next = 1;
@@ -361,6 +393,7 @@ describe("guarded mutations and sequential verified claims", () => {
 			tokens: {
 				tokenForProject: async () => "fixture-token",
 			},
+			factoryAuthor,
 			apiUrl: "https://api.github.test",
 		});
 
@@ -512,6 +545,7 @@ describe("guarded mutations and sequential verified claims", () => {
 			tokens: {
 				tokenForProject: async () => "fixture-token",
 			},
+			factoryAuthor,
 			apiUrl: "https://api.github.test",
 		});
 
@@ -550,6 +584,210 @@ describe("guarded mutations and sequential verified claims", () => {
 		);
 	});
 
+	test("finds and updates a factory-owned canonical recovery comment by its hidden marker", async () => {
+		const marker = "<!-- agent-factory:recovery:execution-42 -->";
+		const body = renderRecoveryComment(markerRecoveryRecord());
+		const transport = new ScriptedGitHubTransport([
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([factoryComment(99, `${marker}\n## Agent Factory recovery`)]),
+				},
+			},
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify(factoryComment(99, `${marker}\n## Agent Factory recovery`)),
+				},
+			},
+			{
+				kind: "response",
+				response: { status: 200, headers: {}, body: "{}" },
+			},
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify(factoryComment(99, body)),
+				},
+			},
+		]);
+		const gateway = new GuardedGitHubLabelApi({
+			profiles: [lumenProfile],
+			client: new GitHubApiClient({
+				transport,
+				delay: new RecordingDelayAdapter(),
+				apiUrl: "https://api.github.test",
+			}),
+			transport,
+			tokens: {
+				tokenForProject: async () => "fixture-token",
+			},
+			factoryAuthor,
+			apiUrl: "https://api.github.test",
+		});
+		const publisher = new RecoveryCommentPublisher(
+			new GitHubMutationExecutor(
+				new InMemoryGitHubMutationLedger(new FixedClockAdapter(), new SequenceMutationIds()),
+				gateway,
+			),
+		);
+
+		expect(
+			await publisher.publish({
+				record: markerRecoveryRecord(),
+				existingCommentId: null,
+			}),
+		).toMatchObject({
+			kind: "update-comment",
+			result: { status: "verified" },
+		});
+		expect(transport.requests[0]?.url).toEndWith(
+			`/repos/${lumenProfile.repository}/issues/42/comments?per_page=100&page=1`,
+		);
+		expect(transport.requests[2]?.method).toBe("PATCH");
+		expect(transport.requests[2]?.url).toEndWith(
+			`/repos/${lumenProfile.repository}/issues/comments/99`,
+		);
+		expect(transport.requests[2]?.body).toBe(JSON.stringify({ body }));
+	});
+
+	test("ignores an attacker-owned recovery marker and creates a new canonical comment", async () => {
+		const marker = "<!-- agent-factory:recovery:execution-42 -->";
+		const body = renderRecoveryComment(markerRecoveryRecord());
+		const attackerComment = {
+			id: 98,
+			body: `${marker}\nspoofed recovery`,
+			issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/42`,
+			user: {
+				login: "attacker-app[bot]",
+				type: "Bot",
+			},
+			performed_via_github_app: {
+				id: 9999,
+				slug: "attacker-app",
+			},
+		};
+		const transport = new ScriptedGitHubTransport([
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([attackerComment]),
+				},
+			},
+			{
+				kind: "response",
+				response: { status: 201, headers: {}, body: "{}" },
+			},
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([attackerComment, factoryComment(100, body)]),
+				},
+			},
+		]);
+		const gateway = new GuardedGitHubLabelApi({
+			profiles: [lumenProfile],
+			client: new GitHubApiClient({
+				transport,
+				delay: new RecordingDelayAdapter(),
+				apiUrl: "https://api.github.test",
+			}),
+			transport,
+			tokens: {
+				tokenForProject: async () => "fixture-token",
+			},
+			factoryAuthor,
+			apiUrl: "https://api.github.test",
+		});
+		const publisher = new RecoveryCommentPublisher(
+			new GitHubMutationExecutor(
+				new InMemoryGitHubMutationLedger(new FixedClockAdapter(), new SequenceMutationIds()),
+				gateway,
+			),
+		);
+
+		expect(
+			await publisher.publish({
+				record: markerRecoveryRecord(),
+				existingCommentId: null,
+			}),
+		).toMatchObject({
+			kind: "create-comment",
+			result: { status: "verified" },
+		});
+		expect(transport.requests.map((request) => request.method)).toEqual(["GET", "POST", "GET"]);
+		expect(transport.requests[1]?.body).toBe(JSON.stringify({ body }));
+	});
+
+	test("does not verify a create-comment against a planted body from another author", async () => {
+		const body = renderRecoveryComment(markerRecoveryRecord());
+		const plantedComment = {
+			id: 97,
+			body,
+			issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/42`,
+			user: {
+				login: "attacker-app[bot]",
+				type: "Bot",
+			},
+			performed_via_github_app: {
+				id: 9999,
+				slug: "attacker-app",
+			},
+		};
+		const transport = new ScriptedGitHubTransport([
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([plantedComment]),
+				},
+			},
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([plantedComment, factoryComment(100, body)]),
+				},
+			},
+		]);
+		const gateway = new GuardedGitHubLabelApi({
+			profiles: [lumenProfile],
+			client: new GitHubApiClient({
+				transport,
+				delay: new RecordingDelayAdapter(),
+				apiUrl: "https://api.github.test",
+			}),
+			transport,
+			tokens: {
+				tokenForProject: async () => "fixture-token",
+			},
+			factoryAuthor,
+			apiUrl: "https://api.github.test",
+		});
+		const mutation: GitHubAllowedMutation = {
+			kind: "create-comment",
+			projectId: lumenProfile.id,
+			subjectType: "pull-request",
+			subjectNumber: 42,
+			body,
+		};
+
+		expect(await gateway.verify(mutation)).toBe(false);
+		expect(await gateway.verify(mutation)).toBe(true);
+	});
+
 	test("refuses to update a comment associated with another subject", async () => {
 		const transport = new ScriptedGitHubTransport([
 			{
@@ -576,6 +814,7 @@ describe("guarded mutations and sequential verified claims", () => {
 			tokens: {
 				tokenForProject: async () => "fixture-token",
 			},
+			factoryAuthor,
 			apiUrl: "https://api.github.test",
 		});
 

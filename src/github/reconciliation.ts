@@ -75,12 +75,32 @@ export interface GitHubReviewBaselineRepository {
 
 export interface LifecycleReconcileResult {
 	readonly projectId: string;
+	readonly conflictRepairPullRequestNumbers: readonly number[];
 	readonly transitions: readonly {
 		readonly pullRequestNumber: number;
 		readonly action: "requeue-feedback" | "revoke-ready-to-merge";
 		readonly reasons: readonly string[];
 		readonly result: StageTransitionResult;
 	}[];
+}
+
+export function isConvergedExceptConflict(
+	profile: ProjectProfile,
+	snapshot: GitHubProjectSnapshot,
+	pullRequest: GitHubPullRequestSnapshot,
+	baseline: ReviewBaseline | null,
+): boolean {
+	if (
+		pullRequest.state !== "open" ||
+		pullRequest.mergeability !== "conflicting" ||
+		baseline === null ||
+		baseline.headSha !== pullRequest.headSha ||
+		baseline.quiescentPollCount < profile.timeouts.quiescencePolls
+	) {
+		return false;
+	}
+	const assessment = assessReadyToMerge(profile, snapshot, pullRequest, baseline);
+	return assessment.reasons.length === 1 && assessment.reasons[0] === "mergeability";
 }
 
 function stableJson(value: unknown): string {
@@ -417,6 +437,7 @@ export class GitHubLifecycleReconciler {
 			throw new Error(`lifecycle reconciliation targeted unknown project '${snapshot.projectId}'`);
 		}
 		const transitions: LifecycleReconcileResult["transitions"][number][] = [];
+		const conflictRepairPullRequestNumbers: number[] = [];
 		for (const pullRequest of snapshot.pullRequests) {
 			if (pullRequest.state !== "open") {
 				continue;
@@ -426,6 +447,9 @@ export class GitHubLifecycleReconciler {
 				continue;
 			}
 			const baseline = this.#baselines.getReviewBaseline(profile.id, pullRequest.number);
+			if (isConvergedExceptConflict(profile, snapshot, pullRequest, baseline)) {
+				conflictRepairPullRequestNumbers.push(pullRequest.number);
+			}
 			const lateFeedback = detectLateFeedback(pullRequest, baseline);
 			const assessment = assessReadyToMerge(profile, snapshot, pullRequest, baseline);
 			const active = activeFeedbackPullRequests.has(pullRequest.number);
@@ -486,6 +510,10 @@ export class GitHubLifecycleReconciler {
 				}
 			}
 		}
-		return { projectId: profile.id, transitions };
+		return {
+			projectId: profile.id,
+			conflictRepairPullRequestNumbers,
+			transitions,
+		};
 	}
 }

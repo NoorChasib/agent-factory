@@ -9,9 +9,11 @@ source code, credentials, and executable policy do not belong in a profile or th
 loads two complete profiles:
 
 - [`hhc-aep.yaml`](../config/examples/multi-project/profiles/hhc-aep.yaml), the HHC AEP
-  integration contract as disabled configuration data; and
+  integration contract as disabled configuration data, including an opt-in conflict-repair
+  workflow and lowered repair budgets; and
 - [`lumen-notes.yaml`](../config/examples/multi-project/profiles/lumen-notes.yaml), a fictional
-  second project with different branches, labels, reviewer/check signals, and ceilings.
+  second project with different branches, labels, reviewer/check signals, and ceilings, with
+  conflict repair omitted and therefore disabled.
 
 Both ship with `enabled: false`. The example ntfy host/topic are inert sentinels that must be
 replaced before operation. Tests load these exact checked-in bytes through the production
@@ -37,7 +39,7 @@ validation.
 | --- | --- |
 | `schemaVersion`, `id`, `enabled` | Protocol version, stable project alias, explicit opt-in |
 | `repository`, `defaultBranch` | GitHub `owner/name` and target default branch |
-| `workflow` | Target-owned autonomous/operator implementation and feedback entry points |
+| `workflow` | Target-owned autonomous/operator implementation and feedback entry points; optional `conflictRepair` opt-in |
 | `labels` | Mapping from every canonical lifecycle/condition stage to target label |
 | `reviewPolicy` | Required configured reviewer IDs and optional owner-review label |
 | `reviewers` | GitHub user/App identity and review or named check-run completion signal |
@@ -46,10 +48,17 @@ validation.
 | `issueSelection` | Target workflow owns issue selection; the controller supplies no issue number |
 | `timeouts` | Reviewer/check minutes and consecutive quiescence polls |
 | `ceilings` | Optional non-negative project limits for implementation, feedback, ready-to-merge |
+| `conflictRepair` | Optional lower per-head (1–2) and per-PR (1–4) repair invocation bounds |
 
 Profile IDs and repository names must be unique across the loaded configuration. Required
 reviewer IDs must exist in `reviewers`. Profile-sourced required checks must name at least one
 check, and checks are unique by App/name.
+
+`workflow.conflictRepair` is the only feature opt-in. A budget object without the workflow does
+not enable launches. When the workflow exists and the budget object is absent, the limits are
+two invocations per PR head and four per PR lifetime. See
+[Just-in-time conflict repair](conflict-repair.md) for the trigger, worker contract, and
+verification rules.
 
 Production expects the configuration directory and `profiles/` directory at mode `0700`, with
 `config.yaml` and every profile as regular mode-`0600` files. Copy examples with `install -m

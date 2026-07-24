@@ -26,7 +26,8 @@ The example endpoint/topic must be replaced before service operation. The YAML c
 strict. Unknown/duplicate keys, aliases, insecure ntfy URLs, path traversal, absolute profile
 paths, non-private modes, duplicate profile IDs/repositories, and invalid profiles fail startup
 and doctor validation. See [`../docs/profiles.md`](../docs/profiles.md) for every field and safe
-copy commands.
+copy commands. HHC AEP demonstrates the optional conflict-repair workflow and lower repair
+budgets; Lumen Notes omits that workflow and remains conflict-repair-disabled.
 
 Versioned JSON worker-result examples, including malformed/untrusted rejection examples, are in
 [`protocol/worker-result/v1/`](protocol/worker-result/v1/).

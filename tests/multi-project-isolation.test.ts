@@ -120,6 +120,7 @@ class SessionRecordingWorkers implements WorkerProcessAdapter {
 			lane: request.lane,
 			provider: request.provider,
 			workflow: request.workflow,
+			...(request.purpose === undefined ? {} : { purpose: request.purpose }),
 			claimState: "awaiting-verification",
 			issueNumber: request.issueNumber,
 			pullRequestNumber: request.pullRequestNumber,
@@ -150,6 +151,8 @@ class SessionRecordingWorkers implements WorkerProcessAdapter {
 	public async stop(request: StopRequest): Promise<void> {
 		this.stops.push(structuredClone(request));
 	}
+
+	public async handoffConflictRepair(): Promise<void> {}
 }
 
 class MemoryStageGateway implements GitHubLabelGateway {

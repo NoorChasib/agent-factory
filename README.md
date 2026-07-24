@@ -30,7 +30,7 @@ daemon router ── maintenance / rollout / disk / retention / doctor
         ├── controller: status / command / reconcile
         ├── SQLite WAL ledger and append-only audit
         ├── GitHub App broker, observations, guarded mutations
-        ├── Claude/Codex runners, circuits, convergence
+        ├── Claude/Codex runners, circuits, convergence, opt-in conflict repair
         ├── Herdr and factory-owned Git custody
         ├── immutable factory releases, health, and rollback
         └── redacted JSON logs and ntfy notifications
@@ -167,8 +167,17 @@ reduced-permission tokens. It never installs the App or changes repository acces
 ## Profiles and environment
 
 Profiles own repository identity, workflow entry points, lifecycle-label mapping, review/check
-policy, timeouts, and optional lower ceilings. The controller contains no target-specific skill,
-reviewer, milestone, product, or architecture policy.
+policy, timeouts, and optional lower ceilings. An optional `workflow.conflictRepair` entry point
+enables just-in-time repair only after a PR has met current-head reviews, checks, and quiescence
+and GitHub reports `mergeability: conflicting`; absence keeps it disabled. The controller
+contains no target-specific skill, reviewer, milestone, product, or architecture policy.
+
+Conflict repair uses feedback capacity and the PR's one recorded Codex thread, with independent
+defaults of two invocations per head and four per PR lifetime. Its worker may only forward-merge
+the target default branch into the PR branch, resolve those conflicts, and push that PR branch.
+The reported new head must be independently observed as no longer conflicting, after which all
+normal current-head convergence requirements run again. See
+[`docs/conflict-repair.md`](docs/conflict-repair.md).
 
 Operator configuration values, including the XDG base directories, are read exclusively
 through `src/env.ts`; pass-through worker variables such as `PATH` are forwarded from the raw
@@ -281,8 +290,8 @@ health plus reconciliation. Failed health automatically restores the prior point
 records `rolled-back`, alerts, and restarts the prior release.
 
 The path has no target mirror/worktree/provider/CLI-upgrade adapters and never promotes rollout
-or changes configured limits. See [`docs/updates.md`](docs/updates.md) and the explicitly
-unauthorized [`docs/post-v1.md`](docs/post-v1.md).
+or changes configured limits. See [`docs/updates.md`](docs/updates.md) and the implemented/future
+scope record in [`docs/post-v1.md`](docs/post-v1.md).
 
 ## Security
 
@@ -341,6 +350,6 @@ See [`docs/testing.md`](docs/testing.md) for the complete verification map.
 See [`docs/troubleshooting.md`](docs/troubleshooting.md) for credential, convergence, migration,
 worker recovery, and reboot-specific diagnosis.
 
-The v1 exclusions remain automatic merge, webhooks, dashboards, automatic rollout promotion,
-automatic external CLI upgrades, project-runtime coupling, history rewriting, review dismissal,
-and branch-protection bypass.
+The remaining exclusions include automatic merge, webhooks, dashboards, automatic rollout
+promotion, automatic external CLI upgrades, project-runtime coupling, rebase/amend/force-push or
+other history rewriting, review dismissal, and branch-protection bypass.

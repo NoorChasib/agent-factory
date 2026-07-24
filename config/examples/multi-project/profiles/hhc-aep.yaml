@@ -8,6 +8,7 @@ workflow:
   feedback: hhc-aep-agent-converge-pr
   operatorImplement: hhc-aep-operator-implement-issue
   operatorFeedback: hhc-aep-operator-converge-pr
+  conflictRepair: hhc-aep-agent-repair-conflict
 labels:
   needsTriage: needs-triage
   needsInfo: needs-info
@@ -60,3 +61,6 @@ ceilings:
   implementation: 1
   feedback: 1
   readyToMerge: 1
+conflictRepair:
+  perHeadInvocations: 1
+  perPullRequestInvocations: 3

@@ -1,4 +1,5 @@
 import type {
+	ConflictRepairHandoffRequest,
 	ControllerLocalState,
 	ExecutionRecord,
 	LaunchRequest,
@@ -108,6 +109,7 @@ export interface WorkerProcessAdapter {
 	start(request: LaunchRequest): Promise<unknown>;
 	activate?(execution: ExecutionRecord): Promise<void>;
 	stop(request: StopRequest): Promise<void>;
+	handoffConflictRepair(request: ConflictRepairHandoffRequest): Promise<void>;
 }
 
 export type CommandFailureClassification =

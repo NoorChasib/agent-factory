@@ -45,6 +45,9 @@ The suite includes:
   forbidden mutations;
 - Claude/Codex initialization, exact session/runtime resume, provider pause/resume, and
   current-head review/check convergence;
+- conflict-repair trigger matrices, disabled/default profile paths, serialized claims,
+  feedback-lane gates, independent persisted budgets, outcome verification, reconvergence,
+  handoff, forbidden mutations, and multi-project isolation;
 - mirror/worktree/Herdr custody, controller/reboot recovery, takeover, safe cleanup, and recovery
   comment redaction;
 - CLI/socket routing, non-live/live doctor gating, logging/ntfy, disk thresholds, retention,

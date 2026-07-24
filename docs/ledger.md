@@ -57,7 +57,7 @@ strict application schemas when read.
 | --- | --- |
 | `schema_migrations` | Ordered schema version, migration name, and injected application timestamp. |
 | `ledger_owner` | Singleton controller instance lease, heartbeat, and expiration. |
-| `controller_state` | Singleton validated planner snapshot and optimistic revision. |
+| `controller_state` | Singleton validated planner snapshot and optimistic revision, including head-bound conflict-repair invocation/handoff records. |
 | `executions` | Durable execution identity, target-neutral lane/workflow ownership, claim, subject, branch/worktree/head, and status. Historical rows are not deleted when snapshots are synchronized. |
 | `execution_attempts` | Monotonic attempt history per execution with start/finish, status, checkpoint, outcome, and reason. |
 | `provider_sessions` | Claude/Codex session or thread ID plus exact model, reasoning effort, and validated JSON runtime metadata for resume. |
@@ -72,6 +72,11 @@ strict application schemas when read.
 Execution recovery reads executions, attempts, provider sessions, and process metadata as one
 validated aggregate after reopening the database. Mutation idempotency returns the existing
 record only when the full intent matches; reuse for different intent fails.
+
+Conflict-repair budgets need no schema migration: their additive records are part of the
+strictly validated `controller_state` JSON already stored by schema version 1. A repair execution
+can reuse the one PR-scoped Codex session registered by an earlier feedback execution; the
+recorded thread, model, and reasoning effort remain the resume authority.
 
 Audit has append-only insert/list methods. Database triggers reject `UPDATE` and `DELETE` even if
 accidental SQL bypasses the repository API. Audit input is normalized to finite, acyclic JSON and

@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import type { GitHubHttpResponse, GitHubHttpTransport } from "@/adapters/interfaces.ts";
-import { looseLabelName, projectId } from "@/contracts/primitives.ts";
+import {
+	githubLogin,
+	looseGithubLogin,
+	looseLabelName,
+	projectId,
+} from "@/contracts/primitives.ts";
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import {
 	type GitHubApiClient,
@@ -130,16 +135,31 @@ const repositoryLabelResponse = z.strictObject({
 });
 
 const repositoryLabelsResponse = z.array(repositoryLabelResponse);
+const repositoryCommentAuthorResponse = z.looseObject({
+	login: looseGithubLogin,
+	type: z.string().min(1).max(100),
+});
+const repositoryCommentGitHubAppResponse = z.looseObject({
+	id: z.number().int().positive(),
+	slug: githubLogin,
+});
 const repositoryCommentResponse = z
 	.looseObject({
 		id: z.number().int().positive(),
 		body: z.string().nullable(),
 		issue_url: z.url(),
+		user: repositoryCommentAuthorResponse.nullable().optional().default(null),
+		performed_via_github_app: repositoryCommentGitHubAppResponse
+			.nullable()
+			.optional()
+			.default(null),
 	})
 	.transform((comment) => ({
 		id: comment.id,
 		body: comment.body,
 		issueUrl: comment.issue_url,
+		author: comment.user,
+		performedViaGitHubApp: comment.performed_via_github_app,
 	}));
 const repositoryCommentsResponse = z.array(repositoryCommentResponse);
 
@@ -194,6 +214,12 @@ export class GitHubMutationRejectedError extends Error {
 export interface GitHubLabelGateway {
 	apply(input: unknown): Promise<void>;
 	verify(input: GitHubAllowedMutation): Promise<boolean>;
+	findSubjectCommentId?(
+		projectId: string,
+		subjectType: "issue" | "pull-request",
+		subjectNumber: number,
+		marker: string,
+	): Promise<number | null>;
 	readSubjectLabels(
 		projectId: string,
 		subjectType: "issue" | "pull-request",
@@ -205,11 +231,16 @@ export interface GitHubLabelGateway {
 	): Promise<readonly RepositoryLabel[]>;
 }
 
+export interface GitHubAppAuthorIdentity {
+	readonly appId: string;
+}
+
 export interface GuardedGitHubLabelApiOptions {
 	readonly profiles: readonly ProjectProfile[];
 	readonly client: GitHubApiClient;
 	readonly transport: GitHubHttpTransport;
 	readonly tokens: GitHubProjectTokenProvider;
+	readonly factoryAuthor: GitHubAppAuthorIdentity;
 	readonly apiUrl?: string;
 	readonly redaction?: RedactionBoundary;
 }
@@ -219,6 +250,7 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 	readonly #client: GitHubApiClient;
 	readonly #transport: GitHubHttpTransport;
 	readonly #tokens: GitHubProjectTokenProvider;
+	readonly #factoryAuthor: GitHubAppAuthorIdentity;
 	readonly #apiUrl: string;
 	readonly #redaction: RedactionBoundary;
 
@@ -227,6 +259,10 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 		this.#client = options.client;
 		this.#transport = options.transport;
 		this.#tokens = options.tokens;
+		if (!/^[1-9]\d*$/u.test(options.factoryAuthor.appId)) {
+			throw new Error("GitHub App author identity is invalid");
+		}
+		this.#factoryAuthor = { appId: options.factoryAuthor.appId };
 		this.#apiUrl = (options.apiUrl ?? "https://api.github.com").replace(/\/$/u, "");
 		this.#redaction = options.redaction ?? DEFAULT_REDACTION_BOUNDARY;
 	}
@@ -350,7 +386,7 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 			}
 			case "create-comment":
 				return (await this.#readSubjectComments(mutation.projectId, mutation.subjectNumber)).some(
-					(comment) => comment.body === mutation.body,
+					(comment) => this.#isFactoryAuthoredComment(comment) && comment.body === mutation.body,
 				);
 			case "create-label":
 			case "update-label": {
@@ -370,6 +406,19 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 				);
 			}
 		}
+	}
+
+	public async findSubjectCommentId(
+		projectIdValue: string,
+		_subjectType: "issue" | "pull-request",
+		subjectNumber: number,
+		marker: string,
+	): Promise<number | null> {
+		const comment = (await this.#readSubjectComments(projectIdValue, subjectNumber)).find(
+			(candidate) =>
+				this.#isFactoryAuthoredComment(candidate) && candidate.body?.startsWith(marker),
+		);
+		return comment?.id ?? null;
 	}
 
 	public async readSubjectLabels(
@@ -426,6 +475,18 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 			throw new Error(`GitHub mutation targeted unknown project '${projectIdValue}'`);
 		}
 		return profile;
+	}
+
+	#isFactoryAuthoredComment(comment: z.output<typeof repositoryCommentResponse>): boolean {
+		const author = comment.author;
+		const app = comment.performedViaGitHubApp;
+		return (
+			author !== null &&
+			app !== null &&
+			author.type === "Bot" &&
+			String(app.id) === this.#factoryAuthor.appId &&
+			author.login.toLowerCase() === `${app.slug}[bot]`.toLowerCase()
+		);
 	}
 
 	async #readComment(

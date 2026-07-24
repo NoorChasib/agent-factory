@@ -43,6 +43,13 @@ describe("shipped configuration examples", () => {
 		expect(loaded.profiles[0]).toMatchObject({
 			repository: "NoorChasib/HHC-AEP",
 			defaultBranch: "main",
+			workflow: {
+				conflictRepair: "hhc-aep-agent-repair-conflict",
+			},
+			conflictRepair: {
+				perHeadInvocations: 1,
+				perPullRequestInvocations: 3,
+			},
 			issueSelection: {
 				owner: "project-workflow",
 				controllerProvidesIssueNumber: false,
@@ -52,6 +59,8 @@ describe("shipped configuration examples", () => {
 			repository: "ExampleOrg/lumen-notes",
 			defaultBranch: "trunk",
 		});
+		expect(loaded.profiles[1]?.workflow.conflictRepair).toBeUndefined();
+		expect(loaded.profiles[1]?.conflictRepair).toBeUndefined();
 		expect(fileSystem.readCount).toBe(3);
 	});
 });

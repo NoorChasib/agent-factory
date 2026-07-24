@@ -13,6 +13,7 @@ import {
 	type GitHubPullRequestSnapshot,
 	type GitHubReviewBaselineRepository,
 	inspectCurrentHeadRequirements,
+	isConvergedExceptConflict,
 	repairableCheck,
 	type StageTransitionResult,
 } from "@/github/index.ts";
@@ -71,6 +72,7 @@ export type ConvergenceAction =
 	| "emit-ready-to-merge"
 	| "feedback-required"
 	| "operator-handoff"
+	| "repair-conflict"
 	| "rerun-check"
 	| "review-provider-unavailable"
 	| "review-stalled"
@@ -372,19 +374,6 @@ export class ReviewConvergenceEngine {
 				preservesCodexState: true,
 			});
 		}
-		if (pullRequest.draft || pullRequest.mergeability !== "mergeable") {
-			return decision({
-				action: "wait-for-mergeability",
-				pullRequest,
-				reasons: [
-					...(pullRequest.draft ? ["draft"] : []),
-					...(pullRequest.mergeability !== "mergeable" ? ["mergeability"] : []),
-				],
-				baseline,
-				preservesCodexState: true,
-			});
-		}
-
 		if (baseline === null || !markerMatches(baseline, pullRequest)) {
 			const reset = this.#baselines.saveReviewBaseline({
 				projectId: input.profile.id,
@@ -423,6 +412,28 @@ export class ReviewConvergenceEngine {
 				action: "wait-for-quiescence",
 				pullRequest,
 				reasons: ["unchanged-polls-incomplete"],
+				baseline: quiescent,
+				preservesCodexState: true,
+			});
+		}
+
+		if (isConvergedExceptConflict(input.profile, input.snapshot, pullRequest, quiescent)) {
+			return decision({
+				action: "repair-conflict",
+				pullRequest,
+				reasons: ["mergeability-conflicting"],
+				baseline: quiescent,
+				preservesCodexState: true,
+			});
+		}
+		if (pullRequest.draft || pullRequest.mergeability !== "mergeable") {
+			return decision({
+				action: "wait-for-mergeability",
+				pullRequest,
+				reasons: [
+					...(pullRequest.draft ? ["draft"] : []),
+					...(pullRequest.mergeability !== "mergeable" ? ["mergeability"] : []),
+				],
 				baseline: quiescent,
 				preservesCodexState: true,
 			});

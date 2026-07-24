@@ -21,6 +21,8 @@ import {
 	type ProviderRuntime,
 	ProviderRuntimeSchema,
 	type ResumeProviderSession,
+	type ResumeWorkflowIdentity,
+	ResumeWorkflowIdentitySchema,
 	type WorkerOutcomeVerifier,
 	type WorkerTokenBroker,
 } from "@/providers/types.ts";
@@ -41,6 +43,7 @@ export interface CodexLaunchRequest {
 
 export interface CodexResumeRequest extends CodexLaunchRequest {
 	readonly session: ResumeProviderSession;
+	readonly workflowIdentity: ResumeWorkflowIdentity;
 }
 
 function bestEffortThread(stdout: string): string | null {
@@ -97,6 +100,7 @@ export class CodexFeedbackRunner {
 		const request = ProviderRunRequestSchema.parse(input.request);
 		ProviderRuntimeSchema.parse(input.runtime);
 		const session = input.session;
+		const workflowIdentity = ResumeWorkflowIdentitySchema.parse(input.workflowIdentity);
 		this.#assertFeedbackRequest(request);
 		if (session.provider !== "codex") {
 			return failedProviderOutcome({
@@ -113,7 +117,7 @@ export class CodexFeedbackRunner {
 		});
 		if (
 			!CodexThreadStartedEventSchema.shape.thread_id.safeParse(session.id).success ||
-			!resumeContextMatches(request, session)
+			!resumeContextMatches(request, session, workflowIdentity)
 		) {
 			return failedProviderOutcome({
 				provider: "codex",
@@ -139,6 +143,14 @@ export class CodexFeedbackRunner {
 	#assertFeedbackRequest(request: ProviderRunRequest): void {
 		if (request.issueNumber === null || request.pullRequestNumber === null) {
 			throw new Error("Codex feedback execution must identify one issue and pull request");
+		}
+		if (
+			request.purpose === "conflict-repair" &&
+			(request.branch === undefined || request.initialHeadSha === undefined)
+		) {
+			throw new Error(
+				"Codex conflict-repair execution must identify its PR branch and initial head",
+			);
 		}
 	}
 
