@@ -729,6 +729,65 @@ describe("guarded mutations and sequential verified claims", () => {
 		expect(transport.requests[1]?.body).toBe(JSON.stringify({ body }));
 	});
 
+	test("does not verify a create-comment against a planted body from another author", async () => {
+		const body = renderRecoveryComment(markerRecoveryRecord());
+		const plantedComment = {
+			id: 97,
+			body,
+			issue_url: `https://api.github.test/repos/${lumenProfile.repository}/issues/42`,
+			user: {
+				login: "attacker-app[bot]",
+				type: "Bot",
+			},
+			performed_via_github_app: {
+				id: 9999,
+				slug: "attacker-app",
+			},
+		};
+		const transport = new ScriptedGitHubTransport([
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([plantedComment]),
+				},
+			},
+			{
+				kind: "response",
+				response: {
+					status: 200,
+					headers: {},
+					body: JSON.stringify([plantedComment, factoryComment(100, body)]),
+				},
+			},
+		]);
+		const gateway = new GuardedGitHubLabelApi({
+			profiles: [lumenProfile],
+			client: new GitHubApiClient({
+				transport,
+				delay: new RecordingDelayAdapter(),
+				apiUrl: "https://api.github.test",
+			}),
+			transport,
+			tokens: {
+				tokenForProject: async () => "fixture-token",
+			},
+			factoryAuthor,
+			apiUrl: "https://api.github.test",
+		});
+		const mutation: GitHubAllowedMutation = {
+			kind: "create-comment",
+			projectId: lumenProfile.id,
+			subjectType: "pull-request",
+			subjectNumber: 42,
+			body,
+		};
+
+		expect(await gateway.verify(mutation)).toBe(false);
+		expect(await gateway.verify(mutation)).toBe(true);
+	});
+
 	test("refuses to update a comment associated with another subject", async () => {
 		const transport = new ScriptedGitHubTransport([
 			{

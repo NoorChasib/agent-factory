@@ -275,6 +275,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			})
 			.then(async (persisted) => {
 				const result = persisted.outcome.workerResult;
+				let handoffPublished = false;
 				if (persisted.outcome.status !== "completed") {
 					try {
 						await this.#handoff({
@@ -286,6 +287,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 							checkpoint:
 								result?.checkpoint.code ?? persisted.outcome.reasonCode ?? "execution-failed",
 						});
+						handoffPublished = true;
 					} catch (error) {
 						this.#ledger.appendAudit("recovery-handoff-failed", {
 							executionId,
@@ -306,7 +308,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 						purpose === "conflict-repair"
 							? {
 									initialHeadSha: invocation?.headSha ?? execution.headSha,
-									handoff: persisted.outcome.status !== "completed",
+									handoff: handoffPublished,
 								}
 							: null,
 				});
@@ -376,6 +378,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			);
 		});
 		const result = persisted.outcome.workerResult;
+		let handoffPublished = false;
 		if (persisted.outcome.status !== "completed") {
 			try {
 				await this.#handoff({
@@ -386,6 +389,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 					headSha: result?.branch.headSha ?? launch.headSha,
 					checkpoint: result?.checkpoint.code ?? persisted.outcome.reasonCode ?? "execution-failed",
 				});
+				handoffPublished = true;
 			} catch (error) {
 				this.#ledger.appendAudit("recovery-handoff-failed", {
 					executionId: execution.executionId,
@@ -414,7 +418,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 				launch.purpose === "conflict-repair"
 					? {
 							initialHeadSha: launch.headSha,
-							handoff: persisted.outcome.status !== "completed",
+							handoff: handoffPublished,
 						}
 					: null,
 		});
@@ -538,16 +542,24 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 			const launch = this.#launches.get(executionId);
 			const profile = this.#profiles.get(recovery.execution.projectId);
 			const released = this.#releaseRequested.has(executionId);
-			if (!released && launch?.purpose === "conflict-repair" && profile !== undefined) {
+			const repairInvocation = (await this.#ledger.read()).state.conflictRepair.invocations.find(
+				(candidate) => candidate.executionId === executionId,
+			);
+			const ownsRepair =
+				launch?.purpose === "conflict-repair" ||
+				(repairInvocation !== undefined && repairInvocation.status !== "released");
+			let handoffPublished = false;
+			if (!released && ownsRepair && profile !== undefined) {
 				try {
 					await this.#handoff({
 						profile,
 						execution: recovery.execution,
 						terminalStatus: "failed",
-						branch: launch.branch,
-						headSha: launch.headSha,
+						branch: launch?.branch ?? recovery.execution.branch,
+						headSha: launch?.headSha ?? recovery.execution.headSha,
 						checkpoint: "worker-supervision-failed",
 					});
+					handoffPublished = true;
 				} catch {
 					// The audit below records the supervision failure even if handoff publication fails.
 				}
@@ -582,7 +594,7 @@ export class ProviderWorkerSupervisor implements WorkerProcessAdapter {
 					state,
 					executionId,
 					released || current.status === "released" ? "released" : "failed",
-					!released && current.status !== "released",
+					handoffPublished,
 				);
 				try {
 					await this.#ledger.commit(snapshot.revision, state);

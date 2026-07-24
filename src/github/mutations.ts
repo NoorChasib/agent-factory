@@ -386,7 +386,7 @@ export class GuardedGitHubLabelApi implements GitHubLabelGateway {
 			}
 			case "create-comment":
 				return (await this.#readSubjectComments(mutation.projectId, mutation.subjectNumber)).some(
-					(comment) => comment.body === mutation.body,
+					(comment) => this.#isFactoryAuthoredComment(comment) && comment.body === mutation.body,
 				);
 			case "create-label":
 			case "update-label": {
