@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { WorkerProcessAdapter } from "@/adapters/interfaces.ts";
 import {
 	type ProjectProfile,
 	parseProjectProfile,
@@ -680,6 +681,44 @@ describe("separate persisted repair budgets", () => {
 			reason: "per-pull-request-limit",
 			executionId: "lifetime-4",
 		});
+	});
+
+	test("commits the handoff record even when publication itself commits the ledger", async () => {
+		const exhausted = activeState([repairProfile]);
+		seedRepairInvocation(exhausted, repairProfile, "repair-exhausted", 50, oldHead);
+		const adapters = createInMemoryAdapters(
+			[repairProfile],
+			[repairObservation(repairProfile, [repairPullRequest(repairProfile, 50)])],
+			exhausted,
+		);
+		const publishingProcesses: WorkerProcessAdapter = {
+			start: (request) => adapters.processes.start(request),
+			stop: (request) => adapters.processes.stop(request),
+			handoffConflictRepair: async (request) => {
+				await adapters.processes.handoffConflictRepair(request);
+				// The production recovery coordinator frees the owning execution with
+				// its own controller-ledger commit before returning.
+				const snapshot = await adapters.ledger.read();
+				await adapters.ledger.commit(snapshot.revision, snapshot.state);
+			},
+		};
+
+		const result = await createController(config([repairProfile]), {
+			...adapters,
+			processes: publishingProcesses,
+		}).reconcile({ reason: "change" });
+
+		expect(result.applied).toBe(true);
+		expect(result.conflictRepairHandoffExecutionIds).toEqual(["repair-exhausted"]);
+		expect((await adapters.ledger.read()).state.conflictRepair.handoffs).toMatchObject([
+			{
+				projectId: repairProfile.id,
+				pullRequestNumber: 50,
+				headSha: oldHead,
+				executionId: "repair-exhausted",
+				reason: "per-head-limit",
+			},
+		]);
 	});
 
 	test("honors a lower profile limit and hands off immediately after worker failure", async () => {

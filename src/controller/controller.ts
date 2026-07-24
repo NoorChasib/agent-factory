@@ -356,7 +356,20 @@ class DeterministicController implements Controller {
 			};
 		}
 
-		const state = cloneState(context.ledger.state);
+		const conflictRepairHandoffExecutionIds: string[] = [];
+		let basis = context.ledger;
+		if (context.plan.conflictRepairHandoffs.length > 0) {
+			for (const handoff of context.plan.conflictRepairHandoffs) {
+				await this.#adapters.processes.handoffConflictRepair(handoff);
+				conflictRepairHandoffExecutionIds.push(handoff.executionId);
+			}
+			// Handoff publication may commit the controller ledger (the recovery
+			// coordinator frees a still-active execution), so the commit below must
+			// build on a snapshot read after these side effects.
+			basis = assertLedgerSnapshot(await this.#adapters.ledger.read());
+		}
+
+		const state = cloneState(basis.state);
 		const stoppedExecutionIds: string[] = [];
 		const verifiedExecutionIds: string[] = [];
 		for (const transition of context.plan.transitions) {
@@ -389,17 +402,23 @@ class DeterministicController implements Controller {
 			state.executions[index] = executionAfterTransition(execution, transition);
 		}
 
-		const conflictRepairHandoffExecutionIds: string[] = [];
 		for (const handoff of context.plan.conflictRepairHandoffs) {
-			await this.#adapters.processes.handoffConflictRepair(handoff);
-			state.conflictRepair.handoffs.push({
-				projectId: handoff.projectId,
-				pullRequestNumber: handoff.pullRequestNumber,
-				headSha: handoff.headSha,
-				executionId: handoff.executionId,
-				reason: handoff.reason,
-			});
-			conflictRepairHandoffExecutionIds.push(handoff.executionId);
+			if (
+				!state.conflictRepair.handoffs.some(
+					(existing) =>
+						existing.projectId === handoff.projectId &&
+						existing.pullRequestNumber === handoff.pullRequestNumber &&
+						existing.headSha === handoff.headSha,
+				)
+			) {
+				state.conflictRepair.handoffs.push({
+					projectId: handoff.projectId,
+					pullRequestNumber: handoff.pullRequestNumber,
+					headSha: handoff.headSha,
+					executionId: handoff.executionId,
+					reason: handoff.reason,
+				});
+			}
 		}
 
 		const startedExecutionIds: string[] = [];
@@ -428,19 +447,16 @@ class DeterministicController implements Controller {
 		}
 		state.rotation = { ...context.plan.rotation };
 
-		let revision = context.ledger.revision;
+		let revision = basis.revision;
 		const changed =
 			context.plan.transitions.length > 0 ||
 			conflictRepairHandoffExecutionIds.length > 0 ||
 			startedExecutionIds.length > 0 ||
-			state.rotation.implementation !== context.ledger.state.rotation.implementation ||
-			state.rotation.feedback !== context.ledger.state.rotation.feedback;
+			state.rotation.implementation !== basis.state.rotation.implementation ||
+			state.rotation.feedback !== basis.state.rotation.feedback;
 		if (changed) {
 			const committed = assertLedgerSnapshot(
-				await this.#adapters.ledger.commit(
-					context.ledger.revision,
-					ControllerLocalStateSchema.parse(state),
-				),
+				await this.#adapters.ledger.commit(basis.revision, ControllerLocalStateSchema.parse(state)),
 			);
 			revision = committed.revision;
 		}
