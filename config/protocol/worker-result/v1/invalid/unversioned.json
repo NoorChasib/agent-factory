@@ -1,0 +1,27 @@
+{
+	"executionId": "execution-invalid-202",
+	"target": {
+		"projectId": "lumen-notes",
+		"repository": "ExampleOrg/lumen-notes"
+	},
+	"issue": {
+		"number": 202
+	},
+	"pullRequest": null,
+	"branch": {
+		"name": "factory/issue-202",
+		"base": "trunk",
+		"headSha": null,
+		"pushed": false
+	},
+	"providerSession": {
+		"provider": "claude",
+		"id": "session-invalid-202"
+	},
+	"checkpoint": {
+		"phase": "startup",
+		"sequence": 0,
+		"code": "fixture"
+	},
+	"terminalStatus": "failed"
+}

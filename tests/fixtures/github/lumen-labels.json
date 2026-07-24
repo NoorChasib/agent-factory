@@ -1,0 +1,20 @@
+[
+	{
+		"id": 1,
+		"node_id": "LA_lumen_agent",
+		"url": "https://api.github.test/repos/ExampleOrg/lumen-notes/labels/queue%2Fagent",
+		"name": "queue/agent",
+		"color": "ffffff",
+		"default": false,
+		"description": "Legacy description"
+	},
+	{
+		"id": 2,
+		"node_id": "LA_retained",
+		"url": "https://api.github.test/repos/ExampleOrg/lumen-notes/labels/feature",
+		"name": "feature",
+		"color": "ededed",
+		"default": false,
+		"description": "Retained project label"
+	}
+]

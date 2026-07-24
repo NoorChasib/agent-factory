@@ -1,0 +1,60 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": ["**", "!!node_modules", "!!bun.lock"]
+	},
+	"formatter": {
+		"lineWidth": 100
+	},
+	"linter": {
+		"domains": {
+			"test": "recommended"
+		},
+		"rules": {
+			"complexity": {
+				"noExcessiveCognitiveComplexity": "info",
+				"noExcessiveNestedTestSuites": "error",
+				"noForEach": "error",
+				"useArrowFunction": "error",
+				"useMaxParams": "info"
+			},
+			"correctness": {
+				"noUnusedImports": "error",
+				"useImportExtensions": "error"
+			},
+			"performance": {
+				"noAccumulatingSpread": "error"
+			},
+			"style": {
+				"noNonNullAssertion": "error",
+				"noParameterAssign": "error",
+				"noProcessEnv": "error",
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"patterns": [
+							{
+								"group": ["./**", "../**"],
+								"message": "Use the @ alias instead of relative imports."
+							}
+						]
+					}
+				},
+				"noNestedTernary": "error",
+				"noUselessElse": "error"
+			},
+			"suspicious": {
+				"noDeprecatedImports": "warn",
+				"noEvolvingTypes": "error",
+				"noImportCycles": "error",
+				"noShadow": "error",
+				"noTsIgnore": "error"
+			}
+		}
+	}
+}

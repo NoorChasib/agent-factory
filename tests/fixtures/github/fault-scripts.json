@@ -1,0 +1,38 @@
+{
+	"rateLimit": {
+		"kind": "response",
+		"response": {
+			"status": 429,
+			"headers": {
+				"retry-after": "1"
+			},
+			"body": "{\"message\":\"rate limited\"}"
+		}
+	},
+	"server": {
+		"kind": "response",
+		"response": {
+			"status": 503,
+			"headers": {},
+			"body": "{\"message\":\"unavailable\"}"
+		}
+	},
+	"timeout": {
+		"kind": "error",
+		"error": "timeout"
+	},
+	"conditional304": {
+		"kind": "response",
+		"response": {
+			"status": 304,
+			"headers": {
+				"etag": "\"fixture-v1\""
+			},
+			"body": ""
+		}
+	},
+	"ambiguousWrite": {
+		"kind": "error",
+		"error": "transport"
+	}
+}

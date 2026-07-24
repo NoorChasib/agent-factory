@@ -1,0 +1,58 @@
+schemaVersion: 1
+id: lumen-notes
+enabled: false
+repository: ExampleOrg/lumen-notes
+defaultBranch: trunk
+workflow:
+  implement: notes/implement
+  feedback: notes/converge
+  operatorImplement: notes/operator-implement
+  operatorFeedback: notes/operator-feedback
+labels:
+  needsTriage: queue/triage
+  needsInfo: queue/missing-information
+  implementationReady: queue/agent
+  operatorReady: queue/operator
+  inProgress: queue/owned
+  feedbackReady: review/agent
+  readyToMerge: review/operator-handoff
+  workerStalled: condition/worker-stalled
+  reviewStalled: condition/review-stalled
+  needsRespec: condition/respec
+  blockedExternal: condition/external
+reviewPolicy:
+  required: [sentinel]
+defaultBranchProtection:
+  requiresPullRequest: true
+  requiredApprovingReviewCount: 1
+  dismissesStaleReviews: true
+  requiresCodeOwnerReviews: true
+  requiresConversationResolution: true
+  requiresStatusChecks: true
+  prohibitsForcePushes: true
+  prohibitsDeletions: true
+requiredChecks:
+  source: profile
+  requireCurrentHead: true
+  checks:
+    - name: verify
+      appSlug: example-ci
+reviewers:
+  sentinel:
+    identity:
+      kind: github-user
+      login: example-reviewer
+    completionSignal:
+      kind: check-run
+      name: automated-review
+issueSelection:
+  owner: project-workflow
+  controllerProvidesIssueNumber: false
+timeouts:
+  reviewerMinutes: 30
+  requiredCheckMinutes: 60
+  quiescencePolls: 3
+ceilings:
+  implementation: 2
+  feedback: 2
+  readyToMerge: 2

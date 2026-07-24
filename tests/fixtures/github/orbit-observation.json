@@ -1,0 +1,116 @@
+{
+	"data": {
+		"repository": {
+			"issues": {
+				"nodes": [
+					{
+						"number": 21,
+						"state": "OPEN",
+						"labels": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"name": "orbit/implementation-ready"
+								}
+							]
+						}
+					}
+				],
+				"pageInfo": {
+					"hasNextPage": false,
+					"endCursor": "orbit-issues-end"
+				}
+			},
+			"pullRequests": {
+				"nodes": [
+					{
+						"number": 201,
+						"state": "OPEN",
+						"isDraft": false,
+						"headRefName": "agents/issue-21",
+						"headRefOid": "2222222222222222222222222222222222222222",
+						"updatedAt": "2026-07-23T01:05:00Z",
+						"mergeable": "MERGEABLE",
+						"reviewDecision": "APPROVED",
+						"labels": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"name": "orbit/ready-to-merge"
+								}
+							]
+						},
+						"closingIssuesReferences": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"number": 21
+								}
+							]
+						},
+						"comments": {
+							"totalCount": 0,
+							"nodes": []
+						},
+						"reviews": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"author": {
+										"login": "orbit-reviewer"
+									},
+									"state": "COMMENTED",
+									"submittedAt": "2026-07-23T01:03:00Z",
+									"commit": {
+										"oid": "2222222222222222222222222222222222222222"
+									}
+								}
+							]
+						},
+						"reviewThreads": {
+							"totalCount": 0,
+							"nodes": []
+						},
+						"commits": {
+							"nodes": [
+								{
+									"commit": {
+										"oid": "2222222222222222222222222222222222222222",
+										"statusCheckRollup": {
+											"contexts": {
+												"totalCount": 1,
+												"nodes": [
+													{
+														"__typename": "StatusContext",
+														"context": "build",
+														"state": "SUCCESS"
+													}
+												]
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"pageInfo": {
+					"hasNextPage": false,
+					"endCursor": "orbit-pulls-end"
+				}
+			},
+			"branchProtectionRules": {
+				"nodes": [
+					{
+						"pattern": "main",
+						"requiredStatusCheckContexts": ["build"]
+					}
+				],
+				"pageInfo": {
+					"hasNextPage": false,
+					"endCursor": "orbit-protection-end"
+				}
+			}
+		}
+	}
+}

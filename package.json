@@ -1,0 +1,32 @@
+{
+	"name": "agent-factory",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"module": "src/index.ts",
+	"bin": {
+		"agent-factory": "bin/agent-factory",
+		"agent-factory-daemon": "bin/agent-factory-daemon"
+	},
+	"scripts": {
+		"bootstrap": "bun src/installation/main.ts",
+		"build:binaries": "bun src/installation/build-binaries.ts",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"validate": "bun run typecheck && bun run lint && bun test"
+	},
+	"dependencies": {
+		"yaml": "2.9.0",
+		"zod": "4.4.3"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.5",
+		"@types/bun": "1.3.14",
+		"typescript": "7.0.2"
+	},
+	"engines": {
+		"bun": ">=1.3.0"
+	}
+}

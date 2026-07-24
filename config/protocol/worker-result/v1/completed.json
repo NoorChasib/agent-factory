@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"executionId": "execution-completed-101",
+	"target": {
+		"projectId": "lumen-notes",
+		"repository": "ExampleOrg/lumen-notes"
+	},
+	"issue": {
+		"number": 101
+	},
+	"pullRequest": {
+		"number": 201
+	},
+	"branch": {
+		"name": "factory/issue-101",
+		"base": "trunk",
+		"headSha": "1111111111111111111111111111111111111111",
+		"pushed": true
+	},
+	"providerSession": {
+		"provider": "codex",
+		"id": "thread-completed-101"
+	},
+	"checkpoint": {
+		"phase": "verification",
+		"sequence": 4,
+		"code": "current-head-verified"
+	},
+	"terminalStatus": "completed"
+}

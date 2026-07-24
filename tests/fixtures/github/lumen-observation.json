@@ -1,0 +1,139 @@
+{
+	"data": {
+		"repository": {
+			"issues": {
+				"nodes": [
+					{
+						"number": 11,
+						"state": "OPEN",
+						"labels": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"name": "queue/agent"
+								}
+							]
+						}
+					},
+					{
+						"number": 12,
+						"state": "CLOSED",
+						"labels": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"name": "queue/operator"
+								}
+							]
+						}
+					}
+				],
+				"pageInfo": {
+					"hasNextPage": false,
+					"endCursor": "lumen-issues-end"
+				}
+			},
+			"pullRequests": {
+				"nodes": [
+					{
+						"number": 101,
+						"state": "OPEN",
+						"isDraft": false,
+						"headRefName": "factory/issue-11",
+						"headRefOid": "1111111111111111111111111111111111111111",
+						"updatedAt": "2026-07-23T00:05:00Z",
+						"mergeable": "MERGEABLE",
+						"reviewDecision": "APPROVED",
+						"labels": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"name": "review/operator-handoff"
+								}
+							]
+						},
+						"closingIssuesReferences": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"number": 11
+								}
+							]
+						},
+						"comments": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"updatedAt": "2026-07-23T00:04:00Z"
+								}
+							]
+						},
+						"reviews": {
+							"totalCount": 0,
+							"nodes": []
+						},
+						"reviewThreads": {
+							"totalCount": 1,
+							"nodes": [
+								{
+									"isResolved": true,
+									"isOutdated": false
+								}
+							]
+						},
+						"commits": {
+							"nodes": [
+								{
+									"commit": {
+										"oid": "1111111111111111111111111111111111111111",
+										"statusCheckRollup": {
+											"contexts": {
+												"totalCount": 2,
+												"nodes": [
+													{
+														"__typename": "CheckRun",
+														"name": "verify",
+														"status": "COMPLETED",
+														"conclusion": "SUCCESS",
+														"app": {
+															"slug": "example-ci"
+														}
+													},
+													{
+														"__typename": "CheckRun",
+														"name": "automated-review",
+														"status": "COMPLETED",
+														"conclusion": "SUCCESS",
+														"app": {
+															"slug": "review-bot"
+														}
+													}
+												]
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"pageInfo": {
+					"hasNextPage": false,
+					"endCursor": "lumen-pulls-end"
+				}
+			},
+			"branchProtectionRules": {
+				"nodes": [
+					{
+						"pattern": "trunk",
+						"requiredStatusCheckContexts": ["verify"]
+					}
+				],
+				"pageInfo": {
+					"hasNextPage": false,
+					"endCursor": "lumen-protection-end"
+				}
+			}
+		}
+	}
+}
