@@ -1,0 +1,13 @@
+pre-commit:
+  commands:
+    biome-check:
+      glob: "*.{ts,js,json,jsonc}"
+      run: bun x biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    fallow-audit:
+      glob: "*.{ts,js,mjs,cjs,mts,cts,json,jsonc}"
+      run: bun run fallow:staged
+pre-push:
+  commands:
+    typecheck:
+      run: bun run typecheck

@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic PEM template fixtures verifying token-broker redaction; the key body is an interpolated sentinel, never real key material"
+condition = "AND"
+targetRules = ["private-key"]
+paths = ['''tests/github-token-broker\.test\.ts$''']
+regexes = ['''\$\{secretSentinel\}''']

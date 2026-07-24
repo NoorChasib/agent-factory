@@ -1,0 +1,74 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:recommended",
+		":disableDependencyDashboard",
+		":automergeDisabled",
+		"security:minimumReleaseAgeNpm",
+		"helpers:githubDigestChangelogs",
+		"helpers:pinGitHubActionDigests",
+		"customManagers:githubActionsVersions",
+		":configMigration"
+	],
+	"schedule": ["* 0-3 8,22 * *"],
+	"prConcurrentLimit": 3,
+	"labels": ["dependencies"],
+	"customManagers": [
+		{
+			"customType": "regex",
+			"description": "Keep the Fallow JSON schema aligned with the installed CLI",
+			"managerFilePatterns": ["/^\\.fallowrc\\.jsonc$/"],
+			"matchStrings": [
+				"https://raw\\.githubusercontent\\.com/fallow-rs/fallow/v(?<currentValue>[^/]+)/schema\\.json"
+			],
+			"depNameTemplate": "fallow",
+			"datasourceTemplate": "npm"
+		}
+	],
+	"vulnerabilityAlerts": {
+		"addLabels": ["security"]
+	},
+	"lockFileMaintenance": {
+		"enabled": true,
+		"schedule": ["* 0-3 15 * *"]
+	},
+	"packageRules": [
+		{
+			"description": "Update the Fallow CLI, pinned schema, and GitHub Action together",
+			"matchPackageNames": ["fallow", "fallow-rs/fallow"],
+			"groupName": "Fallow"
+		},
+		{
+			"description": "Group non-major Bun dependency updates",
+			"matchManagers": ["bun"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "Bun dependencies (non-major)"
+		},
+		{
+			"description": "Group GitHub Actions updates",
+			"matchManagers": ["github-actions"],
+			"matchPackageNames": ["!bun", "!fallow-rs/fallow"],
+			"groupName": "GitHub Actions"
+		},
+		{
+			"description": "Keep the Bun runtime pinned in CI up to date",
+			"matchPackageNames": ["bun"],
+			"groupName": "Bun runtime"
+		},
+		{
+			"description": "Match the repository's minimum-release-age exclusions",
+			"matchDatasources": ["npm"],
+			"matchPackageNames": ["@types/bun", "typescript"],
+			"minimumReleaseAge": null
+		},
+		{
+			"description": "Surface major dependency updates monthly for explicit review",
+			"matchUpdateTypes": ["major"],
+			"schedule": ["* 0-3 1 * *"],
+			"addLabels": ["major-update"],
+			"prBodyNotes": [
+				"⚠️ Major version update: review the linked release notes, migration guidance, and CI results before merging."
+			]
+		}
+	]
+}

@@ -78,6 +78,17 @@ required for the source-based development/test flow, self-update builds, and
 
 ## Installation
 
+Quick install (clones a clean checkout, validates it, bootstraps the first release, and installs
+the CLI and systemd user unit in observation mode):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/NoorChasib/agent-factory/main/install.sh | bash
+```
+
+For a reproducible install, download the script from a pinned ref instead of `main` and set
+`AGENT_FACTORY_REF` to the same commit. All installer options and the equivalent manual flow are
+in [`docs/installation.md`](docs/installation.md).
+
 Install dependencies for development:
 
 ```sh
