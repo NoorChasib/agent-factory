@@ -7,7 +7,9 @@
 
 	// Runtime roots that are not visible through package exports or detected scripts.
 	// worker-command.ts is spawned by the daemon via a resolved path (src/daemon/main.ts).
+	// The VitePress config is loaded by the vitepress CLI (docs:* scripts), never imported.
 	"entry": [
+		".vitepress/config.mts",
 		"src/index.ts",
 		"src/cli/main.ts",
 		"src/daemon/main.ts",
@@ -260,7 +262,7 @@
 		"coverage": {
 			// Product source, scripts, and tests must belong to a declared zone.
 			"requireAllFiles": true,
-			"allowUnmatched": ["config/**", "systemd/**", "bin/**"]
+			"allowUnmatched": [".vitepress/**", "config/**", "systemd/**", "bin/**"]
 		}
 	}
 }
