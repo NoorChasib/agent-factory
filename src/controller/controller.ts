@@ -67,6 +67,7 @@ export interface ReconcileResult {
 	readonly startedExecutionIds: readonly string[];
 	readonly stoppedExecutionIds: readonly string[];
 	readonly verifiedExecutionIds: readonly string[];
+	readonly conflictRepairHandoffExecutionIds: readonly string[];
 	readonly blocks: PlannerPlan["blocks"];
 	readonly invariantViolations: readonly string[];
 	readonly nextPollDelayMs: number;
@@ -153,6 +154,7 @@ function normalizedExecution(
 
 	const normalized = ExecutionRecordSchema.parse({
 		...parsed,
+		...(request.purpose === undefined ? {} : { purpose: request.purpose }),
 		issueNumber: request.issueNumber ?? parsed.issueNumber,
 		pullRequestNumber: request.pullRequestNumber,
 		branch: request.branch ?? parsed.branch,
@@ -347,13 +349,27 @@ class DeterministicController implements Controller {
 				startedExecutionIds: [],
 				stoppedExecutionIds: [],
 				verifiedExecutionIds: [],
+				conflictRepairHandoffExecutionIds: [],
 				blocks: context.plan.blocks,
 				invariantViolations: context.plan.invariantViolations,
 				nextPollDelayMs,
 			};
 		}
 
-		const state = cloneState(context.ledger.state);
+		const conflictRepairHandoffExecutionIds: string[] = [];
+		let basis = context.ledger;
+		if (context.plan.conflictRepairHandoffs.length > 0) {
+			for (const handoff of context.plan.conflictRepairHandoffs) {
+				await this.#adapters.processes.handoffConflictRepair(handoff);
+				conflictRepairHandoffExecutionIds.push(handoff.executionId);
+			}
+			// Handoff publication may commit the controller ledger (the recovery
+			// coordinator frees a still-active execution), so the commit below must
+			// build on a snapshot read after these side effects.
+			basis = assertLedgerSnapshot(await this.#adapters.ledger.read());
+		}
+
+		const state = cloneState(basis.state);
 		const stoppedExecutionIds: string[] = [];
 		const verifiedExecutionIds: string[] = [];
 		for (const transition of context.plan.transitions) {
@@ -369,11 +385,40 @@ class DeterministicController implements Controller {
 					executionId: transition.executionId,
 					reason: transition.reason,
 				});
+				const invocationIndex = state.conflictRepair.invocations.findIndex(
+					(candidate) => candidate.executionId === transition.executionId,
+				);
+				const invocation = state.conflictRepair.invocations[invocationIndex];
+				if (invocation !== undefined && invocation.status === "active") {
+					state.conflictRepair.invocations[invocationIndex] = {
+						...invocation,
+						status: "released",
+					};
+				}
 				stoppedExecutionIds.push(transition.executionId);
 			} else {
 				verifiedExecutionIds.push(transition.executionId);
 			}
 			state.executions[index] = executionAfterTransition(execution, transition);
+		}
+
+		for (const handoff of context.plan.conflictRepairHandoffs) {
+			if (
+				!state.conflictRepair.handoffs.some(
+					(existing) =>
+						existing.projectId === handoff.projectId &&
+						existing.pullRequestNumber === handoff.pullRequestNumber &&
+						existing.headSha === handoff.headSha,
+				)
+			) {
+				state.conflictRepair.handoffs.push({
+					projectId: handoff.projectId,
+					pullRequestNumber: handoff.pullRequestNumber,
+					headSha: handoff.headSha,
+					executionId: handoff.executionId,
+					reason: handoff.reason,
+				});
+			}
 		}
 
 		const startedExecutionIds: string[] = [];
@@ -386,22 +431,32 @@ class DeterministicController implements Controller {
 				throw new Error(`launch '${execution.executionId}' violates one-owner execution identity`);
 			}
 			state.executions.push(execution);
+			if (launch.purpose === "conflict-repair") {
+				if (launch.pullRequestNumber === null || launch.headSha === null) {
+					throw new Error("conflict-repair launch lost its pull request or head");
+				}
+				state.conflictRepair.invocations.push({
+					projectId: launch.projectId,
+					pullRequestNumber: launch.pullRequestNumber,
+					headSha: launch.headSha,
+					executionId: execution.executionId,
+					status: "active",
+				});
+			}
 			startedExecutionIds.push(execution.executionId);
 		}
 		state.rotation = { ...context.plan.rotation };
 
-		let revision = context.ledger.revision;
+		let revision = basis.revision;
 		const changed =
 			context.plan.transitions.length > 0 ||
+			conflictRepairHandoffExecutionIds.length > 0 ||
 			startedExecutionIds.length > 0 ||
-			state.rotation.implementation !== context.ledger.state.rotation.implementation ||
-			state.rotation.feedback !== context.ledger.state.rotation.feedback;
+			state.rotation.implementation !== basis.state.rotation.implementation ||
+			state.rotation.feedback !== basis.state.rotation.feedback;
 		if (changed) {
 			const committed = assertLedgerSnapshot(
-				await this.#adapters.ledger.commit(
-					context.ledger.revision,
-					ControllerLocalStateSchema.parse(state),
-				),
+				await this.#adapters.ledger.commit(basis.revision, ControllerLocalStateSchema.parse(state)),
 			);
 			revision = committed.revision;
 		}
@@ -420,6 +475,7 @@ class DeterministicController implements Controller {
 			startedExecutionIds,
 			stoppedExecutionIds,
 			verifiedExecutionIds,
+			conflictRepairHandoffExecutionIds,
 			blocks: context.plan.blocks,
 			invariantViolations: context.plan.invariantViolations,
 			nextPollDelayMs,

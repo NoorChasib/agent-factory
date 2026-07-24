@@ -40,6 +40,8 @@ export {
 	type ProviderSessionContext,
 	ProviderSessionContextSchema,
 	type ResumeProviderSession,
+	type ResumeWorkflowIdentity,
+	ResumeWorkflowIdentitySchema,
 	type WorkerOutcomeVerification,
 	type WorkerOutcomeVerifier,
 	type WorkerTokenBroker,

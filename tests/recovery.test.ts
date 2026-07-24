@@ -59,13 +59,15 @@ class MutationIds {
 
 class CommentGateway implements GitHubLabelGateway {
 	readonly #comments = new Map<number, string>();
+	#nextCommentId = 41;
 	public readonly applied: GitHubAllowedMutation[] = [];
 
 	public async apply(input: unknown): Promise<void> {
 		const mutation = assertAllowedGitHubMutation(input);
 		this.applied.push(mutation);
 		if (mutation.kind === "create-comment") {
-			this.#comments.set(41, mutation.body);
+			this.#comments.set(this.#nextCommentId, mutation.body);
+			this.#nextCommentId += 1;
 		} else if (mutation.kind === "update-comment") {
 			this.#comments.set(mutation.commentId, mutation.body);
 		}
@@ -79,6 +81,19 @@ class CommentGateway implements GitHubLabelGateway {
 			return this.#comments.get(input.commentId) === input.body;
 		}
 		return false;
+	}
+
+	public async findSubjectCommentId(
+		_projectId: string,
+		_subjectType: "issue" | "pull-request",
+		_subjectNumber: number,
+		marker: string,
+	): Promise<number | null> {
+		return [...this.#comments].find(([, body]) => body.startsWith(marker))?.[0] ?? null;
+	}
+
+	public commentCount(): number {
+		return this.#comments.size;
 	}
 
 	public async readSubjectLabels(): Promise<readonly string[]> {
@@ -341,6 +356,31 @@ describe("recovery comments, incidents, and reason codes", () => {
 		expect(recorded).not.toContain("BEGIN PRIVATE KEY");
 		expect(recorded).not.toContain("SENTINEL_ENV_VALUE");
 		expect(redaction.scan(`${created.body}\n${updated.body}`)).toEqual([]);
+	});
+
+	test("updates the canonical comment when a handoff is republished without its comment id", async () => {
+		const ledger = new InMemoryGitHubMutationLedger(new FixedClockAdapter(), new MutationIds());
+		const gateway = new CommentGateway();
+		const publisher = new RecoveryCommentPublisher(new GitHubMutationExecutor(ledger, gateway));
+
+		await publisher.publish({
+			record: recoveryRecord(),
+			existingCommentId: null,
+		});
+		const repeated = await publisher.publish({
+			record: {
+				...recoveryRecord(),
+				checkpoint: "later-checkpoint",
+			},
+			existingCommentId: null,
+		});
+
+		expect(repeated.kind).toBe("update-comment");
+		expect(gateway.applied.map((mutation) => mutation.kind)).toEqual([
+			"create-comment",
+			"update-comment",
+		]);
+		expect(gateway.commentCount()).toBe(1);
 	});
 
 	test("frees blocked capacity while preserving process, session, and work custody", async () => {

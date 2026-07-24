@@ -159,6 +159,7 @@ export async function productionDaemonMain(
 		client: githubClient,
 		transport: http,
 		tokens,
+		factoryAuthor: tokens.commentAuthorIdentity,
 	});
 	const mutations = new GitHubMutationExecutor(ledger, labelGateway);
 	const stages = new Map(

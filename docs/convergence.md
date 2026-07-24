@@ -44,8 +44,8 @@ silently running the timeout to approval.
 
 ## Quiescence and ready emission
 
-After current-head reviewers and checks succeed and the PR is non-draft and mergeable, the
-engine compares the current review/check markers with the saved baseline:
+After current-head reviewers and checks succeed, the engine compares the current review/check
+markers with the saved baseline:
 
 1. A missing, stale-head, or changed baseline is replaced at poll count zero.
 2. An unchanged observation increments only when at least 60 seconds elapsed since the prior
@@ -60,6 +60,12 @@ Once quiescent, the engine calls the same ready assessment used for revocation.
 `emit-ready-to-merge` can be applied only through `ReadyToMergeEmitter`, which delegates to the
 existing guarded, reconcile-before-retry `CanonicalStageManager`. The decision is head-bound and
 is refused if applied to a later head.
+
+Mergeability is evaluated after review/check quiescence. A mergeable, non-draft PR proceeds to
+ready assessment. `unknown` mergeability waits. A PR whose only remaining ready-assessment reason
+is `mergeability` and whose authoritative value is `conflicting` is detected as a conflict-repair
+candidate unconditionally. The planner launches that candidate only when the profile configures
+`workflow.conflictRepair`. A mergeable branch that is merely behind never enters repair.
 
 If a PR already carries ready-to-merge, the engine calls
 `detectReadyToMergeRevocation`. Head, feedback, required-review, checks, draft, or mergeability
@@ -79,6 +85,10 @@ explicitly preserves the one recorded Codex outer session for attended recovery.
 
 Workflow child audit/review roles are outside this accounting because they are not factory
 executions or invocations.
+
+Conflict-repair invocations use a separate two-per-head/four-per-PR default budget and never
+increment either feedback counter. They still occupy feedback capacity and reuse the PR's
+recorded Codex thread. See [Just-in-time conflict repair](conflict-repair.md).
 
 ## Safe check reruns
 

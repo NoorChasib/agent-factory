@@ -10,7 +10,7 @@ import type {
 import type { ProjectProfile } from "@/contracts/project-profile.ts";
 import { type GitHubAppEnvironment, parseGitHubAppEnvironment } from "@/env.ts";
 import { githubApiHeaders } from "@/github/client.ts";
-import type { GitHubProjectTokenProvider } from "@/github/mutations.ts";
+import type { GitHubAppAuthorIdentity, GitHubProjectTokenProvider } from "@/github/mutations.ts";
 
 const DEFAULT_API_URL = "https://api.github.com";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
@@ -168,6 +168,10 @@ export class GitHubAppTokenBroker implements GitHubProjectTokenProvider {
 		const token = await this.#mintInstallationToken(profile, installationId, appJwt);
 		this.#tokens.set(projectId, token);
 		return token.token;
+	}
+
+	public get commentAuthorIdentity(): GitHubAppAuthorIdentity {
+		return { appId: this.#environment.appId };
 	}
 
 	async #createAppJwt(): Promise<string> {

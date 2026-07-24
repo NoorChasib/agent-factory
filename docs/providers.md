@@ -66,8 +66,10 @@ request. Runtime model and effort are captured with that session. Exactly one st
 The thread ID is retained as soon as a valid start event is present. Therefore a malformed or
 missing later worker result still becomes a failed handoff with the Codex thread available for
 recovery. Resume names the recorded thread and repeats the recorded model and effort; changes to
-the current launch runtime do not affect it. Changes to the project, workflow, issue, or pull
-request are refused before command execution.
+the current launch runtime do not affect it. Changes to the project, issue, or pull request are
+refused before command execution. Workflow identity must also match except for the explicit
+transition between the normal feedback entry point and the profile's conflict-repair entry point
+on that same PR-scoped thread.
 
 Unknown nested provider events are ignored. The factory records only the one outer Codex
 session. Target-workflow audit or review children do not create executions, attempts, provider
@@ -91,6 +93,9 @@ observation. Execution, target, provider session, issue, PR, branch, base branch
 match. A completed result must identify an observed PR. A pushed head without an authoritative
 observation is not accepted.
 
+Conflict-repair completion additionally requires an observed head different from the launch head
+and mergeability at that exact head that does not report `conflicting`.
+
 ## Durable attempts and recovery
 
 `ProviderExecutionRecorder` is the controller-side persistence wrapper. It depends on only seven
@@ -111,10 +116,10 @@ checkout paths.
 
 An initial run is refused once any provider session exists for that execution. Codex sessions
 are additionally looked up by project and pull-request number across earlier executions. A later
-feedback requeue therefore resumes the original PR thread even though the controller records a
-new feedback execution. The new execution's process metadata records that same thread ID. This
-makes exact resume mandatory and prevents a second Codex outer thread from being created for the
-PR.
+feedback requeue or conflict repair therefore resumes the original PR thread even though the
+controller records a new feedback-lane execution. The new execution's process metadata records
+that same thread ID. This makes exact resume mandatory and prevents a second Codex outer thread
+from being created for the PR.
 
 The execution row must already exist before this recorder starts an attempt. The controller
 remains the sole production ledger owner/writer; runners never open SQLite themselves.

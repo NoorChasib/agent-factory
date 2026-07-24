@@ -46,6 +46,10 @@ const headSha = "1111111111111111111111111111111111111111";
 const profile = parseProjectProfileYaml(
 	await Bun.file(new URL("fixtures/profiles/lumen-notes.yaml", import.meta.url)).text(),
 );
+const resumeWorkflowIdentity = {
+	feedback: profile.workflow.feedback,
+	conflictRepair: "notes/repair-conflict",
+} as const;
 const snapshot = mapGitHubObservation(
 	profile,
 	await Bun.file(new URL("fixtures/github/lumen-observation.json", import.meta.url)).json(),
@@ -507,11 +511,13 @@ describe("persistent Codex feedback sessions", () => {
 			request: feedbackRequest,
 			runtime: { model: "gpt-retuned", effort: "max" },
 			session: recorded,
+			workflowIdentity: resumeWorkflowIdentity,
 		});
 		const mismatchedInitialization = await runner.resume({
 			request: feedbackRequest,
 			runtime: { model: "gpt-retuned", effort: "max" },
 			session: recorded,
+			workflowIdentity: resumeWorkflowIdentity,
 		});
 
 		expect(initial).toMatchObject({
@@ -584,6 +590,7 @@ describe("persistent Codex feedback sessions", () => {
 				sessionKey: "session-key-101",
 				executionId: "earlier-feedback-execution",
 			},
+			workflowIdentity: resumeWorkflowIdentity,
 		});
 
 		expect(resumed.status).toBe("completed");
@@ -601,6 +608,162 @@ describe("persistent Codex feedback sessions", () => {
 		]);
 		expect(commands.requests[1]?.stdin).toContain(profile.workflow.feedback);
 		expect(commands.requests[1]?.stdin).toContain("pull request #101");
+	});
+
+	test("reuses the PR thread and recorded runtime for the narrow conflict-repair workflow", async () => {
+		const runtime: ProviderRuntime = { model: "gpt-5.6-codex", effort: "high" };
+		const commands = new ScriptedCommandAdapter([
+			exited(
+				lines(
+					{ type: "thread.started", thread_id: codexThreadId },
+					resultEvent(workerResult("codex", codexThreadId)),
+				),
+			),
+			exited(
+				lines(
+					{ type: "thread.started", thread_id: codexThreadId },
+					resultEvent(workerResult("codex", codexThreadId)),
+				),
+				43,
+			),
+		]);
+		const runner = new CodexFeedbackRunner({
+			commands,
+			tokens: new Tokens(),
+			clock: new FixedClockAdapter(),
+			verifier: new AcceptingVerifier(),
+			controllerEnvironment: {},
+		});
+		const initial = await runner.launch({ request: feedbackRequest, runtime });
+		const captured = initial.session;
+		if (captured === null) {
+			throw new Error("test expected a captured Codex thread");
+		}
+		const recorded: ResumeProviderSession = {
+			...captured,
+			sessionKey: "session-key-conflict-repair",
+			executionId: feedbackRequest.executionId,
+		};
+		const repairRequest: ProviderRunRequest = {
+			...feedbackRequest,
+			executionId: "execution-conflict-repair",
+			checkout: {
+				...feedbackRequest.checkout,
+				workflow: "notes/repair-conflict",
+			},
+			purpose: "conflict-repair",
+			branch: "factory/issue-11",
+			initialHeadSha: headSha,
+		};
+
+		const resumed = await runner.resume({
+			request: repairRequest,
+			runtime: { model: "gpt-retuned", effort: "max" },
+			session: recorded,
+			workflowIdentity: resumeWorkflowIdentity,
+		});
+		const unrelatedWorkflow = await runner.resume({
+			request: {
+				...feedbackRequest,
+				checkout: {
+					...feedbackRequest.checkout,
+					workflow: "notes/unrelated-workflow",
+				},
+				purpose: "conflict-repair",
+				branch: "factory/issue-11",
+				initialHeadSha: headSha,
+			},
+			runtime,
+			session: recorded,
+			workflowIdentity: resumeWorkflowIdentity,
+		});
+
+		expect(resumed).toMatchObject({
+			status: "completed",
+			session: {
+				id: codexThreadId,
+				model: runtime.model,
+				reasoningEffort: runtime.effort,
+			},
+		});
+		expect(commands.requests[1]?.argv).toContain(runtime.model);
+		expect(commands.requests[1]?.argv).toContain(`model_reasoning_effort="${runtime.effort}"`);
+		expect(commands.requests[1]?.stdin).toContain("Forward-merge");
+		expect(commands.requests[1]?.stdin).toContain(profile.defaultBranch);
+		expect(commands.requests[1]?.stdin).toContain("Resolve merge conflicts only");
+		expect(commands.requests[1]?.stdin).toContain("push only the pull-request branch");
+		for (const forbidden of [
+			"rebase",
+			"force-push",
+			"amend",
+			"merge the pull request",
+			"default branch",
+		]) {
+			expect(commands.requests[1]?.stdin).toContain(forbidden);
+		}
+		expect(unrelatedWorkflow).toMatchObject({
+			status: "failed",
+			reasonCode: "resume-session-mismatch",
+			commandStarted: false,
+		});
+		expect(commands.requests).toHaveLength(2);
+	});
+
+	test("allows only the profile-owned conflict-repair workflow to resume back into feedback", async () => {
+		const runtime: ProviderRuntime = { model: "gpt-5.6-codex", effort: "high" };
+		const commands = new ScriptedCommandAdapter([
+			exited(
+				lines(
+					{ type: "thread.started", thread_id: codexThreadId },
+					resultEvent(workerResult("codex", codexThreadId)),
+				),
+			),
+			exited(
+				lines(
+					{ type: "thread.started", thread_id: codexThreadId },
+					resultEvent(workerResult("codex", codexThreadId)),
+				),
+			),
+		]);
+		const runner = new CodexFeedbackRunner({
+			commands,
+			tokens: new Tokens(),
+			clock: new FixedClockAdapter(),
+			verifier: new AcceptingVerifier(),
+			controllerEnvironment: {},
+		});
+		const repairRequest: ProviderRunRequest = {
+			...feedbackRequest,
+			checkout: {
+				...feedbackRequest.checkout,
+				workflow: resumeWorkflowIdentity.conflictRepair,
+			},
+			purpose: "conflict-repair",
+			branch: "factory/issue-11",
+			initialHeadSha: headSha,
+		};
+
+		const initial = await runner.launch({ request: repairRequest, runtime });
+		if (initial.session === null) {
+			throw new Error("test expected a captured conflict-repair thread");
+		}
+		const resumed = await runner.resume({
+			request: feedbackRequest,
+			runtime,
+			session: {
+				...initial.session,
+				sessionKey: "session-key-repair-to-feedback",
+				executionId: repairRequest.executionId,
+			},
+			workflowIdentity: resumeWorkflowIdentity,
+		});
+
+		expect(resumed).toMatchObject({
+			status: "completed",
+			session: { id: codexThreadId },
+		});
+		expect(commands.requests).toHaveLength(2);
+		expect(commands.requests[1]?.stdin).toContain(profile.workflow.feedback);
 	});
 });
 
@@ -635,7 +798,7 @@ describe("outcome verification, persistence, and circuits", () => {
 		});
 	});
 
-	test("records failed handoffs, captured sessions, attempts, and process metadata in SQLite", async () => {
+	test("records failed handoffs and enforces the profile-owned workflow pair for SQLite resumes", async () => {
 		const directory = mkdtempSync(join(tmpdir(), "agent-factory-provider-test-"));
 		try {
 			const state = createInitialControllerState([]);
@@ -734,6 +897,7 @@ describe("outcome verification, persistence, and circuits", () => {
 				nextState.executions.push({
 					...previous,
 					executionId: "execution-102",
+					workflow: "notes/repair-conflict",
 					status: "active",
 				});
 				await ledger.commit(ledgerSnapshot.revision, nextState);
@@ -757,6 +921,7 @@ describe("outcome verification, persistence, and circuits", () => {
 						reasoningEffort: session.reasoningEffort,
 						runtimeMetadata: captured.runtimeMetadata,
 					},
+					resumeWorkflowIdentity,
 					async () => resumedOutcome,
 				);
 				expect(ledger.readExecutionRecovery("execution-102")).toMatchObject({
@@ -773,6 +938,39 @@ describe("outcome verification, persistence, and circuits", () => {
 				expect(
 					ledger.findCodexSessionForPullRequest(profile.id, 101)?.lastResumedAt,
 				).not.toBeNull();
+
+				const mismatchSnapshot = await ledger.read();
+				const mismatchState = structuredClone(mismatchSnapshot.state);
+				const repairExecution = mismatchState.executions.find(
+					(execution) => execution.executionId === "execution-102",
+				);
+				if (repairExecution === undefined) {
+					throw new Error("test expected the repair execution");
+				}
+				mismatchState.executions.push({
+					...repairExecution,
+					executionId: "execution-103",
+					workflow: "notes/unrelated-workflow",
+					purpose: "conflict-repair",
+				});
+				await ledger.commit(mismatchSnapshot.revision, mismatchState);
+				await expect(
+					recorder.runResume(
+						"execution-103",
+						{
+							sessionKey: session.sessionKey,
+							executionId: session.executionId,
+							provider: "codex",
+							id: session.providerSessionId,
+							model: session.model,
+							reasoningEffort: session.reasoningEffort,
+							runtimeMetadata: captured.runtimeMetadata,
+						},
+						resumeWorkflowIdentity,
+						async () => resumedOutcome,
+					),
+				).rejects.toThrow("resume-session-mismatch");
+				expect(ledger.readExecutionRecovery("execution-103").attempts).toEqual([]);
 			} finally {
 				ledger.close();
 			}
